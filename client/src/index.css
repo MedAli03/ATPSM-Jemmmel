@@ -1,0 +1,31 @@
+@import url("https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@import "tailwindcss";
+
+body {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Cairo", sans-serif;
+  direction: rtl;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer utilities {
+  .dir-rtl {
+    direction: rtl;
+  }
+
+  @keyframes shine {
+    to {
+      transform: translateX(200%);
+    }
+  }
+
+  .animate-shine {
+    animation: shine 2s infinite;
+  }
+}

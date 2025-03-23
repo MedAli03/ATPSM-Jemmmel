@@ -1,0 +1,141 @@
+.about-container {
+  direction: rtl;
+  font-family: "Cairo", sans-serif;
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.Aboutsection-title {
+  color: #2a5a7d;
+  font-size: 2.5rem;
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.content-wrapper {
+  background-color: #f8f9fa;
+  padding: 2rem;
+  border-radius: 15px;
+  margin-bottom: 3rem;
+}
+
+.about-text {
+  font-size: 1.1rem;
+  line-height: 1.8;
+  color: #444;
+  margin-bottom: 1.5rem;
+}
+
+.more-about-section {
+  margin-top: 3rem;
+}
+
+.section-subtitle {
+  color: #2a5a7d;
+  font-size: 2rem;
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.cards-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  padding: 1rem;
+}
+
+.info-card {
+  background-color: #fff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+}
+
+.info-card:hover {
+  transform: translateY(-5px);
+}
+
+.card-title {
+  color: #2a5a7d;
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid #eee;
+  padding-bottom: 0.5rem;
+}
+
+.card-list {
+  list-style: none;
+  padding: 0;
+}
+
+.card-list li {
+  padding: 0.8rem 0;
+  border-bottom: 1px solid #eee;
+  font-size: 1rem;
+  color: #666;
+}
+
+.card-list li:last-child {
+  border-bottom: none;
+}
+.modern-button-rtl {
+  background-color: #2a5a7d; /* Primary color */
+  color: white;
+  padding: 1rem 2rem;
+  border: none;
+  border-radius: 30px; /* Rounded corners */
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem; /* Space between icon and text */
+  direction: rtl; /* RTL support */
+}
+
+/* Hover effect */
+.modern-button-rtl:hover {
+  background-color: #1d3d5a; /* Darker shade */
+  transform: translateY(-2px); /* Slight lift */
+  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15); /* Enhanced shadow */
+}
+
+/* Active/click effect */
+.modern-button-rtl:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Optional: Add an icon */
+.modern-button-rtl::after {
+  content: "←"; /* Arrow icon (RTL-friendly) */
+  font-size: 1.2rem;
+  transition: transform 0.3s ease;
+}
+
+/* Icon animation on hover */
+.modern-button-rtl:hover::after {
+  transform: translateX(-5px); /* Move icon slightly to the left */
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .modern-button-rtl {
+    padding: 0.8rem 1.5rem;
+    font-size: 1rem;
+  }
+}
+@media (max-width: 768px) {
+  .cards-container {
+    grid-template-columns: 1fr;
+  }
+
+
+}

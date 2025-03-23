@@ -1,0 +1,241 @@
+/* Hero.css */
+.hero-section {
+  direction: rtl;
+  font-family: "Cairo", sans-serif;
+  position: relative;
+  overflow: hidden;
+  height: 100vh;
+}
+
+.hero-slide {
+  height: 100vh;
+  position: relative;
+}
+
+.slide-background {
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  transform: translateZ(0);
+}
+
+.pattern-overlay {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  opacity: 0.1;
+  background-size: 35%;
+  background-position: left center;
+  mix-blend-mode: soft-light;
+}
+
+.slide-content {
+  position: absolute;
+  top: 50%;
+  right: 10%;
+  transform: translateY(-50%);
+  color: white;
+  max-width: 600px;
+  padding: 2rem;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.slide-title {
+  font-size: 2.8rem;
+  margin-bottom: 1rem;
+  line-height: 1.3;
+  position: relative;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.slide-title span {
+  background: linear-gradient(45deg, #ffffff, #e6f7ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.slide-subtitle {
+  font-size: 1.4rem;
+  margin-bottom: 2rem;
+  opacity: 0.9;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.cta-container {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.cta-button {
+  background: rgba(42, 90, 125, 0.9);
+  color: white;
+  padding: 1rem 2rem;
+  border: none;
+  border-radius: 30px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.1rem;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(5px);
+}
+
+.cta-button.secondary {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.cta-button:hover {
+  background: rgba(29, 61, 90, 0.9);
+  transform: translateY(-3px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.button-icon {
+  font-size: 1.2rem;
+  transition: transform 0.3s ease;
+}
+
+.cta-button:hover .button-icon {
+  transform: translateX(-5px);
+}
+
+/* Social Sidebar */
+.social-sidebar {
+  position: fixed;
+  left: 2rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  z-index: 100;
+}
+
+.social-sidebar a {
+  color: white;
+  font-size: 1.5rem;
+  opacity: 0.7;
+  transition: all 0.3s ease;
+}
+
+.social-sidebar a:hover {
+  opacity: 1;
+  transform: translateX(5px);
+}
+
+/* Custom Arrows */
+.slider-arrow {
+  position: absolute;
+  top: 90%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.329);
+  border: none;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  color: rgb(255, 255, 255);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 100;
+  backdrop-filter: blur(5px);
+}
+
+.slider-arrow.prev {
+  right: 4rem;
+}
+
+.slider-arrow.next {
+  left: 4rem;
+}
+
+.slider-arrow:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-50%) scale(1.1);
+}
+
+/* Scroll Indicator */
+.scroll-indicator {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.mouse {
+  width: 25px;
+  height: 40px;
+  border: 2px solid white;
+  border-radius: 15px;
+  position: relative;
+}
+
+.mouse::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 3px;
+  height: 8px;
+  background: white;
+  animation: scroll 2s infinite;
+}
+
+@keyframes scroll {
+  0% {
+    top: 5px;
+    opacity: 1;
+  }
+  50% {
+    top: 15px;
+    opacity: 0.5;
+  }
+  100% {
+    top: 5px;
+    opacity: 1;
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .slide-content {
+    right: 5%;
+    left: 5%;
+    max-width: none;
+    backdrop-filter: none;
+    background: rgba(0, 0, 0, 0.5);
+  }
+
+  .slide-title {
+    font-size: 2rem;
+  }
+
+  .slide-subtitle {
+    font-size: 1.1rem;
+  }
+
+  .cta-container {
+    flex-direction: column;
+  }
+
+  .social-sidebar {
+    left: 1rem;
+    gap: 1rem;
+  }
+
+  .slider-arrow {
+    width: 40px;
+    height: 40px;
+  }
+}
