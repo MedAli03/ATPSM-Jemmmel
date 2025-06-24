@@ -113,13 +113,14 @@ const Contact = () => {
       </div>
 
       {/* Map Section */}
-      <div className="map-section">
-        <iframe 
-          title="office-location"
-          src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3622.650442502127!2d46.67291131500188!3d24.77406258409224!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3e2ee3e5c95dbf5d%3A0xc4d8a83a1993d065!2sKing%20Abdulaziz%20Rd%2C%20Riyadh%2012345!5e0!3m2!1sen!2ssa!4v1659023456789!5m2!1sen!2ssa"
-          allowFullScreen
+      <div className="max-w-5xl mx-auto mt-8 bg-white shadow-lg rounded-xl p-6">
+        <h2 className="text-xl font-bold text-gray-800 mb-4">موقع الجمعية</h2>
+        <iframe
+          className="w-full h-64 rounded-lg"
+          src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d1644.9784642295117!2d10.760607824637864!3d35.615385065890756!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x13020f849bdd6ebf%3A0xd864a3f1a3a38882!2zSlE4Nis4Q0osINi32LHZitmCINin2YTYqtmK2KfZitix2KksIEplbW1lbA!5e1!3m2!1sfr!2stn!4v1742081263237!5m2!1sfr!2stn"
+          allowFullScreen=""
           loading="lazy"
-        />
+        ></iframe>
       </div>
     </div>
   );

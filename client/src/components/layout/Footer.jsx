@@ -1,13 +1,18 @@
-import React from "react";
 import "./Footer.css";
-import { FaSnapchatGhost, FaYoutube, FaInstagram, FaTwitter, FaFacebookF } from "react-icons/fa";
+import {
+  FaSnapchatGhost,
+  FaYoutube,
+  FaInstagram,
+  FaTwitter,
+  FaFacebookF,
+} from "react-icons/fa";
 
 const Footer = () => {
   return (
     <footer className="footer">
       <div className="footer-container">
         <div className="footer-section logo">
-          <h2>جمعية أسر التوحد</h2>
+          <h2>جمعية الحمائم للنهوض بالصحة النفسية </h2>
           <div className="social-icons">
             <FaSnapchatGhost />
             <FaYoutube />
@@ -20,10 +25,8 @@ const Footer = () => {
         <div className="footer-section">
           <h3>عن الجمعية</h3>
           <ul>
-            <li>رسالة من الرئيس</li>
             <li>أعضاء مجلس الإدارة</li>
-            <li>لجنة الشرف</li>
-            <li>الكالوج الرقمي</li>
+            <li> تاريخ التأسيس</li>
           </ul>
         </div>
 
@@ -43,7 +46,6 @@ const Footer = () => {
           <ul>
             <li>البرامج والمشاريع</li>
             <li>الأخبار والفعاليات</li>
-            <li>المنصة الرقمية</li>
             <li>إصدارات الجمعية</li>
             <li>تحميل الوثائق</li>
           </ul>
@@ -59,7 +61,7 @@ const Footer = () => {
       </div>
 
       <div className="footer-bottom">
-        <p>© 2024 جمعية أسر التوحد. جميع الحقوق محفوظة.</p>
+        <p>© 2025 جمعية الحمائم للنهوض بالصحة النفسية. جميع الحقوق محفوظة.</p>
       </div>
     </footer>
   );
