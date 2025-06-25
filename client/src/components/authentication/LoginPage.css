@@ -1,0 +1,33 @@
+/* src/components/LoginPage.css */
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap');
+
+.login-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1a365d 0%, #153e75 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  font-family: 'Tajawal', Arial, sans-serif;
+  direction: rtl;
+}
+
+.MuiFormLabel-root {
+  right: 0 !important;
+  left: auto !important;
+  transform-origin: top right !important;
+}
+
+.MuiInputLabel-outlined.MuiInputLabel-shrink {
+  transform: translate(-14px, -6px) scale(0.75) !important;
+}
+
+@media (max-width: 768px) {
+  .welcome-section {
+    padding: 20px !important;
+  }
+  
+  .login-form {
+    padding: 20px !important;
+  }
+}

@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { FiMenu, FiX, FiChevronDown } from "react-icons/fi";
 import "./NavBar.css";
 
-const NavBar = () => {
+const Navbar = () => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -109,4 +109,4 @@ const NavBar = () => {
   );
 };
 
-export default NavBar;
+export default Navbar;
