@@ -1,4 +1,3 @@
-// src/routes/routeConfig.js
 import { lazy } from "react";
 import ForgetPwd from "../components/authentication/ForgetPwd";
 
@@ -12,8 +11,12 @@ const FAQPage = lazy(() => import("../pages/FAQPage"));
 const NewsPage = lazy(() => import("../pages/NewsPage"));
 const MoreAboutNewsPage = lazy(() => import("../pages/MoreAboutNewsPage"));
 const LoginPage = lazy(() => import("../components/authentication/LoginPage"));
-// const Dashboard = lazy(() => import('../components/dashboard/Dashboard'));
 const PageNotFound = lazy(() => import("../pages/PageNotFound"));
+const DashboardLayout = lazy(() => import("../components/dashboard/DashboardLayout"));
+const DashboardHome = lazy(() => import("../pages/dashboard/DashboardHome"));
+// const DashboardUsers = lazy(() => import("../pages/dashboard/DashboardUsers"));
+// const DashboardReports = lazy(() => import("../pages/dashboard/DashboardReports"));
+// const DashboardSettings = lazy(() => import("../pages/dashboard/DashboardSettings"));
 
 // Public routes - accessible to everyone
 const publicRoutes = [
@@ -35,7 +38,18 @@ const publicRoutes = [
 
 // Protected routes - require authentication
 const protectedRoutes = [
-  //   { path: '/dashboard', element: Dashboard, title: 'Dashboard', role: 'admin' },
+  {
+    path: "/dashboard",
+    element: DashboardLayout,
+    title: "Dashboard",
+    role: "admin",
+    children: [
+      { path: "", element: DashboardHome, title: "Dashboard Home" },
+      // { path: "users", element: DashboardUsers, title: "Users" },
+      // { path: "reports", element: DashboardReports, title: "Reports" },
+      // { path: "settings", element: DashboardSettings, title: "Settings" },
+    ]
+  },
 ];
 
 export { publicRoutes, protectedRoutes };

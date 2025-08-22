@@ -1,5 +1,5 @@
 // src/context/AuthContext.jsx
-import { createContext, useState, useContext, useEffect } from "react";
+import { createContext, useState, useEffect, useContext } from 'react';
 
 const AuthContext = createContext();
 
@@ -11,33 +11,33 @@ export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check for existing session on app load
   useEffect(() => {
-    const userData = localStorage.getItem("user");
-    if (userData) {
-      setCurrentUser(JSON.parse(userData));
+    // Check if user is authenticated on initial load
+    const user = localStorage.getItem('user');
+    if (user) {
+      setCurrentUser(JSON.parse(user));
     }
     setIsLoading(false);
   }, []);
 
-  // Login function
   const login = (userData) => {
     setCurrentUser(userData);
-    localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem('user', JSON.stringify(userData));
   };
 
-  // Logout function
   const logout = () => {
     setCurrentUser(null);
-    localStorage.removeItem("user");
+    localStorage.removeItem('user');
   };
 
-  const value = {
-    currentUser,
-    isLoading,
-    login,
-    logout,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{
+      currentUser,
+      isLoading,
+      login,
+      logout
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }

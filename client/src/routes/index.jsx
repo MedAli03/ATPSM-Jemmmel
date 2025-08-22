@@ -10,9 +10,8 @@ const AppRoutes = () => {
   return (
     <Suspense fallback={<LoadingSpinner />}>
       <Routes>
-        {/* Layout wrapper for all routes */}
+        {/* Public routes with main layout */}
         <Route element={<Layout />}>
-          {/* Public routes */}
           {publicRoutes.map((route) => (
             <Route 
               key={route.path}
@@ -20,21 +19,32 @@ const AppRoutes = () => {
               element={<route.element />}
             />
           ))}
-          
-          {/* Protected routes */}
-          {protectedRoutes.map((route) => (
-            <Route
-              key={route.path}
-              path={route.path}
-              element={
-                <ProtectedRoute requiredRole={route.role}>
-                  <route.element />
-                </ProtectedRoute>
-              }
-            />
-          ))}
-          
-          {/* 404 Page Not Found */}
+        </Route>
+        
+        {/* Protected routes without main layout */}
+        {protectedRoutes.map((route) => (
+          <Route
+            key={route.path}
+            path={route.path}
+            element={
+              <ProtectedRoute requiredRole={route.role}>
+                <route.element />
+              </ProtectedRoute>
+            }
+          >
+            {/* Handle nested routes for dashboard */}
+            {route.children?.map((child) => (
+              <Route 
+                key={child.path}
+                path={child.path}
+                element={<child.element />}
+              />
+            ))}
+          </Route>
+        ))}
+        
+        {/* 404 Page Not Found with main layout */}
+        <Route element={<Layout />}>
           <Route path="*" element={<PageNotFound />} />
         </Route>
       </Routes>

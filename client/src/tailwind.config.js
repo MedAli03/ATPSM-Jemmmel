@@ -3,6 +3,9 @@ export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
+       fontFamily: {
+        sans: ['Tajawal', 'sans-serif'],
+      },
       keyframes: {
         'fade-in-up': {
           '0%': {
@@ -17,7 +20,8 @@ export default {
       },
       animation: {
         'fade-in-up': 'fade-in-up 1.5s ease-in-out'
-      }
+      },
+      
     }
   }
 };

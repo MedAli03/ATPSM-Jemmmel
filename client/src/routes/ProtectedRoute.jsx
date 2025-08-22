@@ -1,12 +1,12 @@
 // src/routes/ProtectedRoute.jsx
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext'; // You'll need to create this
+import { Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const ProtectedRoute = ({ children, requiredRole }) => {
   const { currentUser, isLoading } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
-    // Show loading indicator while checking auth status
     return (
       <div className="flex justify-center items-center h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -15,8 +15,8 @@ const ProtectedRoute = ({ children, requiredRole }) => {
   }
 
   if (!currentUser) {
-    // Redirect to login if not authenticated
-    return <Navigate to="/login" replace />;
+    // Redirect to login with return location
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   if (requiredRole && currentUser.role !== requiredRole) {
