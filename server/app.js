@@ -1,25 +1,29 @@
-// app.js
-const express = require('express');
-const mysql = require('mysql2');
-// const authRoutes = require('./routes/authRoutes');
-// const childRoutes = require('./routes/childRoutes');
+const express = require("express");
+const cors = require("cors");
+require("dotenv").config();
+
+const db = require("./models"); // loads and associates everything
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
-// Database connection
-const pool = mysql.createPool({
-  host: 'localhost',
-  user: 'root',
-  password: 'password',
-  database: 'autism_platform',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-});
+app.get("/", (_, res) => res.send("API OK (chemin rapide)"));
 
-// Routes
-// app.use('/api/auth', authRoutes);
-// app.use('/api/children', childRoutes);
+const PORT = process.env.PORT || 5000;
 
-app.listen(3000, () => console.log('Server running on port 3000'));
+(async () => {
+  try {
+    await db.sequelize.authenticate();
+    console.log("DB connected.");
+
+    // FAST PATH (dev only): create/alter tables automatically
+    await db.sequelize.sync({ alter: true });
+    console.log("Schema synced (alter).");
+
+    app.listen(PORT, () => console.log(`→ http://localhost:${PORT}`));
+  } catch (e) {
+    console.error("Startup error:", e.message);
+    process.exit(1);
+  }
+})();
