@@ -1,10 +1,18 @@
-"use strict";
-module.exports = (sequelize, DataTypes) => {
-  return sequelize.define("Notification", {
-    userId: { type: DataTypes.INTEGER, allowNull: false },
-    type: { type: DataTypes.STRING }, // reminder|message|event|alert...
-    title: DataTypes.STRING,
-    body: DataTypes.TEXT,
-    readAt: DataTypes.DATE,
-  });
-};
+const { DataTypes } = require("sequelize");
+module.exports = (sequelize) =>
+  sequelize.define(
+    "Notification",
+    {
+      id: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        autoIncrement: true,
+        primaryKey: true,
+      },
+      utilisateur_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+      type: DataTypes.STRING(50),
+      titre: DataTypes.STRING(200),
+      corps: DataTypes.TEXT,
+      lu_le: DataTypes.DATE,
+    },
+    { tableName: "notifications", underscored: true, timestamps: true }
+  );

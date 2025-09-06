@@ -1,9 +1,17 @@
-'use strict';
-module.exports = (sequelize, DataTypes) => {
-  return sequelize.define('Message', {
-    threadId: { type: DataTypes.INTEGER, allowNull: false },
-    senderId: { type: DataTypes.INTEGER, allowNull: false },
-    text: { type: DataTypes.TEXT, allowNull: false },
-    attachments: { type: DataTypes.JSON } // array of {url,name,type}
-  });
-};
+const { DataTypes } = require("sequelize");
+module.exports = (sequelize) =>
+  sequelize.define(
+    "Message",
+    {
+      id: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        autoIncrement: true,
+        primaryKey: true,
+      },
+      thread_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+      expediteur_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+      texte: { type: DataTypes.TEXT, allowNull: false },
+      pieces_jointes: DataTypes.JSON,
+    },
+    { tableName: "messages", underscored: true, timestamps: true }
+  );
