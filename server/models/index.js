@@ -1,41 +1,91 @@
+// models/index.js
 "use strict";
+
+const path = require("path");
 const { Sequelize, DataTypes } = require("sequelize");
 require("dotenv").config();
 
+/**
+ * ---- Connection ----
+ * Required env:
+ *  DB_HOST, DB_PORT, DB_USER, DB_PASS, DB_NAME
+ * Optional:
+ *  SEQ_LOG_SQL=1 (enable SQL logs)
+ *  SEQ_LOG_CONNECT=1 (print successful connect)
+ *  SEQ_DEBUG_MODELS=1 (print loaded models)
+ */
 const sequelize = new Sequelize(
   process.env.DB_NAME,
   process.env.DB_USER,
-  process.env.DB_PASS,
-  { host: process.env.DB_HOST, dialect: "mysql", logging: false }
+  process.env.DB_PASS || "",
+  {
+    host: process.env.DB_HOST,
+    port: Number(process.env.DB_PORT || 3306),
+    dialect: "mysql",
+    logging: process.env.SEQ_LOG_SQL === "1" ? console.log : false,
+    define: {
+      // expect created_at / updated_at everywhere
+      underscored: true,
+      // don't pluralize table names
+      freezeTableName: true,
+      // ensure timestamps columns exist
+      timestamps: true,
+    },
+    timezone: "+00:00",
+    dialectOptions: {
+      dateStrings: true,
+      typeCast: true,
+    },
+    pool: {
+      max: Number(process.env.SEQ_POOL_MAX || 10),
+      min: Number(process.env.SEQ_POOL_MIN || 0),
+      acquire: Number(process.env.SEQ_POOL_ACQUIRE || 30000),
+      idle: Number(process.env.SEQ_POOL_IDLE || 10000),
+    },
+  }
 );
 
-// Import models
-const Utilisateur = require("./utilisateur")(sequelize);
-const Enfant = require("./enfant")(sequelize);
-const FicheEnfant = require("./fiche_enfant")(sequelize);
-const ParentsFiche = require("./parents_fiche")(sequelize);
-const AnneeScolaire = require("./annee_scolaire")(sequelize);
-const Groupe = require("./group")(sequelize);
-const InscriptionEnfant = require("./inscription_enfant")(sequelize);
-const AffectationEducateur = require("./affectation_educateur")(sequelize);
-const ObservationInitiale = require("./observation_initiale")(sequelize);
-const PEI = require("./projet_educatif_individuel")(sequelize);
-const ActiviteProjet = require("./activite_projet")(sequelize);
-const DailyNote = require("./daily_note")(sequelize);
-const EvaluationProjet = require("./evaluation_projet")(sequelize);
-const RecoAI = require("./recommendation_ai")(sequelize);
-const RecoAIObjectif = require("./recommendation_ai_objectif")(sequelize);
-const RecoAIActivite = require("./recommendation_ai_activite")(sequelize);
-const HistoriqueProjet = require("./historique_projet")(sequelize);
-const Document = require("./document")(sequelize);
-const Reglement = require("./reglement")(sequelize);
-const Evenement = require("./evenement")(sequelize);
-const Actualite = require("./actualite")(sequelize);
-const Thread = require("./thread")(sequelize);
-const Message = require("./message")(sequelize);
-const Notification = require("./notification")(sequelize);
+// ---- Load model factories (each should export (sequelize, DataTypes) => Model) ----
+const Utilisateur = require("./utilisateur")(sequelize, DataTypes);
+const Enfant = require("./enfant")(sequelize, DataTypes);
+const FicheEnfant = require("./fiche_enfant")(sequelize, DataTypes);
+const ParentsFiche = require("./parents_fiche")(sequelize, DataTypes);
+const AnneeScolaire = require("./annee_scolaire")(sequelize, DataTypes);
+const Groupe = require("./group")(sequelize, DataTypes);
+const InscriptionEnfant = require("./inscription_enfant")(sequelize, DataTypes);
+const AffectationEducateur = require("./affectation_educateur")(
+  sequelize,
+  DataTypes
+);
+const ObservationInitiale = require("./observation_initiale")(
+  sequelize,
+  DataTypes
+);
+const PEI = require("./projet_educatif_individuel")(sequelize, DataTypes);
+const ActiviteProjet = require("./activite_projet")(sequelize, DataTypes);
+const DailyNote = require("./daily_note")(sequelize, DataTypes);
+const EvaluationProjet = require("./evaluation_projet")(sequelize, DataTypes);
+const RecoAI = require("./recommendation_ai")(sequelize, DataTypes);
+const RecoAIObjectif = require("./recommendation_ai_objectif")(
+  sequelize,
+  DataTypes
+);
+const RecoAIActivite = require("./recommendation_ai_activite")(
+  sequelize,
+  DataTypes
+);
+const HistoriqueProjet = require("./historique_projet")(sequelize, DataTypes);
+const Document = require("./document")(sequelize, DataTypes);
+const Reglement = require("./reglement")(sequelize, DataTypes);
+const Evenement = require("./evenement")(sequelize, DataTypes);
+const Actualite = require("./actualite")(sequelize, DataTypes);
+const Thread = require("./thread")(sequelize, DataTypes);
+const Message = require("./message")(sequelize, DataTypes);
+const Notification = require("./notification")(sequelize, DataTypes);
 
-/* -------------------- ASSOCIATIONS -------------------- */
+/* -------------------------------------------------------------------------- */
+/*                             ASSOCIATIONS INLINE                            */
+/* -------------------------------------------------------------------------- */
 
 // Utilisateur (parent) -> enfants
 Utilisateur.hasMany(Enfant, { as: "enfants", foreignKey: "parent_user_id" });
@@ -53,7 +103,7 @@ ParentsFiche.belongsTo(Enfant, { as: "enfant", foreignKey: "enfant_id" });
 AnneeScolaire.hasMany(Groupe, { as: "groupes", foreignKey: "annee_id" });
 Groupe.belongsTo(AnneeScolaire, { as: "annee", foreignKey: "annee_id" });
 
-// Utilisateur (manager) -> Groupes
+// Utilisateur (manager) -> Groupes (si votre modèle 'group' a manager_id)
 Utilisateur.hasMany(Groupe, { as: "groupes_crees", foreignKey: "manager_id" });
 Groupe.belongsTo(Utilisateur, { as: "manager", foreignKey: "manager_id" });
 
@@ -79,7 +129,7 @@ InscriptionEnfant.belongsTo(AnneeScolaire, {
   foreignKey: "annee_id",
 });
 
-// Affectations (groupe<->educateur/année) – 1 groupe = 1 éducateur / an
+// Affectations (groupe<->educateur/année)
 Groupe.hasMany(AffectationEducateur, {
   as: "affectations",
   foreignKey: "groupe_id",
@@ -159,7 +209,7 @@ EvaluationProjet.belongsTo(Utilisateur, {
 });
 PEI.hasMany(EvaluationProjet, { as: "evaluations", foreignKey: "projet_id" });
 
-// Reco IA
+// Recommandation IA
 RecoAI.belongsTo(Enfant, { as: "enfant", foreignKey: "enfant_id" });
 RecoAI.belongsTo(Utilisateur, { as: "educateur", foreignKey: "educateur_id" });
 RecoAI.belongsTo(EvaluationProjet, {
@@ -247,9 +297,14 @@ Utilisateur.hasMany(Notification, {
   foreignKey: "utilisateur_id",
 });
 
-module.exports = {
+/* -------------------------------------------------------------------------- */
+/*                                   EXPORTS                                   */
+/* -------------------------------------------------------------------------- */
+
+const db = {
   sequelize,
   Sequelize,
+
   Utilisateur,
   Enfant,
   FicheEnfant,
@@ -275,3 +330,30 @@ module.exports = {
   Message,
   Notification,
 };
+
+// Optional: print loaded models once (helps debug name mismatches)
+if (process.env.SEQ_DEBUG_MODELS === "1") {
+  // eslint-disable-next-line no-console
+  console.log(
+    "Loaded models:",
+    Object.keys(db)
+      .filter((k) => !["sequelize", "Sequelize"].includes(k))
+      .sort()
+  );
+}
+
+// Optional: test connection once at boot
+(async () => {
+  try {
+    await sequelize.authenticate();
+    if (process.env.SEQ_LOG_CONNECT === "1") {
+      // eslint-disable-next-line no-console
+      console.log("✅ DB connection OK");
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("❌ DB connection error:", err.message);
+  }
+})();
+
+module.exports = db;

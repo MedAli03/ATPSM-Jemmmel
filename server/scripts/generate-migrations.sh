@@ -31,7 +31,7 @@ module.exports = {
       email: { type: Sequelize.STRING(150), allowNull: false, unique: true },
       mot_de_passe: { type: Sequelize.STRING(255), allowNull: false },
       telephone: { type: Sequelize.STRING(50) },
-      role: { type: Sequelize.ENUM('PRESIDENT',DIRECTEUR','EDUCATEUR','PARENT'), allowNull: false },
+      role: { type: Sequelize.ENUM('PRESIDENT','DIRECTEUR','EDUCATEUR','PARENT'), allowNull: false },
       is_active: { type: Sequelize.BOOLEAN, defaultValue: true },
       avatar_url: { type: Sequelize.STRING(255) },
       created_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.NOW },
