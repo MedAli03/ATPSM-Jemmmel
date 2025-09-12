@@ -1,4 +1,4 @@
-// src/server.js
+"use strict";
 require("dotenv").config();
 
 const http = require("http");
@@ -15,7 +15,7 @@ const server = http.createServer(app);
     console.log("✅ Database connection established.");
   } catch (err) {
     console.error("❌ Database connection failed:", err.message);
-    // Optional: exit if DB is mandatory to start
+    // If DB is mandatory to start, uncomment:
     // process.exit(1);
   }
 })();

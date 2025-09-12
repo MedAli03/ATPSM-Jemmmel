@@ -304,7 +304,6 @@ Utilisateur.hasMany(Notification, {
 const db = {
   sequelize,
   Sequelize,
-
   Utilisateur,
   Enfant,
   FicheEnfant,
