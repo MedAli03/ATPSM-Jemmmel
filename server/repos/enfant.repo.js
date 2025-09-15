@@ -1,49 +1,73 @@
-const { Enfant, FicheEnfant, ParentsFiche, Utilisateur } = require("../models");
+"use strict";
 
-exports.findAll = async ({ page = 1, pageSize = 20 } = {}) => {
-  const offset = (page - 1) * pageSize;
-  const { rows, count } = await Enfant.findAndCountAll({
-    include: [
-      { model: FicheEnfant, as: "fiche" },
-      { model: ParentsFiche, as: "parents" },
-      {
-        model: Utilisateur,
-        as: "parent",
-        attributes: ["id", "nom", "prenom", "email"],
-      },
-    ],
-    order: [["created_at", "DESC"]],
-    limit: pageSize,
-    offset,
-  });
-  return { rows, count };
-};
+const { Enfant, Utilisateur } = require("../models");
+const { Op } = require("sequelize");
 
-exports.create = (payload) => Enfant.create(payload);
+exports.create = (attrs, t = null) =>
+  Enfant.create(attrs, { transaction: t });
 
-exports.findById = (id) =>
+exports.findById = (id, t = null) =>
   Enfant.findByPk(id, {
     include: [
-      { model: FicheEnfant, as: "fiche" },
-      { model: ParentsFiche, as: "parents" },
-      {
-        model: Utilisateur,
-        as: "parent",
-        attributes: ["id", "nom", "prenom", "email"],
-      },
+      { model: Utilisateur, as: "parent", attributes: ["id", "nom", "prenom", "email", "telephone"] },
     ],
+    transaction: t,
   });
 
-exports.updateById = async (id, data) => {
-  const enfant = await Enfant.findByPk(id);
-  if (!enfant) return null;
-  await enfant.update(data);
-  return enfant;
+exports.findAll = async (filters = {}, pagination = {}, t = null) => {
+  const where = {};
+  if (filters.q) {
+    where[Op.or] = [
+      { nom: { [Op.like]: `%${filters.q}%` } },
+      { prenom: { [Op.like]: `%${filters.q}%` } },
+    ];
+  }
+  const page = pagination.page || 1;
+  const limit = pagination.limit || 20;
+  const offset = (page - 1) * limit;
+
+  const { rows, count } = await Enfant.findAndCountAll({
+    where,
+    include: [
+      { model: Utilisateur, as: "parent", attributes: ["id", "nom", "prenom", "email", "telephone"] },
+    ],
+    order: [["created_at", "DESC"]],
+    limit,
+    offset,
+    transaction: t,
+  });
+
+  return { rows, count, page, limit };
 };
 
-exports.deleteById = async (id) => {
-  const enfant = await Enfant.findByPk(id);
-  if (!enfant) return 0;
-  await enfant.destroy();
-  return 1;
+exports.updateById = async (id, attrs, t = null) => {
+  const [n] = await Enfant.update(attrs, { where: { id }, transaction: t });
+  return n;
+};
+
+exports.deleteById = (id, t = null) =>
+  Enfant.destroy({ where: { id }, transaction: t });
+
+exports.linkParent = async (id, parent_user_id, t = null) => {
+  const [n] = await Enfant.update({ parent_user_id }, { where: { id }, transaction: t });
+  return n;
+};
+
+exports.unlinkParent = async (id, t = null) => {
+  const [n] = await Enfant.update({ parent_user_id: null }, { where: { id }, transaction: t });
+  return n;
+};
+
+exports.findByParent = (parentId, pagination = {}, t = null) => {
+  const page = pagination.page || 1;
+  const limit = pagination.limit || 20;
+  const offset = (page - 1) * limit;
+
+  return Enfant.findAndCountAll({
+    where: { parent_user_id: parentId },
+    order: [["created_at", "DESC"]],
+    limit,
+    offset,
+    transaction: t,
+  });
 };

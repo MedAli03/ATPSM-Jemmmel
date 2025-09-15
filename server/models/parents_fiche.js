@@ -1,46 +1,64 @@
-const { DataTypes } = require("sequelize");
-module.exports = (sequelize) =>
-  sequelize.define(
-    "ParentsFiche",
+"use strict";
+
+module.exports = (sequelize, DataTypes) => {
+  const ParentsFiche = sequelize.define(
+    "parents_fiche",
     {
       id: {
         type: DataTypes.INTEGER.UNSIGNED,
-        autoIncrement: true,
         primaryKey: true,
+        autoIncrement: true,
       },
       enfant_id: {
         type: DataTypes.INTEGER.UNSIGNED,
         allowNull: false,
         unique: true,
       },
-      // pere_user_id: DataTypes.INTEGER.UNSIGNED,
-      pere_nom: DataTypes.STRING(100),
-      pere_prenom: DataTypes.STRING(100),
-      pere_naissance_date: DataTypes.DATEONLY,
-      pere_naissance_lieu: DataTypes.STRING(150),
-      pere_origine: DataTypes.STRING(150),
-      pere_cin_numero: DataTypes.STRING(50),
-      pere_cin_delivree_a: DataTypes.STRING(150),
-      pere_adresse: DataTypes.STRING(255),
-      pere_profession: DataTypes.STRING(120),
-      pere_couverture_sociale: DataTypes.STRING(255),
-      pere_tel_domicile: DataTypes.STRING(50),
-      pere_tel_travail: DataTypes.STRING(50),
-      pere_tel_portable: DataTypes.STRING(50),
-      // mere_user_id: DataTypes.INTEGER.UNSIGNED,
-      mere_nom: DataTypes.STRING(100),
-      mere_prenom: DataTypes.STRING(100),
-      mere_naissance_date: DataTypes.DATEONLY,
-      mere_naissance_lieu: DataTypes.STRING(150),
-      mere_origine: DataTypes.STRING(150),
-      mere_cin_numero: DataTypes.STRING(50),
-      mere_cin_delivree_a: DataTypes.STRING(150),
-      mere_adresse: DataTypes.STRING(255),
-      mere_profession: DataTypes.STRING(120),
-      mere_couverture_sociale: DataTypes.STRING(255),
-      mere_tel_domicile: DataTypes.STRING(50),
-      mere_tel_travail: DataTypes.STRING(50),
-      mere_tel_portable: DataTypes.STRING(50),
+
+      // Père
+      pere_nom: { type: DataTypes.STRING, allowNull: true },
+      pere_prenom: { type: DataTypes.STRING, allowNull: true },
+      pere_naissance_date: { type: DataTypes.DATEONLY, allowNull: true },
+      pere_naissance_lieu: { type: DataTypes.STRING, allowNull: true },
+      pere_origine: { type: DataTypes.STRING, allowNull: true },
+      pere_cin_numero: { type: DataTypes.STRING, allowNull: true },
+      pere_cin_delivree_a: { type: DataTypes.STRING, allowNull: true },
+      pere_adresse: { type: DataTypes.STRING, allowNull: true },
+      pere_profession: { type: DataTypes.STRING, allowNull: true },
+      pere_couverture_sociale: { type: DataTypes.STRING, allowNull: true },
+      pere_tel_domicile: { type: DataTypes.STRING, allowNull: true },
+      pere_tel_travail: { type: DataTypes.STRING, allowNull: true },
+      pere_tel_portable: { type: DataTypes.STRING, allowNull: true },
+
+      // Mère
+      mere_nom: { type: DataTypes.STRING, allowNull: true },
+      mere_prenom: { type: DataTypes.STRING, allowNull: true },
+      mere_naissance_date: { type: DataTypes.DATEONLY, allowNull: true },
+      mere_naissance_lieu: { type: DataTypes.STRING, allowNull: true },
+      mere_origine: { type: DataTypes.STRING, allowNull: true },
+      mere_cin_numero: { type: DataTypes.STRING, allowNull: true },
+      mere_cin_delivree_a: { type: DataTypes.STRING, allowNull: true },
+      mere_adresse: { type: DataTypes.STRING, allowNull: true },
+      mere_profession: { type: DataTypes.STRING, allowNull: true },
+      mere_couverture_sociale: { type: DataTypes.STRING, allowNull: true },
+      mere_tel_domicile: { type: DataTypes.STRING, allowNull: true },
+      mere_tel_travail: { type: DataTypes.STRING, allowNull: true },
+      mere_tel_portable: { type: DataTypes.STRING, allowNull: true },
+
+      created_at: { type: DataTypes.DATE, allowNull: true },
+      updated_at: { type: DataTypes.DATE, allowNull: true },
     },
-    { tableName: "parents_fiche", underscored: true, timestamps: true }
+    {
+      tableName: "parents_fiche",
+      underscored: true,
+      timestamps: true,
+      freezeTableName: true,
+      indexes: [{ fields: ["enfant_id"], unique: true }],
+    }
   );
+
+  // Associations centralisées dans models/index.js
+  // ParentsFiche.belongsTo(models.Enfant, { as: "enfant", foreignKey: "enfant_id" });
+
+  return ParentsFiche;
+};

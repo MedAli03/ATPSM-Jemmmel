@@ -4,7 +4,6 @@ exports.createGroupeSchema = Joi.object({
   annee_id: Joi.number().integer().positive().required(),
   nom: Joi.string().max(120).required(),
   description: Joi.string().allow("", null),
-  manager_id: Joi.number().integer().positive().allow(null),
   statut: Joi.string().valid("actif", "archive").default("actif"),
 });
 

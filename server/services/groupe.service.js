@@ -1,6 +1,7 @@
 const { sequelize } = require("../models");
 const repo = require("../repos/groupe.repo");
 const { Utilisateur } = require("../models");
+const notifier = require("./notifier.service"); // ⬅️ add this
 
 exports.create = async (dto) => {
   // manager_id optionnel; aucune contrainte forte ici
@@ -32,6 +33,10 @@ exports.inscrireEnfants = async (groupe_id, annee_id, enfant_ids) => {
   if (!toInsert.length) return { inserted: 0, skipped: enfant_ids.length };
 
   const inserted = await repo.addInscriptions(toInsert);
+  await notifier.notifyOnChildAssignedToGroup(
+    { enfant_ids, groupe_id, annee_id },
+    t
+  );
   return {
     inserted: inserted.length,
     skipped: enfant_ids.length - inserted.length,

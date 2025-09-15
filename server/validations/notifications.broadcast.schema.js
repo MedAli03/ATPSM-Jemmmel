@@ -8,7 +8,7 @@ const broadcastSchema = Joi.object({
     .valid("ALL", ...ROLES)
     .required(),
   type: Joi.string().max(50).required(),
-  titre: Joi.string().max(200).required(),
+  titre: Joi.string().max(50).required(),
   corps: Joi.string().min(3).required(),
 });
 

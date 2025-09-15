@@ -104,8 +104,8 @@ AnneeScolaire.hasMany(Groupe, { as: "groupes", foreignKey: "annee_id" });
 Groupe.belongsTo(AnneeScolaire, { as: "annee", foreignKey: "annee_id" });
 
 // Utilisateur (manager) -> Groupes (si votre modèle 'group' a manager_id)
-Utilisateur.hasMany(Groupe, { as: "groupes_crees", foreignKey: "manager_id" });
-Groupe.belongsTo(Utilisateur, { as: "manager", foreignKey: "manager_id" });
+// Utilisateur.hasMany(Groupe, { as: "groupes_crees", foreignKey: "manager_id" });
+// Groupe.belongsTo(Utilisateur, { as: "manager", foreignKey: "manager_id" });
 
 // Inscriptions (groupe<->enfant/année)
 Groupe.hasMany(InscriptionEnfant, {

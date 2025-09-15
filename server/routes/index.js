@@ -4,7 +4,7 @@ router.use("/auth", require("./auth.routes")); // /api/auth/*
 router.use("/me", require("../middlewares/auth"), (req, res) =>
   res.json({ you: req.user })
 );
-router.use("/enfants", require("./enfants.routes"));
+
 router.use("/utilisateurs", require("./utilisateurs.routes"));
 
 router.use("/groupes", require("./groupes.routes"));
@@ -23,6 +23,14 @@ router.use("/documents", require("./documents.routes"));
 router.use("/reglements", require("./reglements.routes"));
 router.use("/evenements", require("./evenements.routes"));
 router.use("/actualites", require("./actualites.routes"));
+
 router.use(require("./notifications.broadcast.routes"));
 router.use(require("./notifications.user.routes"));
+
+router.use("/enfants", require("./enfants.routes"));
+router.use(require("./fiche_enfant.routes"));
+router.use(require("./parents_fiche.routes"));
+
+router.use(require("./parents.routes"));
+
 module.exports = router;
