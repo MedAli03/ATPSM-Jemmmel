@@ -3,7 +3,16 @@ module.exports =
   (...roles) =>
   (req, res, next) => {
     if (!req.user) return res.status(401).json({ message: "Non authentifié" });
-    if (!roles.includes(req.user.role))
-      return res.status(403).json({ message: "Accès refusé" });
+
+    const got = String(req.user.role || "").trim().toUpperCase();
+    const allowed = roles.map((r) => String(r).trim().toUpperCase());
+
+    if (!allowed.includes(got)) {
+      return res.status(403).json({
+        message: "Accès refusé",
+        required: allowed,
+        got,
+      });
+    }
     next();
   };

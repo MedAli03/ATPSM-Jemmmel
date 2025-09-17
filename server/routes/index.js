@@ -33,4 +33,8 @@ router.use(require("./parents_fiche.routes"));
 
 router.use(require("./parents.routes"));
 
+router.use(require("./president_dashboard.routes"));
+router.use(require("./directeur_dashboard.routes"));
+
+router.use("/me", require("../middlewares/auth"), require("./me.routes"));
 module.exports = router;

@@ -43,9 +43,6 @@ exports.create = async (payload, currentUser) => {
 
     const act = await repo.create(attrs, t);
 
-    // 🔔 NOTIFICATION: broadcast à tous les rôles internes
-    // (tu peux remplacer "ALL" par "EDUCATEUR" / "DIRECTEUR" selon ton besoin)
-    await notifier.notifyOnNewsPublished(actualite, t);
 
     return act;
   });
