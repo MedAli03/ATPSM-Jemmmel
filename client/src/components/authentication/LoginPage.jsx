@@ -1,17 +1,13 @@
-// src/components/authentication/LoginPage.jsx
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import client from "../../api/client";
 import {
   Container,
   Box,
   Typography,
   TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   FormControlLabel,
   Checkbox,
   Link,
@@ -33,47 +29,25 @@ import {
   AdminPanelSettings,
 } from "@mui/icons-material";
 
-// Custom theme with RTL support - Moved outside component
+// App theme (RTL + Arabic fonts). UI strings can remain Arabic.
 const theme = createTheme({
   direction: "rtl",
   palette: {
-    primary: {
-      main: "#2b6cb0",
-    },
-    secondary: {
-      main: "#1a365d",
-    },
-    background: {
-      default: "#f7fafc",
-    },
+    primary: { main: "#2b6cb0" },
+    secondary: { main: "#1a365d" },
+    background: { default: "#f7fafc" },
   },
-  typography: {
-    fontFamily: "Tajawal, Arial, sans-serif",
-  },
+  typography: { fontFamily: "Tajawal, Arial, sans-serif" },
   components: {
     MuiFormLabel: {
       styleOverrides: {
-        root: {
-          transformOrigin: "top right",
-          right: 0,
-          left: "auto",
-        },
+        root: { transformOrigin: "top right", right: 0, left: "auto" },
       },
     },
-    MuiInputBase: {
-      styleOverrides: {
-        input: {
-          textAlign: "right",
-        },
-      },
-    },
+    MuiInputBase: { styleOverrides: { input: { textAlign: "right" } } },
     MuiButton: {
       styleOverrides: {
-        root: {
-          fontWeight: 600,
-          padding: "12px 24px",
-          fontSize: "1rem",
-        },
+        root: { fontWeight: 600, padding: "12px 24px", fontSize: "1rem" },
       },
     },
     MuiInputLabel: {
@@ -93,55 +67,53 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  // React Hook Form for validation
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm();
 
-  const onSubmit = (data) => {
+  // Handle submit by calling backend POST /api/auth/login
+  const onSubmit = async (form) => {
     setLoading(true);
     setError("");
     setSuccess(false);
 
-    // Simulate API call
-    setTimeout(() => {
-      if (
-        data.username === "admin" &&
-        data.password === "admin123" &&
-        data.role === "admin"
-      ) {
-        setSuccess(true);
-        // Call login function to set the user in context
-        login({
-          id: 1,
-          username: data.username,
-          role: data.role,
-          name: "Admin User",
-        });
-        // Redirect to dashboard
-        navigate("/dashboard");
-      } else if (
-        data.username === "manager" &&
-        data.password === "manager123" &&
-        data.role === "manager"
-      ) {
-        setSuccess(true);
-        login({
-          id: 2,
-          username: data.username,
-          role: data.role,
-          name: "Manager User",
-        });
-        navigate("/dashboard");
-      } else {
-        setError("بيانات الاعتماد غير صحيحة. يرجى المحاولة مرة أخرى.");
-      }
+    try {
+      // Backend expects: { email, mot_de_passe }
+      const { data } = await client.post("/auth/login", {
+        email: form.email,
+        mot_de_passe: form.mot_de_passe,
+      });
+
+      // data: { token, user: { id, nom, prenom, email, role, avatar_url } }
+      login({ token: data.token, user: data.user }, !!form.remember);
+      setSuccess(true);
+
+      // Optional: route by role coming from backend
+      const role = data.user.role;
+      const roleRoute =
+        {
+          PRESIDENT: "/dashboard/",
+          DIRECTEUR: "/dashboard/manager",
+          EDUCATEUR: "/dashboard/educateur",
+          PARENT: "/dashboard/parent",
+        }[role] || "/dashboard";
+
+      navigate(roleRoute, { replace: true });
+    } catch (e) {
+      // Show backend message if exists, otherwise generic Arabic message for UI consistency
+      const msg =
+        e.response?.data?.message || "حدث خطأ غير متوقع. حاول مجدداً.";
+      setError(msg);
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   return (
@@ -170,11 +142,7 @@ const LoginPage = () => {
           >
             {/* Left side - Form */}
             <Box
-              sx={{
-                flex: 1,
-                p: { xs: 3, md: 6 },
-                backgroundColor: "white",
-              }}
+              sx={{ flex: 1, p: { xs: 3, md: 6 }, backgroundColor: "white" }}
             >
               <Box sx={{ textAlign: "center", mb: 4 }}>
                 <Lock sx={{ fontSize: 50, color: "#2b6cb0", mb: 1 }} />
@@ -208,9 +176,11 @@ const LoginPage = () => {
               )}
 
               <form onSubmit={handleSubmit(onSubmit)}>
+                {/* Email (backend expects "email") */}
                 <TextField
                   fullWidth
-                  label="اسم المستخدم"
+                  label="البريد الإلكتروني"
+                  type="email"
                   variant="outlined"
                   margin="normal"
                   InputProps={{
@@ -220,21 +190,18 @@ const LoginPage = () => {
                       </InputAdornment>
                     ),
                   }}
-                  error={!!errors.username}
-                  helperText={errors.username?.message}
-                  {...register("username", {
-                    required: "يرجى إدخال اسم المستخدم",
-                    minLength: {
-                      value: 3,
-                      message: "يجب أن يكون اسم المستخدم 3 أحرف على الأقل",
-                    },
+                  error={!!errors.email}
+                  helperText={errors.email?.message}
+                  {...register("email", {
+                    required: "يرجى إدخال البريد الإلكتروني",
                   })}
                   sx={{ mb: 2 }}
                 />
 
+                {/* Password (backend expects "mot_de_passe") */}
                 <TextField
                   fullWidth
-                  label="كلمة المرور"
+                  label="كلمة السر"
                   type={showPassword ? "text" : "password"}
                   variant="outlined"
                   margin="normal"
@@ -255,48 +222,19 @@ const LoginPage = () => {
                       </InputAdornment>
                     ),
                   }}
-                  error={!!errors.password}
-                  helperText={errors.password?.message}
-                  {...register("password", {
-                    required: "يرجى إدخال كلمة المرور",
+                  error={!!errors.mot_de_passe}
+                  helperText={errors.mot_de_passe?.message}
+                  {...register("mot_de_passe", {
+                    required: "يرجى إدخال كلمة السر",
                     minLength: {
                       value: 6,
-                      message: "يجب أن تكون كلمة المرور 6 أحرف على الأقل",
+                      message: "يجب أن تكون كلمة السر 6 أحرف على الأقل",
                     },
                   })}
                   sx={{ mb: 2 }}
                 />
 
-                <FormControl
-                  fullWidth
-                  variant="outlined"
-                  margin="normal"
-                  error={!!errors.role}
-                >
-                  <InputLabel>الدور</InputLabel>
-                  <Select
-                    label="الدور"
-                    startAdornment={
-                      <InputAdornment position="start">
-                        <AdminPanelSettings color="primary" />
-                      </InputAdornment>
-                    }
-                    {...register("role", { required: "يرجى اختيار الدور" })}
-                  >
-                    <MenuItem value="admin">مسؤول</MenuItem>
-                    <MenuItem value="manager">مدير</MenuItem>
-                  </Select>
-                  {errors.role && (
-                    <Typography
-                      variant="caption"
-                      color="error"
-                      sx={{ mt: 1, display: "block" }}
-                    >
-                      {errors.role.message}
-                    </Typography>
-                  )}
-                </FormControl>
-
+                {/* Remember me + Forgot password */}
                 <Grid container alignItems="center" sx={{ mt: 2, mb: 3 }}>
                   <Grid item xs>
                     <FormControlLabel
@@ -307,7 +245,7 @@ const LoginPage = () => {
                   </Grid>
                   <Grid item>
                     <Link
-                      href="forgot-password"
+                      href="/forgot-password"
                       variant="body2"
                       color="primary"
                     >
@@ -373,7 +311,6 @@ const LoginPage = () => {
               <Typography variant="h5" fontWeight="bold" mb={2}>
                 لوحة تحكم الجمعية
               </Typography>
-
               <Typography variant="body1" mb={3} sx={{ opacity: 0.9 }}>
                 نظام إدارة الجمعية الخيرية يمنحك التحكم الكامل في إدارة أنشطة
                 الجمعية وأعضائها ومشاريعها.
@@ -392,7 +329,6 @@ const LoginPage = () => {
                 />
                 <Typography variant="body2">نظام آمن ومحمي</Typography>
               </Box>
-
               <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
                 <Box
                   sx={{
@@ -406,7 +342,6 @@ const LoginPage = () => {
                 />
                 <Typography variant="body2">واجهة سهلة الاستخدام</Typography>
               </Box>
-
               <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
                 <Box
                   sx={{
