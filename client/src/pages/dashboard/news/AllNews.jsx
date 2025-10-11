@@ -210,6 +210,61 @@ export default function AllNews() {
 
   const isSaving = createMut.isPending || updateMut.isPending;
 
+  const renderActionButtons = (item, layout = "row") => {
+    const containerClass =
+      layout === "column"
+        ? "flex flex-col gap-2"
+        : "flex flex-wrap items-center gap-2";
+    const buttonWidth = layout === "column" ? "w-full" : "";
+    const baseClasses = `px-3 py-1.5 rounded-xl border text-sm transition ${buttonWidth}`;
+
+    return (
+      <div className={containerClass}>
+        <button className={baseClasses} onClick={() => openEditor(item.id)}>
+          تحرير
+        </button>
+        <button
+          className={baseClasses}
+          onClick={() => statusMut.mutate({ id: item.id, statut: "published" })}
+          disabled={statusMut.isPending}
+        >
+          نشر الآن
+        </button>
+        <button
+          className={baseClasses}
+          onClick={() =>
+            setScheduleTarget({
+              id: item.id,
+              publie_le: item.publie_le,
+            })
+          }
+        >
+          جدولة
+        </button>
+        <button
+          className={baseClasses}
+          onClick={() => statusMut.mutate({ id: item.id, statut: "draft" })}
+          disabled={statusMut.isPending}
+        >
+          جعل مسودة
+        </button>
+        <button
+          className={baseClasses}
+          onClick={() => pinMut.mutate({ id: item.id, next: !item.epingle })}
+          disabled={pinMut.isPending}
+        >
+          {item.epingle ? "إلغاء التثبيت" : "تثبيت"}
+        </button>
+        <button
+          className={`${baseClasses} border-rose-300 text-rose-700`}
+          onClick={() => setDeleteId(item.id)}
+        >
+          حذف
+        </button>
+      </div>
+    );
+  };
+
   return (
     <div className="p-4 md:p-6 space-y-4" dir="rtl">
       <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -219,16 +274,16 @@ export default function AllNews() {
             إدارة نشر الأخبار، التثبيت، والجدولة الخاصة بلوحة الرئيس.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => openEditor(null)}
-            className="px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"
+            className="px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 w-full sm:w-auto"
           >
             إنشاء خبر
           </button>
           <Link
             to="/dashboard/president"
-            className="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50"
+            className="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50 w-full sm:w-auto text-center"
           >
             لوحة الرئيس
           </Link>
@@ -239,7 +294,7 @@ export default function AllNews() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
           <div className="md:col-span-2">
             <label className="block text-sm text-gray-700 mb-1">بحث</label>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <input
                 className="flex-1 rounded-xl border px-3 py-2"
                 placeholder="ابحث بعنوان أو ملخص الخبر"
@@ -247,7 +302,7 @@ export default function AllNews() {
                 onChange={(e) => setSearchDraft(e.target.value)}
               />
               <button
-                className="px-4 py-2 rounded-xl bg-indigo-600 text-white"
+                className="px-4 py-2 rounded-xl bg-indigo-600 text-white w-full sm:w-auto"
                 onClick={() =>
                   setFilters((prev) => ({
                     ...prev,
@@ -325,7 +380,7 @@ export default function AllNews() {
           </label>
 
           <button
-            className="px-3 py-2 rounded-xl border text-sm"
+            className="px-3 py-2 rounded-xl border text-sm w-full sm:w-auto"
             onClick={() => {
               setFilters({ search: "", status: "all", pinnedOnly: false, from: "", to: "", page: 1, limit: 10 });
               setSearchDraft("");
@@ -337,146 +392,147 @@ export default function AllNews() {
       </section>
 
       <section className="bg-white border rounded-2xl shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-gray-50 text-gray-600">
-              <tr>
-                <th className="px-4 py-3 text-right">العنوان</th>
-                <th className="px-4 py-3 text-right">الحالة</th>
-                <th className="px-4 py-3 text-right">مثبّت</th>
-                <th className="px-4 py-3 text-right">تاريخ النشر</th>
-                <th className="px-4 py-3 text-right">الإجراءات</th>
-              </tr>
-            </thead>
-            <tbody>
-              {listQuery.isLoading ? (
+        <div className="hidden md:block">
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-gray-50 text-gray-600">
                 <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-gray-500">
-                    جارٍ تحميل الأخبار…
-                  </td>
+                  <th className="px-4 py-3 text-right">العنوان</th>
+                  <th className="px-4 py-3 text-right">الحالة</th>
+                  <th className="px-4 py-3 text-right">مثبّت</th>
+                  <th className="px-4 py-3 text-right">تاريخ النشر</th>
+                  <th className="px-4 py-3 text-right">الإجراءات</th>
                 </tr>
-              ) : items.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-gray-500">
-                    لا توجد أخبار مطابقة للبحث الحالي.
-                  </td>
-                </tr>
-              ) : (
-                items.map((item) => (
-                  <tr key={item.id} className="border-t">
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2">
-                          {item.epingle ? (
-                            <span className="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs">
-                              مثبت
-                            </span>
-                          ) : null}
-                          <span className="font-medium text-gray-900">{item.titre}</span>
-                        </div>
-                        {item.resume ? (
-                          <p
-                            className="text-xs text-gray-500 max-w-2xl"
-                            style={{
-                              display: "-webkit-box",
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: "vertical",
-                              overflow: "hidden",
-                            }}
-                          >
-                            {item.resume}
-                          </p>
-                        ) : null}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs ${
-                          item.statut === "published"
-                            ? "bg-emerald-100 text-emerald-700"
-                            : item.statut === "scheduled"
-                            ? "bg-sky-100 text-sky-700"
-                            : "bg-gray-200 text-gray-700"
-                        }`}
-                      >
-                        {statusLabels[item.statut] || "—"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">{item.epingle ? "نعم" : "لا"}</td>
-                    <td className="px-4 py-3">{formatDateTime(item.publie_le)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          className="px-3 py-1.5 rounded-xl border"
-                          onClick={() => openEditor(item.id)}
-                        >
-                          تحرير
-                        </button>
-                        <button
-                          className="px-3 py-1.5 rounded-xl border"
-                          onClick={() =>
-                            statusMut.mutate({ id: item.id, statut: "published" })
-                          }
-                          disabled={statusMut.isPending}
-                        >
-                          نشر الآن
-                        </button>
-                        <button
-                          className="px-3 py-1.5 rounded-xl border"
-                          onClick={() =>
-                            setScheduleTarget({
-                              id: item.id,
-                              publie_le: item.publie_le,
-                            })
-                          }
-                        >
-                          جدولة
-                        </button>
-                        <button
-                          className="px-3 py-1.5 rounded-xl border"
-                          onClick={() =>
-                            statusMut.mutate({ id: item.id, statut: "draft" })
-                          }
-                          disabled={statusMut.isPending}
-                        >
-                          جعل مسودة
-                        </button>
-                        <button
-                          className="px-3 py-1.5 rounded-xl border"
-                          onClick={() => pinMut.mutate({ id: item.id, next: !item.epingle })}
-                          disabled={pinMut.isPending}
-                        >
-                          {item.epingle ? "إلغاء التثبيت" : "تثبيت"}
-                        </button>
-                        <button
-                          className="px-3 py-1.5 rounded-xl border border-rose-300 text-rose-700"
-                          onClick={() => setDeleteId(item.id)}
-                        >
-                          حذف
-                        </button>
-                      </div>
+              </thead>
+              <tbody>
+                {listQuery.isLoading ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-6 text-center text-gray-500">
+                      جارٍ تحميل الأخبار…
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : items.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-6 text-center text-gray-500">
+                      لا توجد أخبار مطابقة للبحث الحالي.
+                    </td>
+                  </tr>
+                ) : (
+                  items.map((item) => (
+                    <tr key={item.id} className="border-t">
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            {item.epingle ? (
+                              <span className="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs">
+                                مثبت
+                              </span>
+                            ) : null}
+                            <span className="font-medium text-gray-900">{item.titre}</span>
+                          </div>
+                          {item.resume ? (
+                            <p
+                              className="text-xs text-gray-500 max-w-2xl"
+                              style={{
+                                display: "-webkit-box",
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: "vertical",
+                                overflow: "hidden",
+                              }}
+                            >
+                              {item.resume}
+                            </p>
+                          ) : null}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs ${
+                            item.statut === "published"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : item.statut === "scheduled"
+                              ? "bg-sky-100 text-sky-700"
+                              : "bg-gray-200 text-gray-700"
+                          }`}
+                        >
+                          {statusLabels[item.statut] || "—"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">{item.epingle ? "نعم" : "لا"}</td>
+                      <td className="px-4 py-3">{formatDateTime(item.publie_le)}</td>
+                      <td className="px-4 py-3">{renderActionButtons(item)}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="md:hidden space-y-3 px-4 py-4">
+          {listQuery.isLoading ? (
+            <div className="text-center text-gray-500 border rounded-2xl py-6">
+              جارٍ تحميل الأخبار…
+            </div>
+          ) : items.length === 0 ? (
+            <div className="text-center text-gray-500 border rounded-2xl py-6">
+              لا توجد أخبار مطابقة للبحث الحالي.
+            </div>
+          ) : (
+            items.map((item) => (
+              <article key={item.id} className="border rounded-2xl p-4 shadow-sm space-y-3 bg-white">
+                <header className="space-y-1">
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs ${
+                        item.statut === "published"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : item.statut === "scheduled"
+                          ? "bg-sky-100 text-sky-700"
+                          : "bg-gray-200 text-gray-700"
+                      }`}
+                    >
+                      {statusLabels[item.statut] || "—"}
+                    </span>
+                    {item.epingle ? (
+                      <span className="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs">
+                        مثبت
+                      </span>
+                    ) : null}
+                  </div>
+                  <h3 className="text-base font-semibold text-gray-900">{item.titre}</h3>
+                  {item.resume ? <p className="text-sm text-gray-600 leading-6">{item.resume}</p> : null}
+                </header>
+                <dl className="grid grid-cols-2 gap-3 text-xs text-gray-500">
+                  <div>
+                    <dt className="font-medium text-gray-600">تاريخ النشر</dt>
+                    <dd>{formatDateTime(item.publie_le)}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium text-gray-600">مثبّت</dt>
+                    <dd>{item.epingle ? "نعم" : "لا"}</dd>
+                  </div>
+                </dl>
+                <div>{renderActionButtons(item, "column")}</div>
+              </article>
+            ))
+          )}
         </div>
 
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between border-t px-4 py-3 text-sm text-gray-600">
           <div>
             الصفحة {meta.page} من {lastPage} — إجمالي {meta.total} خبر
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 justify-center md:justify-end">
             <button
-              className="px-3 py-1.5 rounded-xl border disabled:opacity-50"
+              className="px-3 py-1.5 rounded-xl border disabled:opacity-50 w-full sm:w-auto"
               onClick={() => setFilters((prev) => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
               disabled={filters.page <= 1 || listQuery.isLoading}
             >
               السابق
             </button>
             <button
-              className="px-3 py-1.5 rounded-xl border disabled:opacity-50"
+              className="px-3 py-1.5 rounded-xl border disabled:opacity-50 w-full sm:w-auto"
               onClick={() =>
                 setFilters((prev) => ({
                   ...prev,
@@ -488,7 +544,7 @@ export default function AllNews() {
               التالي
             </button>
             <select
-              className="px-3 py-1.5 rounded-xl border bg-white"
+              className="px-3 py-1.5 rounded-xl border bg-white w-full sm:w-auto"
               value={filters.limit}
               onChange={(e) =>
                 setFilters((prev) => ({
@@ -636,26 +692,30 @@ function NewsEditor({ open, initial, loadingInitial, onClose, onSubmit, isSubmit
       footer={
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div className="text-xs text-rose-600 min-h-[1rem]">{localError}</div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button className="px-4 py-2 rounded-xl border" onClick={onClose} disabled={disabled}>
+          <div className="flex flex-wrap items-center gap-2 justify-end">
+            <button
+              className="px-4 py-2 rounded-xl border w-full sm:w-auto"
+              onClick={onClose}
+              disabled={disabled}
+            >
               إلغاء
             </button>
             <button
-              className="px-4 py-2 rounded-xl border bg-gray-50"
+              className="px-4 py-2 rounded-xl border bg-gray-50 w-full sm:w-auto"
               onClick={() => submitWith("draft")}
               disabled={disabled}
             >
               حفظ كمسودة
             </button>
             <button
-              className="px-4 py-2 rounded-xl border bg-amber-50 text-amber-700"
+              className="px-4 py-2 rounded-xl border bg-amber-50 text-amber-700 w-full sm:w-auto"
               onClick={() => submitWith("schedule")}
               disabled={disabled}
             >
               جدولة
             </button>
             <button
-              className="px-4 py-2 rounded-xl bg-emerald-600 text-white disabled:opacity-50"
+              className="px-4 py-2 rounded-xl bg-emerald-600 text-white disabled:opacity-50 w-full sm:w-auto"
               onClick={() => submitWith("publish")}
               disabled={disabled}
             >
@@ -854,14 +914,18 @@ function ScheduleDialog({ open, initialDate, onClose, onConfirm, isSubmitting })
       description="حدد تاريخاً ووقتاً لنشر الخبر تلقائياً."
       size="sm"
       footer={
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-xs text-rose-600">{error}</span>
-          <div className="flex items-center gap-2">
-            <button className="px-4 py-2 rounded-xl border" onClick={onClose} disabled={isSubmitting}>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <button
+              className="px-4 py-2 rounded-xl border w-full sm:w-auto"
+              onClick={onClose}
+              disabled={isSubmitting}
+            >
               إلغاء
             </button>
             <button
-              className="px-4 py-2 rounded-xl bg-indigo-600 text-white disabled:opacity-50"
+              className="px-4 py-2 rounded-xl bg-indigo-600 text-white disabled:opacity-50 w-full sm:w-auto"
               onClick={submit}
               disabled={isSubmitting}
             >
