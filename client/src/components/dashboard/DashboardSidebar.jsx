@@ -441,7 +441,7 @@ export default function DashboardSidebar({ open, onClose }) {
               icon="users"
             />
             <Item
-              to="/dashboard/users/educateurs"
+              to="/dashboard/president/educators"
               label="المربّون"
               icon="users"
             />
