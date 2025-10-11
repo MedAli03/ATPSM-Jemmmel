@@ -21,11 +21,11 @@ export async function createEnfant(enfant) {
 // 2) Upsert fiche_enfant — try multiple backend route shapes safely
 export async function upsertFicheEnfant(enfantId, fiche) {
   // We try (in order):
-  //   PUT /enfants/:id/fiche-enfant  (recommended)
-  //   PUT /enfants/:id/fiche         (your current attempt)
+  //   PUT /enfants/:id/fiche         (current API)
+  //   PUT /enfants/:id/fiche-enfant  (legacy naming)
   //   PUT /fiche-enfant              (flat), body must include enfant_id
 
-  // 2.1
+  // 2.1 — new consolidated route
   try {
     const { data } = await client.put(`/enfants/${enfantId}/fiche`, fiche);
     return data?.data ?? data;
@@ -33,16 +33,16 @@ export async function upsertFicheEnfant(enfantId, fiche) {
     if (e1?.response?.status !== 404) throw e1;
   }
 
-  // 2.2
+  // 2.2 — previous REST shape kept for backwards compatibility
   try {
-    const { data } = await client.put(`/enfants/${enfantId}/fiche`, fiche);
+    const { data } = await client.put(`/enfants/${enfantId}/fiche-enfant`, fiche);
     return data?.data ?? data;
   } catch (e2) {
     if (e2?.response?.status !== 404) throw e2;
   }
 
-  // 2.3
-  const { data } = await client.put(`/fiche`, {
+  // 2.3 — very old flat endpoint shape (last resort)
+  const { data } = await client.put(`/fiche-enfant`, {
     enfant_id: enfantId,
     ...fiche,
   });

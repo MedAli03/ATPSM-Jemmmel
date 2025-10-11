@@ -1,11 +1,12 @@
 // src/pages/dashboard/children/AddChildWizard.jsx
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { createEnfantFlow } from "../../../api/enfants.create";
+import { useToast } from "../../../components/common/ToastProvider";
 
 /* =========================
    Helpers
@@ -344,6 +345,7 @@ const parentsFicheSchema = yup
    ========================= */
 export default function AddChildWizard() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [step, setStep] = useState(0);
   const [serverError, setServerError] = useState("");
   const stepRefs = [useRef(null), useRef(null), useRef(null)];
@@ -419,6 +421,10 @@ export default function AddChildWizard() {
     criteriaMode: "firstError",
   });
 
+  const enfantPreview = enfantForm.watch();
+  const fichePreview = ficheForm.watch();
+  const parentsPreview = parentsForm.watch();
+
   const { mutate, isLoading } = useMutation({
     mutationFn: async () => {
       setServerError("");
@@ -427,14 +433,17 @@ export default function AddChildWizard() {
       const parentsFiche = normalizeParentsFiche(parentsForm.getValues());
       await createEnfantFlow({ enfant, fiche, parentsFiche });
     },
-    onSuccess: () =>
-      navigate("/dashboard/president/children", { replace: true }),
+    onSuccess: () => {
+      toast?.("تمت إضافة الطفل بنجاح ✅", "success");
+      navigate("/dashboard/president/children", { replace: true });
+    },
     onError: (e) => {
       const msg =
         e?.response?.data?.message ||
         e?.message ||
         "حدث خطأ أثناء الحفظ. يرجى المحاولة مرة أخرى.";
       setServerError(msg);
+      toast?.(msg, "error");
     },
   });
 
@@ -498,10 +507,19 @@ export default function AddChildWizard() {
 
         {/* Body */}
         <div className="px-5 py-6">
-          <div ref={stepRefs[step]}>
-            {step === 0 && <StepChild form={enfantForm} />}
-            {step === 1 && <StepFiche form={ficheForm} />}
-            {step === 2 && <StepParentsFiche form={parentsForm} />}
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <div ref={stepRefs[step]}>
+              {step === 0 && <StepChild form={enfantForm} />}
+              {step === 1 && <StepFiche form={ficheForm} />}
+              {step === 2 && <StepParentsFiche form={parentsForm} />}
+            </div>
+
+            <PreviewPanel
+              step={step}
+              enfant={enfantPreview}
+              fiche={fichePreview}
+              parents={parentsPreview}
+            />
           </div>
 
           {serverError && (
@@ -625,6 +643,123 @@ function Field({ id, label, required, error, children }) {
         </p>
       )}
     </div>
+  );
+}
+
+function PreviewPanel({ step, enfant, fiche, parents }) {
+  const sectionTitle = (title, done) => (
+    <div className="flex items-center justify-between mb-3">
+      <span className="font-semibold text-gray-800">{title}</span>
+      <span
+        className={[
+          "text-xs font-medium px-2 py-1 rounded-lg",
+          done
+            ? "bg-emerald-100 text-emerald-700"
+            : "bg-gray-100 text-gray-500",
+        ].join(" ")}
+      >
+        {done ? "مكتمل" : "مسودة"}
+      </span>
+    </div>
+  );
+
+  const val = (input) => {
+    if (input === null || typeof input === "undefined") return "—";
+    if (typeof input === "string" && input.trim() === "") return "—";
+    return input;
+  };
+
+  const childDone = Boolean(enfant?.nom && enfant?.prenom && enfant?.date_naissance);
+  const ficheDone =
+    step > 0 &&
+    Object.values(fiche || {}).some((v) => v !== null && `${v}`.trim() !== "");
+  const parentsDone =
+    step === 2 &&
+    Boolean(parents?.pere_nom && parents?.pere_prenom && parents?.mere_nom && parents?.mere_prenom);
+
+  const parentName = (nom, prenom) => {
+    const parts = [nom, prenom]
+      .map((p) => (typeof p === "string" ? p.trim() : p))
+      .filter((p) => p && `${p}`.trim() !== "");
+    return parts.length ? parts.join(" ") : "—";
+  };
+
+  const rows = useMemo(
+    () => [
+      {
+        title: "بيانات الطفل",
+        done: childDone,
+        items: [
+          { label: "اللقب", value: val(enfant?.nom) },
+          { label: "الإسم", value: val(enfant?.prenom) },
+          { label: "تاريخ الولادة", value: val(enfant?.date_naissance) },
+        ],
+      },
+      {
+        title: "سجلّ الطفل",
+        done: ficheDone,
+        items: [
+          { label: "التشخيص الطبي", value: val(fiche?.diagnostic_medical) },
+          { label: "نوع الإعاقة", value: val(fiche?.type_handicap) },
+          { label: "الاضطرابات الرئيسية", value: val(fiche?.troubles_principaux) },
+        ],
+      },
+      {
+        title: "بيانات الأولياء",
+        done: parentsDone,
+        items: [
+          { label: "الأب", value: parentName(parents?.pere_nom, parents?.pere_prenom) },
+          { label: "الأم", value: parentName(parents?.mere_nom, parents?.mere_prenom) },
+          {
+            label: "وسائل الاتصال",
+            value:
+              val(
+                [
+                  parents?.pere_tel_portable,
+                  parents?.pere_email,
+                  parents?.mere_tel_portable,
+                  parents?.mere_email,
+                ]
+                  .filter((x) => x && `${x}`.trim() !== "")
+                  .join(" • ")
+              ) || "—",
+          },
+        ],
+      },
+    ],
+    [childDone, ficheDone, parentsDone, enfant, fiche, parents]
+  );
+
+  return (
+    <aside className="lg:sticky lg:top-6 h-max bg-gray-50 border border-gray-100 rounded-2xl p-4 space-y-5">
+      <div>
+        <p className="text-sm font-semibold text-gray-700 mb-1">معاينة سريعة</p>
+        <p className="text-xs text-gray-500">
+          يتم تحديث هذه البطاقة تلقائيًا أثناء تعبئة الحقول لمساعدتك على مراجعة
+          البيانات قبل التأكيد.
+        </p>
+      </div>
+
+      {rows.map((section) => (
+        <div key={section.title} className="bg-white rounded-xl border border-gray-100 p-3 shadow-sm">
+          {sectionTitle(section.title, section.done)}
+          <dl className="space-y-2 text-sm text-gray-600">
+            {section.items.map((item) => (
+              <div key={item.label} className="flex items-start justify-between gap-3">
+                <dt className="font-medium text-gray-700">{item.label}</dt>
+                <dd className="text-gray-600 text-left rtl:text-right">
+                  {item.value || "—"}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ))}
+
+      <div className="text-xs text-gray-500">
+        <p>تلميح: يمكنك الرجوع إلى أي خطوة لتعديل البيانات قبل الضغط على "تأكيد".</p>
+      </div>
+    </aside>
   );
 }
 
