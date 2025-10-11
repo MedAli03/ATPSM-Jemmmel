@@ -29,6 +29,9 @@ const statusOptions = [
   { value: "scheduled", label: "مجدول" },
 ];
 
+const TITLE_LIMIT = 200;
+const SUMMARY_LIMIT = 500;
+
 const dateFormatter = new Intl.DateTimeFormat("ar-TN", {
   dateStyle: "medium",
   timeStyle: "short",
@@ -670,7 +673,7 @@ function NewsEditor({ open, initial, loadingInitial, onClose, onSubmit, isSubmit
       resume: summary.trim() || null,
       contenu_html: content,
       tags: tagsInput
-        .split(",")
+        .split(/[،,]/)
         .map((tag) => tag.trim())
         .filter(Boolean),
       epingle: pinned,
@@ -687,35 +690,35 @@ function NewsEditor({ open, initial, loadingInitial, onClose, onSubmit, isSubmit
       open={open}
       onClose={onClose}
       title={initial ? "تعديل الخبر" : "إنشاء خبر"}
-      description="أضف تفاصيل الخبر وادارة حالة النشر."
-      size="xl"
+      description="أكمل تفاصيل الخبر وحدد خيارات النشر قبل الحفظ."
+      size="full"
       footer={
-        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div className="text-xs text-rose-600 min-h-[1rem]">{localError}</div>
-          <div className="flex flex-wrap items-center gap-2 justify-end">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <span className="min-h-[1rem] text-xs text-rose-600">{localError}</span>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:gap-3">
             <button
-              className="px-4 py-2 rounded-xl border w-full sm:w-auto"
+              className="rounded-xl border px-4 py-2 text-sm"
               onClick={onClose}
               disabled={disabled}
             >
               إلغاء
             </button>
             <button
-              className="px-4 py-2 rounded-xl border bg-gray-50 w-full sm:w-auto"
+              className="rounded-xl border bg-gray-50 px-4 py-2 text-sm"
               onClick={() => submitWith("draft")}
               disabled={disabled}
             >
               حفظ كمسودة
             </button>
             <button
-              className="px-4 py-2 rounded-xl border bg-amber-50 text-amber-700 w-full sm:w-auto"
+              className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-700"
               onClick={() => submitWith("schedule")}
               disabled={disabled}
             >
               جدولة
             </button>
             <button
-              className="px-4 py-2 rounded-xl bg-emerald-600 text-white disabled:opacity-50 w-full sm:w-auto"
+              className="rounded-xl bg-emerald-600 px-4 py-2 text-sm text-white disabled:opacity-50"
               onClick={() => submitWith("publish")}
               disabled={disabled}
             >
@@ -725,148 +728,192 @@ function NewsEditor({ open, initial, loadingInitial, onClose, onSubmit, isSubmit
         </div>
       }
     >
-      <div className="space-y-4" dir="rtl">
+      <div className="space-y-6" dir="rtl">
         {loadingInitial ? (
-          <div className="text-sm text-gray-500">جارٍ تحميل الخبر…</div>
+          <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
+            جارٍ تحميل الخبر…
+          </div>
         ) : (
-          <>
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">
-                العنوان <span className="text-rose-600">*</span>
-              </label>
-              <input
-                className="w-full rounded-xl border px-3 py-2"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="عنوان الخبر"
-                disabled={disabled}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">الملخص</label>
-              <textarea
-                className="w-full rounded-xl border px-3 py-2 min-h-[90px]"
-                value={summary}
-                onChange={(e) => setSummary(e.target.value)}
-                placeholder="ملخص قصير لعرضه في البطاقات"
-                disabled={disabled}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm text-gray-700 mb-2">
-                المحتوى <span className="text-rose-600">*</span>
-              </label>
-              <RichTextEditor value={content} onChange={setContent} disabled={disabled} />
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <label className="block text-sm text-gray-700 mb-1">الوسوم</label>
-                <input
-                  className="w-full rounded-xl border px-3 py-2"
-                  value={tagsInput}
-                  onChange={(e) => setTagsInput(e.target.value)}
-                  placeholder="مثال: أنشطة، فعاليات، أطفال"
-                  disabled={disabled}
-                />
-                <p className="text-xs text-gray-500 mt-1">افصل الوسوم بفاصلة (،).</p>
-              </div>
-
-              <div className="flex items-center gap-3 pt-6">
-                <label className="flex items-center gap-2 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4"
-                    checked={pinned}
-                    onChange={(e) => setPinned(e.target.checked)}
-                    disabled={disabled}
-                  />
-                  تثبيت في أعلى قائمة الأخبار
-                </label>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <label className="block text-sm text-gray-700 mb-1">تاريخ الجدولة</label>
-                <input
-                  type="datetime-local"
-                  className="w-full rounded-xl border px-3 py-2"
-                  value={scheduleAt}
-                  onChange={(e) => setScheduleAt(e.target.value)}
-                  disabled={disabled}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  استخدم هذا الحقل لتحديد وقت النشر عند اختيار "جدولة".
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm text-gray-700 mb-1">صورة الغلاف</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleCoverChange(e, setCover)}
-                  className="block w-full text-sm"
-                  disabled={disabled}
-                />
-                {cover ? (
-                  <div className="mt-2 relative">
-                    <img
-                      src={cover}
-                      alt="غلاف الخبر"
-                      className="w-full max-h-40 object-cover rounded-xl border"
-                    />
-                    <button
-                      type="button"
-                      className="absolute top-2 left-2 bg-white/80 rounded-full px-2 py-1 text-xs"
-                      onClick={() => setCover(null)}
+          <section className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <div className="space-y-6">
+              <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+                <div className="border-b border-gray-100 px-5 py-4">
+                  <h2 className="text-sm font-semibold text-gray-900">المعلومات الأساسية</h2>
+                  <p className="mt-1 text-xs text-gray-500">هذه البيانات تظهر في بطاقات الأخبار وقائمة الجدول.</p>
+                </div>
+                <div className="space-y-5 px-5 py-4">
+                  <div>
+                    <div className="mb-1 flex items-center justify-between text-sm text-gray-700">
+                      <label>
+                        العنوان <span className="text-rose-600">*</span>
+                      </label>
+                      <span className="text-xs text-gray-400">{title.length}/{TITLE_LIMIT}</span>
+                    </div>
+                    <input
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="اكتب عنواناً واضحاً وجذاباً"
                       disabled={disabled}
-                    >
-                      إزالة
-                    </button>
+                      maxLength={TITLE_LIMIT}
+                    />
                   </div>
-                ) : null}
+
+                  <div>
+                    <div className="mb-1 flex items-center justify-between text-sm text-gray-700">
+                      <label>الملخص</label>
+                      <span className="text-xs text-gray-400">{summary.length}/{SUMMARY_LIMIT}</span>
+                    </div>
+                    <textarea
+                      className="min-h-[110px] w-full rounded-xl border border-gray-200 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                      value={summary}
+                      onChange={(e) => setSummary(e.target.value)}
+                      placeholder="اختصر مضمون الخبر في جملة أو جملتين"
+                      disabled={disabled}
+                      maxLength={SUMMARY_LIMIT}
+                    />
+                    <p className="mt-1 text-xs text-gray-500">سيتم إظهار الملخص في بطاقات العرض والنتائج.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+                <div className="border-b border-gray-100 px-5 py-4">
+                  <h2 className="text-sm font-semibold text-gray-900">محتوى الخبر</h2>
+                  <p className="mt-1 text-xs text-gray-500">استخدم أدوات التنسيق لإبراز العناوين أو القوائم داخل النص.</p>
+                </div>
+                <div className="px-5 py-4">
+                  <RichTextEditor value={content} onChange={setContent} disabled={disabled} />
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+                <div className="border-b border-gray-100 px-5 py-4">
+                  <h2 className="text-sm font-semibold text-gray-900">الوسوم والمعرض</h2>
+                  <p className="mt-1 text-xs text-gray-500">ساعد الجمهور في العثور على الخبر عبر الكلمات المفتاحية والصور الداعمة.</p>
+                </div>
+                <div className="space-y-5 px-5 py-4">
+                  <div>
+                    <label className="mb-1 block text-sm text-gray-700">الوسوم</label>
+                    <input
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                      value={tagsInput}
+                      onChange={(e) => setTagsInput(e.target.value)}
+                      placeholder="مثال: أنشطة، فعاليات، أطفال"
+                      disabled={disabled}
+                    />
+                    <p className="mt-1 text-xs text-gray-500">افصل بين الوسوم باستخدام الفاصلة العربية أو الإنجليزية.</p>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-700">معرض الصور</label>
+                    <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-center text-sm text-gray-500">
+                      <span className="block mb-2">أضف حتى 10 صور لدعم الخبر.</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => handleGalleryChange(e, setGallery)}
+                        className="mx-auto block text-sm"
+                        disabled={disabled}
+                      />
+                    </div>
+                    {gallery.length >= 10 ? (
+                      <p className="mt-2 text-xs text-amber-600">تم الوصول إلى الحد الأقصى للصور (10).</p>
+                    ) : null}
+                    {gallery.length > 0 ? (
+                      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                        {gallery.map((url, idx) => (
+                          <div key={idx} className="group relative overflow-hidden rounded-xl border border-gray-200">
+                            <img
+                              src={url}
+                              alt={`معرض ${idx + 1}`}
+                              className="h-28 w-full object-cover"
+                            />
+                            <button
+                              type="button"
+                              className="absolute top-2 left-2 rounded-full bg-white/90 px-2 py-0.5 text-xs text-rose-600 shadow"
+                              onClick={() =>
+                                setGallery((prev) => prev.filter((_, index) => index !== idx))
+                              }
+                              disabled={disabled}
+                            >
+                              إزالة
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">معرض الصور</label>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={(e) => handleGalleryChange(e, setGallery)}
-                className="block w-full text-sm"
-                disabled={disabled}
-              />
-              {gallery.length > 0 ? (
-                <div className="flex flex-wrap gap-2 mt-3">
-                  {gallery.map((url, idx) => (
-                    <div key={idx} className="relative">
-                      <img
-                        src={url}
-                        alt={`معرض ${idx + 1}`}
-                        className="w-24 h-24 object-cover rounded-xl border"
-                      />
+            <aside className="space-y-6">
+              <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+                <div className="border-b border-gray-100 px-5 py-4">
+                  <h2 className="text-sm font-semibold text-gray-900">خيارات النشر</h2>
+                  <p className="mt-1 text-xs text-gray-500">حدد الجدولة والتثبيت قبل اعتماد الخبر.</p>
+                </div>
+                <div className="space-y-4 px-5 py-4">
+                  <label className="block text-sm text-gray-700">
+                    <span className="mb-2 block">تاريخ الجدولة</span>
+                    <input
+                      type="datetime-local"
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                      value={scheduleAt}
+                      onChange={(e) => setScheduleAt(e.target.value)}
+                      disabled={disabled}
+                    />
+                    <p className="mt-1 text-xs text-gray-500">هذا التاريخ يستخدم عند اختيار خيار "جدولة" في الأسفل.</p>
+                  </label>
+
+                  <label className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4"
+                      checked={pinned}
+                      onChange={(e) => setPinned(e.target.checked)}
+                      disabled={disabled}
+                    />
+                    تثبيت الخبر في أعلى القائمة
+                  </label>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+                <div className="border-b border-gray-100 px-5 py-4">
+                  <h2 className="text-sm font-semibold text-gray-900">صورة الغلاف</h2>
+                  <p className="mt-1 text-xs text-gray-500">اختر صورة معبرة لواجهة الخبر، أو اتركه بدون غلاف.</p>
+                </div>
+                <div className="space-y-4 px-5 py-4">
+                  <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-center text-sm text-gray-500">
+                    <span className="block mb-2">اسحب وأفلت الصورة أو اخترها من جهازك.</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleCoverChange(e, setCover)}
+                      className="mx-auto block text-sm"
+                      disabled={disabled}
+                    />
+                  </div>
+                  {cover ? (
+                    <div className="relative overflow-hidden rounded-2xl border border-gray-200">
+                      <img src={cover} alt="غلاف الخبر" className="max-h-48 w-full object-cover" />
                       <button
                         type="button"
-                        className="absolute top-1 left-1 bg-white/80 rounded-full px-2 py-0.5 text-xs"
-                        onClick={() =>
-                          setGallery((prev) => prev.filter((_, index) => index !== idx))
-                        }
+                        className="absolute top-3 left-3 rounded-full bg-white/90 px-3 py-1 text-xs text-rose-600 shadow"
+                        onClick={() => setCover(null)}
                         disabled={disabled}
                       >
-                        ×
+                        إزالة الغلاف
                       </button>
                     </div>
-                  ))}
+                  ) : null}
                 </div>
-              ) : null}
-            </div>
-          </>
+              </div>
+            </aside>
+          </section>
         )}
       </div>
     </Modal>
@@ -966,8 +1013,12 @@ function RichTextEditor({ value, onChange, disabled }) {
     document.execCommand(command, false, null);
   };
 
+  const showPlaceholder =
+    !internal ||
+    internal.replace(/<[^>]*>/g, "").replace(/&nbsp;/gi, " ").trim().length === 0;
+
   return (
-    <div className="border rounded-2xl overflow-hidden">
+    <div className="overflow-hidden rounded-2xl border">
       <div className="flex flex-wrap items-center gap-2 bg-gray-50 px-3 py-2 text-xs text-gray-600">
         <ToolbarButton onClick={() => apply("bold")} label="عريض" />
         <ToolbarButton onClick={() => apply("italic")} label="مائل" />
@@ -975,18 +1026,25 @@ function RichTextEditor({ value, onChange, disabled }) {
         <ToolbarButton onClick={() => apply("insertUnorderedList")} label="قائمة نقطية" />
         <ToolbarButton onClick={() => apply("insertOrderedList")} label="قائمة مرقمة" />
       </div>
-      <div
-        className="min-h-[220px] px-4 py-3 leading-7 focus:outline-none"
-        contentEditable={!disabled}
-        suppressContentEditableWarning
-        dir="rtl"
-        onInput={(e) => {
-          const html = e.currentTarget.innerHTML;
-          setInternal(html);
-          onChange?.(html);
-        }}
-        dangerouslySetInnerHTML={{ __html: internal || "" }}
-      />
+      <div className="relative">
+        {showPlaceholder ? (
+          <span className="pointer-events-none absolute right-4 top-3 text-sm text-gray-400">
+            اكتب محتوى الخبر هنا…
+          </span>
+        ) : null}
+        <div
+          className="min-h-[220px] bg-white px-4 py-3 leading-7 focus:outline-none"
+          contentEditable={!disabled}
+          suppressContentEditableWarning
+          dir="rtl"
+          onInput={(e) => {
+            const html = e.currentTarget.innerHTML;
+            setInternal(html);
+            onChange?.(html);
+          }}
+          dangerouslySetInnerHTML={{ __html: internal || "" }}
+        />
+      </div>
     </div>
   );
 }
@@ -1022,7 +1080,11 @@ async function handleGalleryChange(event, setGallery) {
   const files = Array.from(event.target.files || []);
   if (!files.length) return;
   const urls = await Promise.all(files.map((file) => readAsDataUrl(file)));
-  setGallery((prev) => [...prev, ...urls]);
+  setGallery((prev) => {
+    const availableSlots = Math.max(0, 10 - prev.length);
+    const nextBatch = availableSlots ? urls.slice(0, availableSlots) : [];
+    return availableSlots ? [...prev, ...nextBatch] : prev;
+  });
 }
 
 function formatDatetimeLocal(date) {
