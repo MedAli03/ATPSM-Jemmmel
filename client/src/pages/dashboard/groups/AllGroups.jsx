@@ -21,11 +21,11 @@ import {
   listInscriptions,
   addInscriptionsBatch,
   deleteInscription,
-  searchEnfants,
   getAffectation,
   setAffectation,
   deleteAffectation,
-  searchEducateurs,
+  searchGroupChildrenCandidates,
+  searchGroupEducateurCandidates,
 } from "../../../api/groups";
 
 /* =========================================================================
@@ -645,7 +645,16 @@ function ManageGroupeModal({ group, onClose }) {
       qc.invalidateQueries({
         queryKey: ["inscriptions", { groupeId: group.id, anneeId }],
       });
-      toast?.("تمت إضافة الأطفال للمجموعة ✅", "success");
+      const created = Number(out?.created ?? 0);
+      const transferred = Number(out?.transferred?.length ?? 0);
+      const skipped = Number(out?.skipped?.length ?? 0);
+      const parts = [];
+      if (created) parts.push(`${created} جديد${created > 1 ? "ين" : ""}`);
+      if (transferred)
+        parts.push(`${transferred} منقول${transferred > 1 ? "ين" : ""}`);
+      const summary = parts.length ? parts.join(" و ") : "لا تغييرات";
+      const extra = skipped ? ` — تم تجاهل ${skipped}` : "";
+      toast?.(`تمت معالجة الأطفال (${summary})${extra}`, "success");
     },
     onError: (e) => {
       const code = e?.response?.status;
@@ -747,6 +756,8 @@ function ManageGroupeModal({ group, onClose }) {
           onRemove={(inscriptionId) => delInsMut.mutate({ inscriptionId })}
           isAdding={addInsMut.isPending}
           isRemoving={delInsMut.isPending}
+          anneeId={anneeId}
+          groupeId={group.id}
         />
       ) : (
         <EducateurTabSelection
@@ -756,6 +767,7 @@ function ManageGroupeModal({ group, onClose }) {
           onRemove={(affectationId) => delAffMut.mutate({ affectationId })}
           isAssigning={setAffMut.isPending}
           isRemoving={delAffMut.isPending}
+          anneeId={anneeId}
         />
       )}
     </Modal>
@@ -772,32 +784,84 @@ function EnfantsTabSelection({
   onRemove,
   isAdding,
   isRemoving,
+  anneeId,
+  groupeId,
 }) {
-  const [q, setQ] = useState("");
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [availableSearch, setAvailableSearch] = useState("");
+  const [availablePage, setAvailablePage] = useState(1);
+  const [availableLimit, setAvailableLimit] = useState(10);
   const [selected, setSelected] = useState(new Set());
+
+  const [transferSearch, setTransferSearch] = useState("");
+  const [transferPage, setTransferPage] = useState(1);
+  const [transferLimit, setTransferLimit] = useState(5);
+  const [transferTouched, setTransferTouched] = useState(false);
 
   useEffect(() => {
     setSelected(new Set());
-  }, [q, page, limit]);
+  }, [availableSearch, availablePage, availableLimit, groupeId, anneeId]);
 
-  // Search list (paged)
-  const enfantsQ = useQuery({
-    queryKey: ["enfants_search_bulk", { q, page, limit }],
-    queryFn: () => searchEnfants({ search: q.trim(), page, limit }),
+  const availableQ = useQuery({
+    queryKey: [
+      "group_children_available",
+      {
+        anneeId,
+        groupeId,
+        search: availableSearch.trim(),
+        page: availablePage,
+        limit: availableLimit,
+      },
+    ],
+    queryFn: () =>
+      searchGroupChildrenCandidates({
+        anneeId,
+        search: availableSearch.trim() || undefined,
+        scope: "available",
+        page: availablePage,
+        limit: availableLimit,
+        excludeGroupeId: groupeId,
+      }),
+    enabled: !!anneeId,
+    keepPreviousData: true,
   });
 
-  // normalize to array
-  const items = enfantsQ.data?.items || [];
+  const canQueryTransfer = transferSearch.trim().length >= 2;
+  const transferQ = useQuery({
+    queryKey: [
+      "group_children_transfer",
+      {
+        anneeId,
+        groupeId,
+        search: transferSearch.trim(),
+        page: transferPage,
+        limit: transferLimit,
+      },
+    ],
+    queryFn: () =>
+      searchGroupChildrenCandidates({
+        anneeId,
+        search: transferSearch.trim(),
+        scope: "assigned",
+        page: transferPage,
+        limit: transferLimit,
+        excludeGroupeId: groupeId,
+      }),
+    enabled: !!anneeId && canQueryTransfer,
+    keepPreviousData: true,
+  });
 
-  // computed: current members ids to mark disabled/selected
-  const currentMemberIds = new Set((inscQ.data || []).map((m) => m.enfant_id));
+  const currentMembers = inscQ.data?.items ?? [];
+  const currentMemberIds = new Set(currentMembers.map((m) => m.enfant_id));
+  const availableItems = availableQ.data?.items ?? [];
+  const availableMeta = availableQ.data?.meta ?? { hasMore: false, page: availablePage };
+  const transferItems = transferQ.data?.items ?? [];
+  const transferMeta = transferQ.data?.meta ?? { hasMore: false, page: transferPage };
+
   const selectedIds = Array.from(selected).filter(
     (id) => !currentMemberIds.has(id)
   );
   const canAdd = selectedIds.length > 0 && !archived && !isAdding;
-  const listSize = Math.max(4, Math.min(10, items.length || 0));
+  const listSize = Math.max(4, Math.min(10, availableItems.length || 0));
 
   const handleSelectChange = (event) => {
     const values = Array.from(event.target.selectedOptions || []).map((opt) =>
@@ -806,175 +870,286 @@ function EnfantsTabSelection({
     setSelected(new Set(values));
   };
 
-  return (
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-      {/* Select from directory (with pagination) */}
-      <div className="p-4 border rounded-xl">
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-sm font-semibold text-gray-700">
-            اختيار أطفال لإضافتهم
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              disabled={archived}
-              className="rounded-xl border px-3 py-2"
-              placeholder="بحث بالاسم/اللقب…"
-              value={q}
-              onChange={(e) => {
-                setQ(e.target.value);
-                setPage(1);
-              }}
-            />
-            <button
-              className="px-3 py-2 rounded-xl border"
-              onClick={() => {
-                setQ("");
-                setPage(1);
-                setSelected(new Set());
-              }}
-            >
-              مسح
-            </button>
-          </div>
-        </div>
+  useEffect(() => {
+    setSelected(new Set());
+  }, [inscQ.data?.meta?.total, groupeId]);
 
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="text-xs text-gray-600">نتائج البحث</div>
+  const handleTransfer = (enfantId) => {
+    if (!archived && !isAdding) {
+      onBatchAdd([enfantId]);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        {/* Select from directory (with pagination) */}
+        <div className="p-4 border rounded-xl">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-sm font-semibold text-gray-700">
+              اختيار أطفال جدد (غير مسجلين هذا العام)
+            </div>
             <div className="flex items-center gap-2">
-              <select
-                className="text-xs rounded-lg border px-2 py-1 bg-white"
-                value={limit}
+              <input
+                disabled={archived}
+                className="rounded-xl border px-3 py-2"
+                placeholder="بحث بالاسم/اللقب…"
+                value={availableSearch}
                 onChange={(e) => {
-                  setLimit(Number(e.target.value));
-                  setPage(1);
+                  setAvailableSearch(e.target.value);
+                  setAvailablePage(1);
+                }}
+              />
+              <button
+                className="px-3 py-2 rounded-xl border"
+                onClick={() => {
+                  setAvailableSearch("");
+                  setAvailablePage(1);
+                  setSelected(new Set());
                 }}
               >
-                {[10, 20, 50].map((n) => (
-                  <option key={n} value={n}>
-                    {n}/صفحة
+                مسح
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="text-xs text-gray-600">نتائج متاحة</div>
+              <div className="flex items-center gap-2">
+                <select
+                  className="text-xs rounded-lg border px-2 py-1 bg-white"
+                  value={availableLimit}
+                  onChange={(e) => {
+                    setAvailableLimit(Number(e.target.value));
+                    setAvailablePage(1);
+                  }}
+                >
+                  {[10, 20, 50].map((n) => (
+                    <option key={n} value={n}>
+                      {n}/صفحة
+                    </option>
+                  ))}
+                </select>
+                <div className="text-xs text-gray-500">الصفحة {availablePage}</div>
+              </div>
+            </div>
+
+            {availableQ.isLoading ? (
+              <div className="p-3 text-sm text-gray-500 border rounded-xl">
+                جارٍ التحميل…
+              </div>
+            ) : availableItems.length === 0 ? (
+              <div className="p-3 text-sm text-gray-500 border rounded-xl">
+                لا يوجد أطفال متاحون بهذه المعايير.
+              </div>
+            ) : (
+              <select
+                multiple
+                disabled={archived}
+                className="w-full border rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring"
+                size={listSize}
+                value={Array.from(selected).map(String)}
+                onChange={handleSelectChange}
+              >
+                {availableItems.map((c) => (
+                  <option key={c.id} value={String(c.id)} className="text-sm">
+                    {c.prenom} {c.nom} #{c.id}
                   </option>
                 ))}
               </select>
-              <div className="text-xs text-gray-500">الصفحة {page}</div>
+            )}
+
+            <div className="flex items-center justify-between text-xs text-gray-600">
+              <div>
+                المختارون للإضافة: <b>{selectedIds.length}</b>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  className="px-2 py-1 rounded-lg border"
+                  onClick={() => setAvailablePage((p) => Math.max(1, p - 1))}
+                  disabled={availablePage <= 1 || availableQ.isLoading}
+                >
+                  السابق
+                </button>
+                <button
+                  className="px-2 py-1 rounded-lg border"
+                  onClick={() => setAvailablePage((p) => p + 1)}
+                  disabled={
+                    availableQ.isLoading ||
+                    !availableMeta?.hasMore
+                  }
+                >
+                  التالي
+                </button>
+              </div>
             </div>
           </div>
 
-          {enfantsQ.isLoading ? (
-            <div className="p-3 text-sm text-gray-500 border rounded-xl">
-              جارٍ التحميل…
-            </div>
-          ) : items.length === 0 ? (
-            <div className="p-3 text-sm text-gray-500 border rounded-xl">
-              لا نتائج.
-            </div>
-          ) : (
-            <select
-              multiple
-              disabled={archived}
-              className="w-full border rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring"
-              size={listSize}
-              value={Array.from(selected).map(String)}
-              onChange={handleSelectChange}
+          <div className="mt-4 flex items-center justify-end">
+            <button
+              disabled={!canAdd}
+              className="px-4 py-2 rounded-xl bg-emerald-600 text-white disabled:opacity-50"
+              onClick={() => onBatchAdd(selectedIds)}
             >
-              {items.map((c) => {
-                const disabled = currentMemberIds.has(c.id);
-                return (
-                  <option
-                    key={c.id}
-                    value={String(c.id)}
-                    disabled={disabled}
-                    className="text-sm"
-                  >
-                    {c.prenom} {c.nom} #{c.id}
-                    {disabled ? " — عضو حاليًا" : ""}
-                  </option>
-                );
-              })}
-            </select>
+              {isAdding ? "جارٍ الإضافة…" : "إضافة الأطفال المختارين"}
+            </button>
+          </div>
+          {archived && (
+            <p className="mt-2 text-xs text-gray-500">
+              المجموعة مؤرشفة — الإضافة معطلة.
+            </p>
           )}
+        </div>
 
-          <div className="flex items-center justify-between text-xs text-gray-600">
-            <div>
-              المختارون للإضافة: <b>{selectedIds.length}</b>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                className="px-2 py-1 rounded-lg border"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1 || enfantsQ.isLoading}
-              >
-                السابق
-              </button>
-              <button
-                className="px-2 py-1 rounded-lg border"
-                onClick={() => setPage((p) => p + 1)}
-                disabled={enfantsQ.isLoading || items.length < limit}
-              >
-                التالي
-              </button>
-            </div>
+        {/* Current members (removal) */}
+        <div className="p-4 border rounded-xl">
+          <div className="text-sm font-semibold text-gray-700 mb-3">
+            أعضاء المجموعة
+          </div>
+          <div className="border rounded-xl overflow-hidden">
+            {inscQ.isLoading ? (
+              <div className="p-3 text-sm text-gray-500">جارٍ التحميل…</div>
+            ) : currentMembers.length === 0 ? (
+              <div className="p-3 text-sm text-gray-500">لا توجد عناصر.</div>
+            ) : (
+              <ul className="divide-y max-h-96 overflow-auto">
+                {currentMembers.map((m) => (
+                  <li
+                    key={m.id}
+                    className="p-3 flex items-center justify-between"
+                  >
+                    <div className="text-sm">
+                      <div className="font-medium text-gray-900">
+                        {m.prenom ? `${m.prenom} ${m.nom}` : `#${m.enfant_id}`}
+                      </div>
+                      <div className="text-gray-500 text-xs">
+                        {m.date_inscription
+                          ? new Date(m.date_inscription).toLocaleDateString()
+                          : "—"}
+                      </div>
+                    </div>
+                    <button
+                      disabled={archived || isRemoving}
+                      className="px-3 py-1.5 rounded-xl border border-rose-300 text-rose-700 disabled:opacity-50"
+                      onClick={() => onRemove(m.id)}
+                    >
+                      إزالة
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          {archived && (
+            <p className="mt-2 text-xs text-gray-500">
+              المجموعة مؤرشفة — الإزالة معطلة.
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Transfer helper */}
+      <div className="p-4 border rounded-xl">
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-sm font-semibold text-gray-700">
+            نقل طفل من مجموعة أخرى في نفس السنة
+          </div>
+          <div className="text-xs text-gray-500">
+            اكتب على الأقل حرفين للبحث
           </div>
         </div>
 
-        <div className="mt-4 flex items-center justify-end">
+        <div className="flex items-center gap-2 mb-3">
+          <input
+            className="rounded-xl border px-3 py-2 flex-1"
+            placeholder="اسم الطفل أو اللقب أو الرقم…"
+            value={transferSearch}
+            onChange={(e) => {
+              setTransferSearch(e.target.value);
+              setTransferTouched(true);
+              setTransferPage(1);
+            }}
+          />
           <button
-            disabled={!canAdd}
-            className="px-4 py-2 rounded-xl bg-emerald-600 text-white disabled:opacity-50"
-            onClick={() => onBatchAdd(selectedIds)}
+            className="px-3 py-2 rounded-xl border"
+            onClick={() => {
+              setTransferSearch("");
+              setTransferTouched(false);
+              setTransferPage(1);
+            }}
           >
-            {isAdding ? "جارٍ الإضافة…" : "إضافة الأطفال المختارين"}
+            مسح
+          </button>
+        </div>
+
+        {!transferTouched ? (
+          <div className="p-3 text-sm text-gray-500 border rounded-xl">
+            ابحث عن طفل لنقله من مجموعة أخرى خلال هذه السنة.
+          </div>
+        ) : !canQueryTransfer ? (
+          <div className="p-3 text-sm text-gray-500 border rounded-xl">
+            الرجاء إدخال حرفين على الأقل لإظهار الأطفال القابلين للنقل.
+          </div>
+        ) : transferQ.isLoading ? (
+          <div className="p-3 text-sm text-gray-500 border rounded-xl">
+            جارٍ التحميل…
+          </div>
+        ) : transferItems.length === 0 ? (
+          <div className="p-3 text-sm text-gray-500 border rounded-xl">
+            لا نتائج مطابقة حالياً.
+          </div>
+        ) : (
+          <ul className="space-y-2 max-h-60 overflow-auto">
+            {transferItems.map((child) => {
+              const current = child.inscription_actuelle;
+              return (
+                <li
+                  key={child.id}
+                  className="p-3 border rounded-xl flex items-center justify-between gap-3"
+                >
+                  <div>
+                    <div className="font-medium text-sm text-gray-900">
+                      {child.prenom} {child.nom} #{child.id}
+                    </div>
+                    {current && (
+                      <div className="text-xs text-gray-600">
+                        المجموعة الحالية: {current.groupe_nom ?? `#${current.groupe_id}`}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    className="px-3 py-1.5 rounded-xl border border-indigo-300 text-indigo-700 disabled:opacity-50"
+                    disabled={archived || isAdding}
+                    onClick={() => handleTransfer(child.id)}
+                  >
+                    نقل للمجموعة
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        <div className="mt-3 flex items-center justify-end gap-2 text-xs text-gray-600">
+          <button
+            className="px-2 py-1 rounded-lg border"
+            onClick={() => setTransferPage((p) => Math.max(1, p - 1))}
+            disabled={transferPage <= 1 || transferQ.isLoading}
+          >
+            السابق
+          </button>
+          <button
+            className="px-2 py-1 rounded-lg border"
+            onClick={() => setTransferPage((p) => p + 1)}
+            disabled={transferQ.isLoading || !transferMeta?.hasMore}
+          >
+            التالي
           </button>
         </div>
         {archived && (
           <p className="mt-2 text-xs text-gray-500">
-            المجموعة مؤرشفة — الإضافة معطلة.
-          </p>
-        )}
-      </div>
-
-      {/* Current members (removal) */}
-      <div className="p-4 border rounded-xl">
-        <div className="text-sm font-semibold text-gray-700 mb-3">
-          أعضاء المجموعة
-        </div>
-        <div className="border rounded-xl overflow-hidden">
-          {inscQ.isLoading ? (
-            <div className="p-3 text-sm text-gray-500">جارٍ التحميل…</div>
-          ) : (inscQ.data || []).length === 0 ? (
-            <div className="p-3 text-sm text-gray-500">لا توجد عناصر.</div>
-          ) : (
-            <ul className="divide-y max-h-96 overflow-auto">
-              {inscQ.data.map((m) => (
-                <li
-                  key={m.id}
-                  className="p-3 flex items-center justify-between"
-                >
-                  <div className="text-sm">
-                    <div className="font-medium text-gray-900">
-                      {m.prenom ? `${m.prenom} ${m.nom}` : `#${m.enfant_id}`}
-                    </div>
-                    <div className="text-gray-500 text-xs">
-                      {m.date_inscription
-                        ? new Date(m.date_inscription).toLocaleDateString()
-                        : "—"}
-                    </div>
-                  </div>
-                  <button
-                    disabled={archived || isRemoving}
-                    className="px-3 py-1.5 rounded-xl border border-rose-300 text-rose-700 disabled:opacity-50"
-                    onClick={() => onRemove(m.id)}
-                  >
-                    إزالة
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        {archived && (
-          <p className="mt-2 text-xs text-gray-500">
-            المجموعة مؤرشفة — الإزالة معطلة.
+            المجموعة مؤرشفة — النقل معطل.
           </p>
         )}
       </div>
@@ -992,29 +1167,37 @@ function EducateurTabSelection({
   onRemove,
   isAssigning,
   isRemoving,
+  anneeId,
 }) {
-  const [q, setQ] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [selectedId, setSelectedId] = useState("");
 
   useEffect(() => {
     setSelectedId("");
-  }, [q, page, limit]);
+  }, [searchTerm, page, limit, anneeId]);
 
-  // Paged educators directory
   const edusQ = useQuery({
-    queryKey: ["educateurs_search_paged", { q, page, limit }],
-    queryFn: async () => {
-      // Your backend users search might not paginate; emulate client-side pagination
-      const all = await searchEducateurs({ search: q.trim() });
-      const start = (page - 1) * limit;
-      return all.slice(start, start + limit);
-    },
+    queryKey: [
+      "educateurs_candidates",
+      { anneeId, search: searchTerm.trim(), page, limit },
+    ],
+    queryFn: () =>
+      searchGroupEducateurCandidates({
+        anneeId,
+        search: searchTerm.trim() || undefined,
+        page,
+        limit,
+      }),
+    enabled: !!anneeId,
+    keepPreviousData: true,
   });
 
-  const current = affectQ.data;
-  const options = edusQ.data || [];
+  const current = affectQ.data ?? null;
+  const currentEducateur = current?.educateur ?? null;
+  const options = edusQ.data?.items ?? [];
+  const meta = edusQ.data?.meta ?? { hasMore: false };
   const canAssign = Boolean(selectedId) && !archived && !isAssigning;
 
   return (
@@ -1031,11 +1214,17 @@ function EducateurTabSelection({
             <div className="flex items-center justify-between">
               <div className="text-sm">
                 <div className="font-medium text-gray-900">
-                  #{current.educateur_id}
+                  {currentEducateur
+                    ? `${currentEducateur.prenom} ${currentEducateur.nom}`
+                    : `#${current.educateur_id}`}
                 </div>
                 <div className="text-gray-500 text-xs">
-                  {current.date_affectation &&
-                    new Date(current.date_affectation).toLocaleDateString()}
+                  {currentEducateur?.email || "—"}
+                </div>
+                <div className="text-gray-400 text-xs">
+                  {current.date_affectation
+                    ? new Date(current.date_affectation).toLocaleDateString()
+                    : "—"}
                 </div>
               </div>
               <button
@@ -1066,16 +1255,16 @@ function EducateurTabSelection({
               disabled={archived}
               className="rounded-xl border px-3 py-2"
               placeholder="ابحث عن مربي (الاسم/البريد)…"
-              value={q}
+              value={searchTerm}
               onChange={(e) => {
-                setQ(e.target.value);
+                setSearchTerm(e.target.value);
                 setPage(1);
               }}
             />
             <button
               className="px-3 py-2 rounded-xl border"
               onClick={() => {
-                setQ("");
+                setSearchTerm("");
                 setPage(1);
                 setSelectedId("");
               }}
@@ -1110,7 +1299,7 @@ function EducateurTabSelection({
             </div>
           ) : options.length === 0 ? (
             <div className="p-3 text-sm text-gray-500 border rounded-xl">
-              لا نتائج.
+              لا يوجد مربون متاحون بهذه المعايير.
             </div>
           ) : (
             <select
@@ -1151,7 +1340,7 @@ function EducateurTabSelection({
               <button
                 className="px-2 py-1 rounded-lg border"
                 onClick={() => setPage((p) => p + 1)}
-                disabled={edusQ.isLoading || options.length < limit}
+                disabled={edusQ.isLoading || !meta?.hasMore}
               >
                 التالي
               </button>

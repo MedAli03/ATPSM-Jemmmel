@@ -90,12 +90,30 @@ export async function deleteGroupe(id, { anneeId } = {}) {
 
 /* ------------------------------ inscriptions ------------------------------ */
 // List inscriptions of a group for a given year
-export async function listInscriptions({ groupeId, anneeId, page, limit }) {
+export async function listInscriptions({ groupeId, anneeId, page = 1, limit = 50 }) {
   const res = await client.get(`/groupes/${groupeId}/inscriptions`, {
     params: { anneeId, page, limit },
   });
   const data = unwrap(res);
-  return Array.isArray(data) ? data : [];
+  if (!data || typeof data !== "object") {
+    return {
+      items: Array.isArray(data) ? data : [],
+      meta: { page, limit, total: Array.isArray(data) ? data.length : 0, hasMore: false },
+    };
+  }
+  return {
+    items: Array.isArray(data.items)
+      ? data.items
+      : Array.isArray(data)
+      ? data
+      : [],
+    meta: {
+      page: data.meta?.page ?? page,
+      limit: data.meta?.limit ?? limit,
+      total: data.meta?.total ?? (Array.isArray(data.items) ? data.items.length : 0),
+      hasMore: data.meta?.hasMore ?? false,
+    },
+  };
 }
 
 // Batch add children to a group for a year
@@ -120,8 +138,8 @@ export async function getAffectation({ groupeId, anneeId }) {
   const res = await client.get(`/groupes/${groupeId}/affectation`, {
     params: { anneeId },
   });
-  // can be null or object
-  return unwrap(res) || null;
+  const data = unwrap(res);
+  return data && typeof data === "object" ? data : null;
 }
 
 // Assign / replace educator
@@ -174,4 +192,51 @@ export async function searchEducateurs({ search } = {}) {
   const res = await client.get("/utilisateurs", { params });
   const data = unwrap(res);
   return Array.isArray(data) ? data : [];
+}
+
+/* ---------------------------- group candidates ---------------------------- */
+export async function searchGroupChildrenCandidates({
+  anneeId,
+  search,
+  scope = "available",
+  page = 1,
+  limit = 10,
+  excludeGroupeId,
+}) {
+  const params = { scope, page, limit };
+  if (search) params.search = search;
+  if (excludeGroupeId) params.excludeGroupeId = excludeGroupeId;
+  const res = await client.get(`/groupes/annees/${anneeId}/candidats/enfants`, {
+    params,
+  });
+  const data = unwrap(res);
+  return {
+    items: Array.isArray(data?.items) ? data.items : [],
+    meta:
+      data?.meta ?? {
+        page,
+        limit,
+        total: Array.isArray(data?.items) ? data.items.length : 0,
+        hasMore: false,
+      },
+  };
+}
+
+export async function searchGroupEducateurCandidates({ anneeId, search, page = 1, limit = 10 }) {
+  const params = { page, limit };
+  if (search) params.search = search;
+  const res = await client.get(`/groupes/annees/${anneeId}/candidats/educateurs`, {
+    params,
+  });
+  const data = unwrap(res);
+  return {
+    items: Array.isArray(data?.items) ? data.items : [],
+    meta:
+      data?.meta ?? {
+        page,
+        limit,
+        total: Array.isArray(data?.items) ? data.items.length : 0,
+        hasMore: false,
+      },
+  };
 }

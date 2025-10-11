@@ -12,6 +12,8 @@ const {
   updateGroupeSchema,
   inscrireEnfantsSchema,
   affecterEducateurSchema,
+  listCandidatsEnfantsQuerySchema,
+  listCandidatsEducateursQuerySchema,
 } = require("../validations/groupe.schema");
 
 /* ===================== Param / Query guards ===================== */
@@ -132,6 +134,15 @@ router.get(
  * ####################################################################
  */
 
+// Candidates (available / transferable children for a school year)
+router.get(
+  "/annees/:anneeId/candidats/enfants",
+  requireRole("DIRECTEUR", "PRESIDENT"),
+  intParam("anneeId"),
+  validate(listCandidatsEnfantsQuerySchema, "query"),
+  ctrl.searchEnfantsCandidats
+);
+
 // List inscriptions of a group for a year
 // GET /groupes/:groupeId/inscriptions?anneeId=
 router.get(
@@ -168,6 +179,15 @@ router.delete(
  * AFFECTATION (educateur ↔ groupe / année)
  * ####################################################################
  */
+
+// Available educators for a school year
+router.get(
+  "/annees/:anneeId/candidats/educateurs",
+  requireRole("DIRECTEUR", "PRESIDENT"),
+  intParam("anneeId"),
+  validate(listCandidatsEducateursQuerySchema, "query"),
+  ctrl.searchEducateursCandidats
+);
 
 // Get current assignment for a given year
 // GET /groupes/:groupeId/affectation?anneeId=

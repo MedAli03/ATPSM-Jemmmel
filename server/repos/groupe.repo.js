@@ -6,6 +6,7 @@ const {
   InscriptionEnfant,
   AffectationEducateur,
   Enfant,
+  Utilisateur,
 } = require("../models");
 const { Op } = Sequelize;
 
@@ -40,15 +41,19 @@ exports.listByYear = (annee_id, t = null) =>
   Groupe.findAll({ where: { annee_id }, order: [["created_at", "DESC"]], transaction: t });
 
 /* ===== Inscriptions ===== */
-exports.listInscriptions = ({ groupe_id, annee_id, page = 1, limit = 50 }, t = null) =>
-  InscriptionEnfant.findAll({
-    where: { groupe_id, annee_id },
+exports.listInscriptions = async (
+  { groupe_id, annee_id, page = 1, limit = 50 },
+  t = null
+) =>
+  InscriptionEnfant.findAndCountAll({
+    where: { groupe_id, annee_id, est_active: true },
     attributes: [
       "id",
       "groupe_id",
       "annee_id",
       "enfant_id",
       "date_inscription",
+      "date_sortie",
       "created_at",
       "updated_at",
     ],
@@ -64,44 +69,171 @@ exports.listInscriptions = ({ groupe_id, annee_id, page = 1, limit = 50 }, t = n
     offset: (Number(page) - 1) * Number(limit),
     limit: Number(limit),
     transaction: t,
+    distinct: true,
   });
 
-exports.getEnfantsAlreadyAssigned = (enfant_ids, annee_id, t = null) =>
-  InscriptionEnfant.findAll({
-    where: { enfant_id: { [Op.in]: enfant_ids }, annee_id },
-    raw: true,
+exports.findActiveInscription = (enfant_id, annee_id, t = null) =>
+  InscriptionEnfant.findOne({
+    where: { enfant_id, annee_id, est_active: true },
+    include: [
+      {
+        model: Groupe,
+        as: "groupe",
+        attributes: ["id", "nom"],
+      },
+    ],
     transaction: t,
   });
 
-exports.addInscriptions = (rows, t = null) =>
-  InscriptionEnfant.bulkCreate(rows, { transaction: t, ignoreDuplicates: true });
+exports.createInscription = (payload, t = null) =>
+  InscriptionEnfant.create(payload, { transaction: t });
 
-exports.removeInscription = (id, t = null) =>
-  InscriptionEnfant.destroy({ where: { id }, transaction: t });
+exports.closeInscriptionById = (id, closedAt, t = null) =>
+  InscriptionEnfant.update(
+    { est_active: false, date_sortie: closedAt },
+    { where: { id }, transaction: t }
+  );
+
+exports.listChildrenCandidates = async (
+  { annee_id, search, page = 1, limit = 10, scope = "available", exclude_groupe_id },
+  t = null
+) => {
+  const offset = (Number(page) - 1) * Number(limit);
+  const where = {};
+
+  if (search) {
+    const term = `%${search}%`;
+    where[Op.or] = [
+      { prenom: { [Op.like]: term } },
+      { nom: { [Op.like]: term } },
+      Sequelize.where(
+        Sequelize.fn(
+          "CONCAT",
+          Sequelize.col("Enfant.prenom"),
+          " ",
+          Sequelize.col("Enfant.nom")
+        ),
+        { [Op.like]: term }
+      ),
+    ];
+  }
+
+  const include = [
+    {
+      model: InscriptionEnfant,
+      as: "inscriptions",
+      where: { annee_id, est_active: true },
+      required: scope === "assigned",
+      include: [
+        {
+          model: Groupe,
+          as: "groupe",
+          attributes: ["id", "nom"],
+        },
+      ],
+    },
+  ];
+
+  const query = {
+    where,
+    include,
+    offset,
+    limit: Number(limit),
+    order: [["prenom", "ASC"], ["nom", "ASC"]],
+    distinct: true,
+    transaction: t,
+  };
+
+  if (scope === "available") {
+    include[0].required = false;
+    query.where[Op.and] = [Sequelize.where(Sequelize.col("inscriptions.id"), null)];
+  } else if (scope === "assigned" && exclude_groupe_id) {
+    include[0].where.groupe_id = { [Op.ne]: exclude_groupe_id };
+  }
+
+  return Enfant.findAndCountAll(query);
+};
 
 /* ===== Affectation ===== */
 exports.getAffectationByYear = (groupe_id, annee_id, t = null) =>
-  AffectationEducateur.findOne({ where: { groupe_id, annee_id }, transaction: t });
+  AffectationEducateur.findOne({
+    where: { groupe_id, annee_id, est_active: true },
+    include: [
+      {
+        model: Utilisateur,
+        as: "educateur",
+        attributes: ["id", "nom", "prenom", "email"],
+      },
+    ],
+    transaction: t,
+  });
 
 exports.findEducateurAssignment = (educateur_id, annee_id, t = null) =>
-  AffectationEducateur.findOne({ where: { educateur_id, annee_id }, transaction: t });
+  AffectationEducateur.findOne({
+    where: { educateur_id, annee_id, est_active: true },
+    include: [
+      {
+        model: Groupe,
+        as: "groupe",
+        attributes: ["id", "nom"],
+      },
+    ],
+    transaction: t,
+  });
 
 exports.createAffectation = (payload, t = null) =>
   AffectationEducateur.create(payload, { transaction: t });
 
-exports.clearAffectation = (groupe_id, annee_id, t = null) =>
-  AffectationEducateur.destroy({ where: { groupe_id, annee_id }, transaction: t });
+exports.closeAffectationById = (id, closedAt, t = null) =>
+  AffectationEducateur.update(
+    { est_active: false, date_fin_affectation: closedAt },
+    { where: { id }, transaction: t }
+  );
 
-exports.removeAffectationById = (groupe_id, affectation_id, t = null) =>
-  AffectationEducateur.destroy({
-    where: { id: affectation_id, groupe_id },
+exports.listEducateurCandidates = async (
+  { annee_id, search, page = 1, limit = 10 },
+  t = null
+) => {
+  const offset = (Number(page) - 1) * Number(limit);
+  const where = { role: "EDUCATEUR", is_active: true };
+
+  if (search) {
+    const term = `%${search}%`;
+    where[Op.or] = [
+      { prenom: { [Op.like]: term } },
+      { nom: { [Op.like]: term } },
+      { email: { [Op.like]: term } },
+    ];
+  }
+
+  const existsLiteral = Sequelize.literal(`NOT EXISTS (
+    SELECT 1 FROM affectations_educateurs ae
+    WHERE ae.educateur_id = Utilisateur.id
+      AND ae.annee_id = ${annee_id}
+      AND ae.est_active = 1
+  )`);
+
+  where[Op.and] = [...(where[Op.and] || []), existsLiteral];
+
+  return Utilisateur.findAndCountAll({
+    where,
+    offset,
+    limit: Number(limit),
+    order: [["prenom", "ASC"], ["nom", "ASC"]],
     transaction: t,
   });
+};
+
+exports.removeAffectationById = (groupe_id, affectation_id, t = null) =>
+  AffectationEducateur.update(
+    { est_active: false, date_fin_affectation: new Date() },
+    { where: { id: affectation_id, groupe_id, est_active: true }, transaction: t }
+  );
 
 /* ===== Guards for delete ===== */
 exports.hasUsages = async (groupe_id, annee_id, t = null) => {
-  const whereInscriptions = { groupe_id };
-  const whereAffectations = { groupe_id };
+  const whereInscriptions = { groupe_id, est_active: true };
+  const whereAffectations = { groupe_id, est_active: true };
   if (annee_id) {
     whereInscriptions.annee_id = annee_id;
     whereAffectations.annee_id = annee_id;

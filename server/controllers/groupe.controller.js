@@ -76,7 +76,11 @@ exports.inscrireEnfants = async (req, res, next) => {
   try {
     const { anneeId, groupeId } = req.params;
     const { enfants } = req.body; // array of ids
-    const out = await service.inscrireEnfants(Number(groupeId), Number(anneeId), enfants);
+    const out = await service.inscrireEnfants(
+      Number(groupeId),
+      Number(anneeId),
+      enfants
+    );
     res.status(201).json({ ok: true, data: out });
   } catch (e) { next(e); }
 };
@@ -93,7 +97,10 @@ exports.getAffectation = async (req, res, next) => {
   try {
     const { groupeId } = req.params;
     const { anneeId } = req.query;
-    const data = await service.getAffectation(Number(groupeId), Number(anneeId));
+    const data = await service.getAffectation(
+      Number(groupeId),
+      Number(anneeId)
+    );
     res.json({ ok: true, data });
   } catch (e) { next(e); }
 };
@@ -102,14 +109,66 @@ exports.affecterEducateur = async (req, res, next) => {
   try {
     const { anneeId, groupeId } = req.params;
     const { educateur_id } = req.body;
-    const out = await service.affecterEducateur(Number(groupeId), Number(anneeId), Number(educateur_id));
+    const out = await service.affecterEducateur(
+      Number(groupeId),
+      Number(anneeId),
+      Number(educateur_id)
+    );
     res.status(201).json({ ok: true, data: out });
   } catch (e) { next(e); }
 };
 
 exports.removeAffectation = async (req, res, next) => {
   try {
-    const data = await service.removeAffectation(Number(req.params.groupeId), Number(req.params.affectationId));
+    const data = await service.removeAffectation(
+      Number(req.params.groupeId),
+      Number(req.params.affectationId)
+    );
     res.json({ ok: true, data });
   } catch (e) { next(e); }
+};
+
+/* ============== Candidates ============== */
+exports.searchEnfantsCandidats = async (req, res, next) => {
+  try {
+    const { anneeId } = req.params;
+    const {
+      search = null,
+      page = 1,
+      limit = 10,
+      scope = "available",
+      excludeGroupeId = null,
+    } = req.query;
+
+    const data = await service.searchEnfantsCandidats({
+      annee_id: Number(anneeId),
+      search,
+      page,
+      limit,
+      scope,
+      exclude_groupe_id: excludeGroupeId ? Number(excludeGroupeId) : undefined,
+    });
+
+    res.json({ ok: true, data });
+  } catch (e) {
+    next(e);
+  }
+};
+
+exports.searchEducateursCandidats = async (req, res, next) => {
+  try {
+    const { anneeId } = req.params;
+    const { search = null, page = 1, limit = 10 } = req.query;
+
+    const data = await service.searchEducateursCandidats({
+      annee_id: Number(anneeId),
+      search,
+      page,
+      limit,
+    });
+
+    res.json({ ok: true, data });
+  } catch (e) {
+    next(e);
+  }
 };

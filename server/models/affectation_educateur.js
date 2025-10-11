@@ -10,6 +10,8 @@ module.exports = (sequelize) =>
       groupe_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
       educateur_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
       date_affectation: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+      date_fin_affectation: { type: DataTypes.DATE, allowNull: true },
+      est_active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
       created_at: { type: DataTypes.DATE, allowNull: true },
       updated_at: { type: DataTypes.DATE, allowNull: true },
     },

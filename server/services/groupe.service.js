@@ -84,8 +84,14 @@ exports.listByYear = (annee_id) => repo.listByYear(annee_id);
 
 /* ===================== Inscriptions ===================== */
 exports.listInscriptions = async ({ groupe_id, annee_id, page, limit }) => {
-  const rows = await repo.listInscriptions({ groupe_id, annee_id, page, limit });
-  return rows.map((row) => {
+  const { rows, count } = await repo.listInscriptions({
+    groupe_id,
+    annee_id,
+    page,
+    limit,
+  });
+
+  const items = rows.map((row) => {
     const plain = row.get({ plain: true });
     const enfant = plain.enfant || {};
     return {
@@ -94,6 +100,7 @@ exports.listInscriptions = async ({ groupe_id, annee_id, page, limit }) => {
       annee_id: plain.annee_id,
       enfant_id: plain.enfant_id,
       date_inscription: plain.date_inscription,
+      date_sortie: plain.date_sortie,
       created_at: plain.created_at,
       updated_at: plain.updated_at,
       prenom: enfant.prenom ?? null,
@@ -101,6 +108,16 @@ exports.listInscriptions = async ({ groupe_id, annee_id, page, limit }) => {
       date_naissance: enfant.date_naissance ?? null,
     };
   });
+
+  return {
+    items,
+    meta: {
+      page,
+      limit,
+      total: count,
+      hasMore: page * limit < count,
+    },
+  };
 };
 
 exports.inscrireEnfants = async (groupe_id, annee_id, enfant_ids) => {
@@ -113,30 +130,70 @@ exports.inscrireEnfants = async (groupe_id, annee_id, enfant_ids) => {
   }
 
   return sequelize.transaction(async (t) => {
-    // Check duplicates (enfant already has a group that year)
-    const already = await repo.getEnfantsAlreadyAssigned(enfants, annee_id, t);
-    const alreadyIds = new Set(already.map((r) => r.enfant_id));
-    const toInsert = enfants.filter((id) => !alreadyIds.has(id));
-    if (!toInsert.length) {
-      const e = new Error("Tous les enfants fournis sont déjà inscrits cette année.");
+    const now = new Date();
+    const summary = {
+      created: 0,
+      created_ids: [],
+      transferred: [],
+      skipped: [],
+    };
+
+    for (const enfant_id of enfants) {
+      const active = await repo.findActiveInscription(enfant_id, annee_id, t);
+
+      if (active && active.groupe_id === groupe_id) {
+        summary.skipped.push(enfant_id);
+        continue;
+      }
+
+      if (active) {
+        await repo.closeInscriptionById(active.id, now, t);
+      }
+
+      const created = await repo.createInscription(
+        {
+          enfant_id,
+          groupe_id,
+          annee_id,
+          date_inscription: now,
+        },
+        t
+      );
+
+      summary.created += 1;
+      summary.created_ids.push(created.id);
+
+      if (active) {
+        summary.transferred.push({
+          enfant_id,
+          from_groupe_id: active.groupe_id,
+        });
+      }
+
+      await notifier.notifyOnChildAssignedToGroup(
+        { enfant_id, groupe_id, annee_id },
+        t
+      );
+    }
+
+    if (summary.created === 0) {
+      const e = new Error(
+        "Aucun enfant ajouté: déjà membre de ce groupe pour cette année."
+      );
       e.status = 409;
       throw e;
     }
 
-    const rows = toInsert.map((enfant_id) => ({ enfant_id, groupe_id, annee_id }));
-    const created = await repo.addInscriptions(rows, t);
-
-    // Notify parents of each child inserted
-    for (const enfant_id of toInsert) {
-      await notifier.notifyOnChildAssignedToGroup({ enfant_id, groupe_id, annee_id }, t);
-    }
-
-    return { created: created.length, skipped: enfants.length - toInsert.length, enfants_ignores: [...alreadyIds] };
+    return summary;
   });
 };
 
 exports.removeInscription = async (inscription_id) => {
-  const nb = await repo.removeInscription(inscription_id);
+  const [nb] = await repo.closeInscriptionById(
+    inscription_id,
+    new Date()
+  );
+
   if (!nb) {
     const e = new Error("Inscription introuvable");
     e.status = 404;
@@ -146,42 +203,114 @@ exports.removeInscription = async (inscription_id) => {
 };
 
 /* ===================== Affectation ===================== */
-exports.getAffectation = (groupe_id, annee_id) => repo.getAffectationByYear(groupe_id, annee_id);
+exports.getAffectation = async (groupe_id, annee_id) => {
+  const row = await repo.getAffectationByYear(groupe_id, annee_id);
+  return row ? row.get({ plain: true }) : null;
+};
 
-exports.affecterEducateur = async (groupe_id, annee_id, educateur_id) => {
-  return sequelize.transaction(async (t) => {
-    // Ensure educator free this year
-    const exists = await repo.findEducateurAssignment(educateur_id, annee_id, t);
-    if (exists) {
-      const e = new Error("Cet éducateur est déjà affecté pour cette année.");
+exports.affecterEducateur = async (groupe_id, annee_id, educateur_id) =>
+  sequelize.transaction(async (t) => {
+    const now = new Date();
+
+    const existingForEducateur = await repo.findEducateurAssignment(
+      educateur_id,
+      annee_id,
+      t
+    );
+
+    if (existingForEducateur && existingForEducateur.groupe_id !== groupe_id) {
+      const e = new Error("Cet éducateur est déjà affecté à un autre groupe cette année.");
       e.status = 409;
       throw e;
     }
-    // Ensure group has no educator for this year (unique)
+
     const current = await repo.getAffectationByYear(groupe_id, annee_id, t);
-    if (current) {
-      // Replace strategy: clear previous then create new
-      await repo.clearAffectation(groupe_id, annee_id, t);
+
+    if (current && current.educateur_id === educateur_id) {
+      return current.get({ plain: true });
     }
-    const row = await repo.createAffectation({ groupe_id, annee_id, educateur_id }, t);
 
-    // Notify educator
-    await notifier.notifyOnEducatorAssignedToGroup({ educateur_id, groupe_id, annee_id }, t);
+    if (existingForEducateur && existingForEducateur.groupe_id === groupe_id) {
+      // Same group but previous assignment closed; just reactivate with new record
+      await repo.closeAffectationById(existingForEducateur.id, now, t);
+    }
 
-    return row;
+    if (current) {
+      await repo.closeAffectationById(current.id, now, t);
+    }
+
+    const row = await repo.createAffectation(
+      { groupe_id, annee_id, educateur_id, date_affectation: now },
+      t
+    );
+
+    await notifier.notifyOnEducatorAssignedToGroup(
+      { educateur_id, groupe_id, annee_id },
+      t
+    );
+
+    const fresh = await repo.getAffectationByYear(groupe_id, annee_id, t);
+    return fresh ? fresh.get({ plain: true }) : row.get({ plain: true });
   });
-};
 
 exports.removeAffectation = async (groupe_id, affectation_id) => {
-  const deleted = await sequelize.transaction((t) =>
-    repo.removeAffectationById(groupe_id, affectation_id, t)
-  );
+  const [nb] = await repo.removeAffectationById(groupe_id, affectation_id);
 
-  if (!deleted) {
+  if (!nb) {
     const e = new Error("Affectation introuvable");
     e.status = 404;
     throw e;
   }
 
   return { deleted: true };
+};
+
+/* ===================== Candidates ===================== */
+exports.searchEnfantsCandidats = async (params) => {
+  const { rows, count } = await repo.listChildrenCandidates(params);
+  const items = rows.map((row) => {
+    const plain = row.get({ plain: true });
+    const active = Array.isArray(plain.inscriptions)
+      ? plain.inscriptions[0] || null
+      : null;
+    return {
+      id: plain.id,
+      nom: plain.nom,
+      prenom: plain.prenom,
+      date_naissance: plain.date_naissance,
+      inscription_actuelle: active
+        ? {
+            groupe_id: active.groupe_id,
+            groupe_nom: active.groupe?.nom ?? null,
+            inscription_id: active.id,
+            date_inscription: active.date_inscription,
+          }
+        : null,
+    };
+  });
+
+  return {
+    items,
+    meta: {
+      page: params.page,
+      limit: params.limit,
+      total: count,
+      hasMore: params.page * params.limit < count,
+    },
+  };
+};
+
+exports.searchEducateursCandidats = async (params) => {
+  const { rows, count } = await repo.listEducateurCandidates(params);
+  const items = rows.map((row) => row.get({ plain: true }));
+
+  return {
+    items,
+    meta: {
+      page: params.page,
+      limit: params.limit,
+      total: count,
+      hasMore: params.page * params.limit < count,
+    },
+  };
 };
