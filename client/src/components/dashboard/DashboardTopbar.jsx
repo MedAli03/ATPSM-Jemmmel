@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../app/providers/AuthProvider";
 import NotificationMenu from "./NotificationMenu";
 // small helper
 const Kbd = ({ children }) => (
