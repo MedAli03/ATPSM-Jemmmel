@@ -514,7 +514,7 @@ export default function AddChildWizard() {
     setServerError("");
     try {
       await mutateAsync({ enfant, fiche, parentsFiche });
-    } catch (error) {
+    } catch {
       // handled in onError
     }
   };
