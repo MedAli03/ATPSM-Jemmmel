@@ -3,11 +3,32 @@
 const Joi = require("joi");
 
 // List / pagination
+const searchField = Joi.string().trim().max(120).allow("", null).optional();
+
 const listEnfantsQuerySchema = Joi.object({
-  q: Joi.string().max(120).optional(),
+  q: searchField,
+  search: searchField,
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(20),
-});
+})
+  .custom((value) => {
+    const normalized = { ...value };
+    const raw = normalized.q ?? normalized.search;
+
+    if (typeof raw === "string") {
+      const trimmed = raw.trim();
+      if (trimmed) {
+        normalized.q = trimmed;
+      } else {
+        delete normalized.q;
+      }
+    }
+
+    delete normalized.search;
+
+    return normalized;
+  })
+  .prefs({ stripUnknown: true });
 
 // Create / update
 const createEnfantSchema = Joi.object({
