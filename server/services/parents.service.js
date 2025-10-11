@@ -7,11 +7,68 @@ const ficheRepo = require("../repos/fiche_enfant.repo");
 const { sequelize, Utilisateur } = require("../models");
 const repo = require("../repos/parents.repo");
 
-exports.list = (q) =>
-  repo.findAll(
-    { q: q.q, is_active: q.is_active },
-    { page: q.page, limit: q.limit }
+function normalizeParent(entity, { includeChildren = false } = {}) {
+  if (!entity) return null;
+  const plain = entity.get ? entity.get({ plain: true }) : entity;
+  const enfants = Array.isArray(plain.enfants) ? plain.enfants : [];
+  const mappedChildren = enfants.map((enfant) => {
+    const child = enfant.get ? enfant.get({ plain: true }) : enfant;
+    const inscription = Array.isArray(child.inscriptions)
+      ? child.inscriptions.find((ins) => ins && ins.est_active !== false)
+      : null;
+    return {
+      id: child.id,
+      nom: child.nom,
+      prenom: child.prenom,
+      date_naissance: child.date_naissance,
+      groupe_actif: inscription && inscription.groupe
+        ? {
+            id: inscription.groupe.id,
+            nom: inscription.groupe.nom,
+            annee_id: inscription.annee_id || inscription.annee?.id || null,
+            annee:
+              inscription.annee?.libelle || inscription.annee?.annee_scolaire || null,
+          }
+        : null,
+    };
+  });
+
+  const result = {
+    ...plain,
+    children_count: mappedChildren.length,
+    missing_contact:
+      (!plain.email || plain.email === "") &&
+      (!plain.telephone || plain.telephone === ""),
+  };
+
+  if (includeChildren) {
+    result.enfants = mappedChildren;
+  } else {
+    delete result.enfants;
+  }
+
+  return result;
+}
+
+exports.list = async (q) => {
+  const page = q.page;
+  const limit = q.limit;
+  const { rows, count } = await repo.findAll(
+    {
+      search: q.search,
+      status: q.status,
+      hasContact: q.has_contact,
+    },
+    { page, limit }
   );
+
+  return {
+    items: rows.map((row) => normalizeParent(row, { includeChildren: false })),
+    total: Array.isArray(count) ? count.length : count,
+    page,
+    limit,
+  };
+};
 
 exports.get = async (id) => {
   const parent = await repo.findById(id);
@@ -20,7 +77,7 @@ exports.get = async (id) => {
     e.status = 404;
     throw e;
   }
-  return parent;
+  return normalizeParent(parent, { includeChildren: true });
 };
 
 exports.create = async (payload) => {
@@ -37,6 +94,12 @@ exports.create = async (payload) => {
     const hash = await bcrypt.hash(payload.mot_de_passe, SALT_ROUNDS);
 
     // role forcé = PARENT
+    if (!payload.email && !payload.telephone) {
+      const e = new Error("Téléphone ou email requis");
+      e.status = 422;
+      throw e;
+    }
+
     const created = await repo.create(
       {
         nom: payload.nom,
@@ -44,6 +107,7 @@ exports.create = async (payload) => {
         email: payload.email,
         mot_de_passe: hash,
         telephone: payload.telephone || null,
+        adresse: payload.adresse || null,
         role: "PARENT",
         is_active:
           typeof payload.is_active === "boolean" ? payload.is_active : true,
@@ -52,9 +116,8 @@ exports.create = async (payload) => {
       t
     );
 
-    // hide password in returned payload
     const safe = await repo.findById(created.id, t);
-    return safe;
+    return normalizeParent(safe, { includeChildren: true });
   });
 };
 
@@ -78,11 +141,32 @@ exports.update = async (id, payload) => {
     }
 
     // on n'autorise pas le changement de role ici
+    const nextEmail = payload.email ?? parent.email;
+    const nextPhone =
+      payload.telephone !== undefined ? payload.telephone : parent.telephone;
+    const nextAdresse =
+      payload.adresse !== undefined ? payload.adresse : parent.adresse;
+    if (!nextEmail && !nextPhone) {
+      const e = new Error("Téléphone ou email requis");
+      e.status = 422;
+      throw e;
+    }
+
+    const sanitizedPhone =
+      typeof nextPhone === "string" && nextPhone.trim() === ""
+        ? null
+        : nextPhone;
+    const sanitizedAdresse =
+      typeof nextAdresse === "string" && nextAdresse.trim() === ""
+        ? null
+        : nextAdresse;
+
     const toUpdate = {
       nom: payload.nom ?? parent.nom,
       prenom: payload.prenom ?? parent.prenom,
-      email: payload.email ?? parent.email,
-      telephone: payload.telephone ?? parent.telephone,
+      email: nextEmail,
+      telephone: sanitizedPhone,
+      adresse: sanitizedAdresse,
       is_active:
         typeof payload.is_active === "boolean"
           ? payload.is_active
@@ -96,7 +180,8 @@ exports.update = async (id, payload) => {
       e.status = 400;
       throw e;
     }
-    return repo.findById(id, t);
+    const fresh = await repo.findById(id, t);
+    return normalizeParent(fresh, { includeChildren: true });
   });
 };
 
@@ -127,7 +212,97 @@ exports.children = async (id, q) => {
     e.status = 404;
     throw e;
   }
-  return repo.childrenOfParent(id, { page: q.page, limit: q.limit });
+  const data = await repo.childrenOfParent(id, { page: q.page, limit: q.limit });
+  const rows = data.rows.map((child) => {
+    const plain = child.get ? child.get({ plain: true }) : child;
+    const inscription = Array.isArray(plain.inscriptions)
+      ? plain.inscriptions.find((ins) => ins && ins.est_active !== false)
+      : null;
+    return {
+      id: plain.id,
+      nom: plain.nom,
+      prenom: plain.prenom,
+      date_naissance: plain.date_naissance,
+      groupe_actif: inscription && inscription.groupe
+        ? {
+            id: inscription.groupe.id,
+            nom: inscription.groupe.nom,
+            annee_id: inscription.annee_id || inscription.annee?.id || null,
+            annee:
+              inscription.annee?.libelle || inscription.annee?.annee_scolaire || null,
+          }
+        : null,
+    };
+  });
+  return {
+    rows,
+    count: data.count,
+    page: data.page,
+    limit: data.limit,
+  };
+};
+
+exports.archive = async (id, active) => {
+  return sequelize.transaction(async (t) => {
+    const parent = await repo.findById(id, t);
+    if (!parent) {
+      const e = new Error("Parent introuvable");
+      e.status = 404;
+      throw e;
+    }
+    await repo.updateById(id, { is_active: active }, t);
+    const fresh = await repo.findById(id, t);
+    return normalizeParent(fresh, { includeChildren: true });
+  });
+};
+
+exports.linkChild = async (parentId, enfantId) => {
+  return sequelize.transaction(async (t) => {
+    const parent = await repo.findById(parentId, t);
+    if (!parent) {
+      const e = new Error("Parent introuvable");
+      e.status = 404;
+      throw e;
+    }
+
+    const child = await enfantsRepo.findById(enfantId, t);
+    if (!child) {
+      const e = new Error("Enfant introuvable");
+      e.status = 404;
+      throw e;
+    }
+    if (child.parent_user_id && child.parent_user_id !== parentId) {
+      const e = new Error("Enfant déjà lié à un autre parent");
+      e.status = 409;
+      throw e;
+    }
+
+    await repo.linkChild(parentId, enfantId, t);
+    const fresh = await repo.findById(parentId, t);
+    return normalizeParent(fresh, { includeChildren: true });
+  });
+};
+
+exports.unlinkChild = async (parentId, enfantId) => {
+  return sequelize.transaction(async (t) => {
+    const parent = await repo.findById(parentId, t);
+    if (!parent) {
+      const e = new Error("Parent introuvable");
+      e.status = 404;
+      throw e;
+    }
+
+    const child = await enfantsRepo.findById(enfantId, t);
+    if (!child || child.parent_user_id !== parentId) {
+      const e = new Error("Lien introuvable");
+      e.status = 404;
+      throw e;
+    }
+
+    await repo.unlinkChild(parentId, enfantId, t);
+    const fresh = await repo.findById(parentId, t);
+    return normalizeParent(fresh, { includeChildren: true });
+  });
 };
 
 /**

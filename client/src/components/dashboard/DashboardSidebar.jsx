@@ -445,7 +445,7 @@ export default function DashboardSidebar({ open, onClose }) {
               label="المربّون"
               icon="users"
             />
-            <Item to="/dashboard/users/parents" label="الأولياء" icon="users" />
+            <Item to="/dashboard/president/parents" label="الأولياء" icon="users" />
             <Item to="/dashboard/admins" label="المديرون" icon="settings" />
           </Section>
 

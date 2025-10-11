@@ -21,6 +21,13 @@ router.use(auth);
 
 // LIST (staff only)
 router.get(
+  "/search",
+  requireRole("PRESIDENT", "DIRECTEUR", "EDUCATEUR"),
+  ctrl.search
+);
+
+// LIST (staff only)
+router.get(
   "/",
   requireRole("PRESIDENT", "DIRECTEUR", "EDUCATEUR"),
   (req, _res, next) => {
