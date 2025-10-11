@@ -1,50 +1,115 @@
+"use strict";
+
 const service = require("../services/groupe.service");
 
+/* ============== CRUD ============== */
 exports.create = async (req, res, next) => {
   try {
     const g = await service.create(req.body);
-    res.status(201).json(g);
-  } catch (e) {
-    next(e);
-  }
+    res.status(201).json({ ok: true, data: g });
+  } catch (e) { next(e); }
 };
 
+exports.list = async (req, res, next) => {
+  try {
+    const { anneeId, search, statut, page = 1, limit = 10 } = req.query;
+    const data = await service.list({ anneeId, search, statut, page, limit });
+    res.json({ ok: true, data });
+  } catch (e) { next(e); }
+};
+
+exports.get = async (req, res, next) => {
+  try {
+    const data = await service.get(Number(req.params.groupeId));
+    res.json({ ok: true, data });
+  } catch (e) { next(e); }
+};
+
+exports.update = async (req, res, next) => {
+  try {
+    const data = await service.update(Number(req.params.groupeId), req.body);
+    res.json({ ok: true, data });
+  } catch (e) { next(e); }
+};
+
+exports.archive = async (req, res, next) => {
+  try {
+    const { statut } = req.body; // "actif" | "archive"
+    const data = await service.archive(Number(req.params.groupeId), statut);
+    res.json({ ok: true, data });
+  } catch (e) { next(e); }
+};
+
+exports.remove = async (req, res, next) => {
+  try {
+    // pass annee_id if your UI has it in query (?anneeId=)
+    const data = await service.remove(Number(req.params.groupeId), Number(req.query.anneeId));
+    res.json({ ok: true, data });
+  } catch (e) { next(e); }
+};
+
+/* ============== Compat list by year ============== */
 exports.listByYear = async (req, res, next) => {
   try {
     const annee_id = Number(req.params.anneeId);
     const data = await service.listByYear(annee_id);
-    res.json(data);
-  } catch (e) {
-    next(e);
-  }
+    res.json({ ok: true, data });
+  } catch (e) { next(e); }
+};
+
+/* ============== Inscriptions ============== */
+exports.listInscriptions = async (req, res, next) => {
+  try {
+    const { groupeId } = req.params;
+    const { anneeId, page = 1, limit = 50 } = req.query;
+    const data = await service.listInscriptions({
+      groupe_id: Number(groupeId),
+      annee_id: Number(anneeId),
+      page,
+      limit,
+    });
+    res.json({ ok: true, data });
+  } catch (e) { next(e); }
 };
 
 exports.inscrireEnfants = async (req, res, next) => {
   try {
     const { anneeId, groupeId } = req.params;
-    const { enfant_ids } = req.body;
-    const out = await service.inscrireEnfants(
-      Number(groupeId),
-      Number(anneeId),
-      enfant_ids
-    );
-    res.json(out);
-  } catch (e) {
-    next(e);
-  }
+    const { enfants } = req.body; // array of ids
+    const out = await service.inscrireEnfants(Number(groupeId), Number(anneeId), enfants);
+    res.status(201).json({ ok: true, data: out });
+  } catch (e) { next(e); }
+};
+
+exports.removeInscription = async (req, res, next) => {
+  try {
+    const data = await service.removeInscription(Number(req.params.inscriptionId));
+    res.json({ ok: true, data });
+  } catch (e) { next(e); }
+};
+
+/* ============== Affectation ============== */
+exports.getAffectation = async (req, res, next) => {
+  try {
+    const { groupeId } = req.params;
+    const { anneeId } = req.query;
+    const data = await service.getAffectation(Number(groupeId), Number(anneeId));
+    res.json({ ok: true, data });
+  } catch (e) { next(e); }
 };
 
 exports.affecterEducateur = async (req, res, next) => {
   try {
     const { anneeId, groupeId } = req.params;
     const { educateur_id } = req.body;
-    const out = await service.affecterEducateur(
-      Number(groupeId),
-      Number(anneeId),
-      Number(educateur_id)
-    );
-    res.json(out);
-  } catch (e) {
-    next(e);
-  }
+    const out = await service.affecterEducateur(Number(groupeId), Number(anneeId), Number(educateur_id));
+    res.status(201).json({ ok: true, data: out });
+  } catch (e) { next(e); }
+};
+
+exports.removeAffectation = async (req, res, next) => {
+  try {
+    const data = await service.removeAffectation(Number(req.params.groupeId), Number(req.params.affectationId));
+    res.json({ ok: true, data });
+  } catch (e) { next(e); }
 };

@@ -14,7 +14,8 @@ const createEnfantSchema = Joi.object({
   nom: Joi.string().max(100).required(),
   prenom: Joi.string().max(100).required(),
   date_naissance: Joi.date().iso().required(),
-  // parent_user_id is NOT accepted at creation; it is linked later
+  parent_user_id: Joi.number().integer().positive().allow(null),
+
 });
 
 const updateEnfantSchema = Joi.object({

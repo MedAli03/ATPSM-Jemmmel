@@ -1,171 +1,259 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+import NotificationMenu from "./NotificationMenu";
+// small helper
+const Kbd = ({ children }) => (
+  <kbd className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 text-[10px] border">
+    {children}
+  </kbd>
+);
 
-const DashboardTopbar = () => {
-  const { logout, currentUser } = useAuth();
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
-  const notificationsRef = useRef(null);
-  const userMenuRef = useRef(null);
+export default function TopbarNeo({ onMenuClick }) {
+  const { currentUser, logout } = useAuth();
+  const { pathname } = useLocation();
 
-  // Sample notifications data
-  const notifications = [
-    { id: 1, text: 'لديك طلب جديد من عميل', time: 'منذ 10 دقائق', read: false },
-    { id: 2, text: 'تم تأكيد حجزك', time: 'منذ ساعة', read: true },
-    { id: 3, text: 'تم تحديث سياسة الخصوصية', time: 'منذ يوم', read: false },
-  ];
+  // --- local state
+  const [openCmd, setOpenCmd] = useState(false);
+  // const [openNotif, setOpenNotif] = useState(false);
+  const [openUser, setOpenUser] = useState(false);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  // const notifRef = useRef(null);
+  const userRef = useRef(null);
 
-  // Handle clicks outside dropdowns
+  // sample notifications (wire to backend later)
+  // const notifications = [
+  //   { id: 1, text: "تمت إضافة نشاط جديد إلى مجموعة أمل", time: "الآن", read: false },
+  //   { id: 2, text: "تذكير: اجتماع يوم الجمعة", time: "منذ ساعة", read: true },
+  // ];
+  // const unread = notifications.filter((n) => !n.read).length;
+
+  // breadcrumbs from URL
+  const crumbs = useMemo(
+    () => pathname.split("/").filter(Boolean).slice(0, 4),
+    [pathname]
+  );
+
+  // close popovers by clicking outside
+  // useEffect(() => {
+  //   const h = (e) => {
+  //     if (notifRef.current && !notifRef.current.contains(e.target)) setOpenNotif(false);
+  //     if (userRef.current && !userRef.current.contains(e.target)) setOpenUser(false);
+  //   };
+  //   document.addEventListener("mousedown", h);
+  //   return () => document.removeEventListener("mousedown", h);
+  // }, []);
+
+  // command palette (Ctrl/Cmd + K)
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (notificationsRef.current && !notificationsRef.current.contains(event.target)) {
-        setShowNotifications(false);
-      }
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
-        setShowUserMenu(false);
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setOpenCmd((s) => !s);
       }
     };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
   }, []);
 
   return (
-    <header className="bg-white shadow">
-      <div className="flex justify-between items-center px-4 py-3 sm:px-6">
-        <div className="flex items-center">
-          <button className="md:hidden mr-4 text-gray-500 focus:outline-none">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
-            </svg>
-          </button>
-          <h1 className="text-xl font-bold text-gray-800">لوحة التحكم</h1>
-        </div>
-        
-        <div className="flex items-center space-x-4">
-          {/* Notifications Dropdown */}
-          <div className="relative" ref={notificationsRef}>
-            <button 
-              className="text-gray-500 hover:text-gray-700 focus:outline-none relative"
-              onClick={() => setShowNotifications(!showNotifications)}
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
-              </svg>
-              {unreadCount > 0 && (
-                <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
+    <header className="sticky top-0 z-50" dir="rtl" aria-label="الشريط العلوي">
+      {/* thin accent */}
+      <div className="h-[3px] bg-gradient-to-l from-blue-600 via-indigo-500 to-sky-400" />
 
-            {showNotifications && (
-              <div className="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg overflow-hidden z-50">
-                <div className="py-2 border-b">
-                  <div className="px-4 py-2 flex justify-between items-center">
-                    <h3 className="font-bold text-gray-800">الإشعارات</h3>
-                    <button className="text-blue-600 text-sm">تعليم الكل كمقروء</button>
+      {/* floating bar */}
+      <div className="px-3 sm:px-6 py-2 bg-transparent">
+        <div className="max-w-[1400px] mx-auto">
+          <div className="rounded-2xl border border-gray-200/70 bg-white/80 backdrop-blur-xl shadow-lg">
+            <div className="flex items-center justify-between px-3 sm:px-5 py-2.5 gap-2">
+              {/* left cluster: menu + brand + crumbs */}
+              <div className="flex items-center gap-2 sm:gap-3">
+                <button
+                  className="md:hidden p-2 rounded-xl hover:bg-gray-100 text-gray-700"
+                  onClick={onMenuClick}
+                  aria-label="فتح القائمة"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                      d="M4 6h16M4 12h16M4 18h16"/>
+                  </svg>
+                </button>
+
+                <Link to="/dashboard/president" className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 grid place-items-center text-white shadow-sm">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                        d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
                   </div>
-                </div>
-                <div className="divide-y max-h-96 overflow-y-auto">
-                  {notifications.length > 0 ? (
-                    notifications.map(notification => (
-                      <div 
-                        key={notification.id} 
-                        className={`px-4 py-3 hover:bg-gray-50 ${!notification.read ? 'bg-blue-50' : ''}`}
-                      >
-                        <div className="flex items-start">
-                          <div className="ml-3">
-                            <p className="text-sm font-medium text-gray-900">{notification.text}</p>
-                            <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
-                          </div>
-                          {!notification.read && (
-                            <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1.5"></span>
-                          )}
-                        </div>
+                  <div className="hidden sm:block">
+                    <div className="text-sm font-extrabold leading-4 text-gray-900">
+                      لوحة الرئيس
+                    </div>
+                    <div className="text-[10px] text-gray-500 leading-3 -mt-0.5">
+                      منصة إدارة الجمعية
+                    </div>
+                  </div>
+                </Link>
+
+                {/* breadcrumbs */}
+                <nav className="hidden lg:block">
+                  <ol className="flex items-center gap-2 text-sm text-gray-600">
+                    <li>
+                      <Link to="/dashboard/president" className="hover:text-gray-900 font-medium">
+                        الرئيسية
+                      </Link>
+                    </li>
+                    {crumbs.map((c, i) => (
+                      <li key={i} className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none">
+                          <path d="M15 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                        </svg>
+                        <span className="capitalize">
+                          {decodeURIComponent(c)}
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                </nav>
+              </div>
+
+              {/* center: pill search */}
+              <div className="hidden md:flex flex-1 justify-center max-w-2xl">
+                <button
+                  className="w-full flex items-center gap-3 px-4 py-2 rounded-2xl bg-gray-100 text-gray-600 border
+                             hover:bg-gray-50 focus:ring-2 ring-blue-500"
+                  onClick={() => setOpenCmd(true)}
+                  aria-label="فتح البحث"
+                >
+                  <svg className="w-5 h-5 text-gray-500" viewBox="0 0 24 24" fill="none">
+                    <path d="M21 21l-4.35-4.35M11 18a7 7 0 110-14 7 7 0 010 14z" stroke="currentColor" strokeWidth="2"/>
+                  </svg>
+                  <span className="text-sm">ابحث عن طفل، مجموعة، خبر…</span>
+                  <span className="ms-auto flex items-center gap-1 text-xs text-gray-500">
+                    <Kbd>Ctrl</Kbd> + <Kbd>K</Kbd>
+                  </span>
+                </button>
+              </div>
+
+              {/* right: quick actions + notif + user */}
+              <div className="flex items-center gap-1 sm:gap-2">
+                {/* slot: year selector (wire later) */}
+                {/* <SelectAnnee value={anneeId} onChange={setAnneeId} /> */}
+
+                <Link
+                  to="/dashboard/broadcast"
+                  className="hidden sm:inline-flex items-center gap-2 px-3 py-2 rounded-2xl
+                             bg-gradient-to-l from-blue-600 to-indigo-600 text-white hover:opacity-95 shadow-sm"
+                >
+                  <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none">
+                    <path d="M15 10l4.553-2.276a1 1 0 011.447.894v5.764a1 1 0 01-1.447.894L15 13M4 6h7v12H4z"
+                          stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                  بثّ إشعار
+                </Link>
+
+                {/* notifications */}
+          <NotificationMenu />
+
+                {/* user capsule */}
+                <div className="relative" ref={userRef}>
+                  <button
+                    className="flex items-center gap-2 rounded-full ps-2 pe-2 sm:pe-3 py-1.5 bg-gray-100 hover:bg-gray-200"
+                    onClick={() => setOpenUser((s) => !s)}
+                    aria-label="قائمة المستخدم"
+                  >
+                    {currentUser?.avatar ? (
+                      <img src={currentUser.avatar} className="w-8 h-8 rounded-full object-cover" alt="المستخدم" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-200 to-gray-300" />
+                    )}
+                    <div className="hidden sm:block text-right leading-4">
+                      <div className="text-sm font-semibold">
+                        {currentUser?.nom ? `${currentUser.nom} ${currentUser.prenom || ""}` : "المستخدم"}
                       </div>
-                    ))
-                  ) : (
-                    <div className="px-4 py-6 text-center">
-                      <p className="text-gray-500">لا توجد إشعارات جديدة</p>
+                      <div className="text-[11px] text-gray-500">{currentUser?.role || "PRESIDENT"}</div>
+                    </div>
+                    <svg className={`w-4 h-4 text-gray-500 transition-transform ${openUser ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24">
+                      <path d="M19 9l-7 7-7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                  </button>
+
+                  {openUser && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border py-1 z-50">
+                      <Link to="/profile" className="block px-4 py-2 text-sm hover:bg-gray-50">الملف الشخصي</Link>
+                      <Link to="/settings" className="block px-4 py-2 text-sm hover:bg-gray-50">الإعدادات</Link>
+                      <button onClick={logout} className="w-full text-right px-4 py-2 text-sm hover:bg-gray-50">
+                        تسجيل الخروج
+                      </button>
                     </div>
                   )}
                 </div>
-                <Link 
-                  to="/notifications" 
-                  className="block text-center py-3 text-sm font-medium text-blue-600 hover:bg-gray-50"
-                >
-                  عرض جميع الإشعارات
-                </Link>
               </div>
-            )}
-          </div>
-          
-          {/* User Dropdown */}
-          <div className="relative" ref={userMenuRef}>
-            <button 
-              className="flex items-center focus:outline-none"
-              onClick={() => setShowUserMenu(!showUserMenu)}
-            >
-              {currentUser?.avatar ? (
-                <img 
-                  className="h-8 w-8 rounded-full object-cover" 
-                  src={currentUser.avatar} 
-                  alt={currentUser.name} 
-                />
-              ) : (
-                <div className="bg-gray-200 border-2 border-dashed rounded-xl w-8 h-8" />
-              )}
-              <span className="ml-2 text-gray-700 hidden sm:inline">
-                {currentUser?.name || 'المستخدم'}
-              </span>
-              <svg 
-                className={`w-4 h-4 text-gray-500 ml-1 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-              </svg>
-            </button>
+            </div>
 
-            {showUserMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
-                <Link 
-                  to="/profile" 
-                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  onClick={() => setShowUserMenu(false)}
-                >
-                  الملف الشخصي
-                </Link>
-                <Link 
-                  to="/settings" 
-                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  onClick={() => setShowUserMenu(false)}
-                >
-                  الإعدادات
-                </Link>
-                <Link
-                  onClick={() => {
-                    setShowUserMenu(false);
-                    logout();
-                  }}
-                  className="block w-full text-right px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  تسجيل الخروج
-                </Link>
+            {/* optional sub-row: chips / filters */}
+            {/* <div className="px-3 sm:px-5 pb-3">
+              <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                <span className="px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs border">سنة 2024-2025</span>
+                <button className="px-3 py-1.5 rounded-full bg-gray-100 text-xs hover:bg-gray-200">المجموعات</button>
+                <button className="px-3 py-1.5 rounded-full bg-gray-100 text-xs hover:bg-gray-200">الأطفال</button>
               </div>
-            )}
+            </div> */}
           </div>
         </div>
       </div>
+
+      {/* Command Palette (simple) */}
+      {openCmd && (
+        <div
+          className="fixed inset-0 z-[60] flex items-start justify-center p-4 bg-black/40"
+          onClick={() => setOpenCmd(false)}
+        >
+          <div
+            className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl border p-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2 rounded-xl bg-gray-100 px-3 py-2 border">
+              <svg className="w-5 h-5 text-gray-500" viewBox="0 0 24 24" fill="none">
+                <path d="M21 21l-4.35-4.35M11 18a7 7 0 110-14 7 7 0 010 14z" stroke="currentColor" strokeWidth="2"/>
+              </svg>
+              <input
+                autoFocus
+                placeholder="اكتب للبحث…"
+                className="flex-1 bg-transparent outline-none text-sm"
+              />
+              <div className="hidden sm:flex items-center gap-1 text-xs text-gray-500">
+                <Kbd>Esc</Kbd> للخروج
+              </div>
+            </div>
+
+            <div className="mt-3 text-xs text-gray-500 px-1">اقتراحات</div>
+            <ul className="mt-1 max-h-72 overflow-y-auto">
+              <CmdItem to="/dashboard/president" label="الانتقال إلى لوحة الرئيس" onClose={() => setOpenCmd(false)} />
+              <CmdItem to="/dashboard/children" label="فتح إدارة الأطفال" onClose={() => setOpenCmd(false)} />
+              <CmdItem to="/dashboard/pei" label="مشاريع PEI" onClose={() => setOpenCmd(false)} />
+              <CmdItem to="/dashboard/actualites" label="الأخبار" onClose={() => setOpenCmd(false)} />
+              <CmdItem to="/dashboard/events" label="الفعاليات" onClose={() => setOpenCmd(false)} />
+            </ul>
+          </div>
+        </div>
+      )}
     </header>
   );
-};
+}
 
-export default DashboardTopbar;
+function CmdItem({ to, label, onClose }) {
+  return (
+    <li>
+      <Link
+        to={to}
+        onClick={onClose}
+        className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 text-sm"
+      >
+        <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+        {label}
+      </Link>
+    </li>
+  );
+}

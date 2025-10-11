@@ -1,58 +1,57 @@
-import { createContext, useState, useEffect, useContext } from "react";
-import client from "../api/client";
+// src/context/AuthContext.jsx
+import { createContext, useContext, useMemo, useState } from "react";
+import { login as apiLogin, logout as apiLogout } from "../api/auth";
 
-const AuthContext = createContext();
-export function useAuth() { return useContext(AuthContext); }
+const AuthCtx = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [currentUser, setCurrentUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [auth, setAuth] = useState(() => {
+    try {
+      const raw = localStorage.getItem("auth");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [isLoading, setIsLoading] = useState(false);
 
-  // On first load, try to restore token and user from storage and verify /me
-  useEffect(() => {
-    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-    const userStr = localStorage.getItem("user") || sessionStorage.getItem("user");
+  const currentUser = auth?.user || null;
 
-    if (!token) { setIsLoading(false); return; }
-
-    // If we have cached user, set it immediately for fast rendering
-    if (userStr) setCurrentUser(JSON.parse(userStr));
-
-    // Verify token and refresh user data
-    client.get("/api/auth/me")
-      .then(({ data }) => {
-        setCurrentUser(data);
-        const storage = localStorage.getItem("token") ? localStorage : sessionStorage;
-        storage.setItem("user", JSON.stringify(data));
-      })
-      .catch(() => {
-        // If token invalid/expired, force logout
-        logout();
-      })
-      .finally(() => setIsLoading(false));
-  }, []);
-
-  // remember=true -> localStorage, else sessionStorage
-  const login = ({ token, user }, remember = true) => {
-    const storage = remember ? localStorage : sessionStorage;
-    storage.setItem("token", token);
-    storage.setItem("user", JSON.stringify(user));
-    setCurrentUser(user);
+  const doLogin = async (email, mot_de_passe) => {
+    setIsLoading(true);
+    try {
+      const { token, user } = await apiLogin(email, mot_de_passe);
+      const value = { token, user };
+      localStorage.setItem("auth", JSON.stringify(value));
+      setAuth(value);
+      return user;
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const logout = () => {
-    localStorage.removeItem("token"); localStorage.removeItem("user");
-    sessionStorage.removeItem("token"); sessionStorage.removeItem("user");
-    setCurrentUser(null);
+  const doLogout = () => {
+    apiLogout();
+    setAuth(null);
+    window.location.href = "/login";
   };
 
-  // Call backend to change password (requires auth)
-  const changePassword = (ancien_mot_de_passe, nouveau_mot_de_passe) =>
-    client.post("/api/auth/change-password", { ancien_mot_de_passe, nouveau_mot_de_passe });
-
-  return (
-    <AuthContext.Provider value={{ currentUser, isLoading, login, logout, changePassword }}>
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({
+      isLoading,
+      currentUser,
+      token: auth?.token || null,
+      role: currentUser?.role || null,
+      login: doLogin,
+      logout: doLogout,
+    }),
+    [isLoading, auth, currentUser]
   );
+
+  return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function useAuth() {
+  return useContext(AuthCtx);
 }

@@ -1,27 +1,34 @@
+// src/api/client.js
 import axios from "axios";
 
 const client = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000",
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api",
   headers: { "Content-Type": "application/json" },
 });
 
-// Inject JWT token into every request if present
+// Read token from localStorage.auth = { token, user }
+function getToken() {
+  try {
+    const raw = localStorage.getItem("auth");
+    if (!raw) return null;
+    const { token } = JSON.parse(raw);
+    return token || null;
+  } catch {
+    return null;
+  }
+}
+
 client.interceptors.request.use((config) => {
-  const token =
-    localStorage.getItem("token") || sessionStorage.getItem("token");
+  const token = getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
-// Auto-logout on 401 (expired/invalid token)
 client.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      sessionStorage.removeItem("token");
-      sessionStorage.removeItem("user");
+      localStorage.removeItem("auth");
       window.location.href = "/login";
     }
     return Promise.reject(err);
