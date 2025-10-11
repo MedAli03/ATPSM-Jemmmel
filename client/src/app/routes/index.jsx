@@ -1,9 +1,9 @@
 import { Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
-import Layout from "../components/layout/Layout";
+import Layout from "../../components/layout/Layout";
 import ProtectedRoute from "./ProtectedRoute";
 import { publicRoutes, protectedRoutes } from "./routeConfig";
-import PageNotFound from "../pages/PageNotFound";
+import PageNotFound from "../../pages/PageNotFound";
 
 const AppRoutes = () => {
   return (

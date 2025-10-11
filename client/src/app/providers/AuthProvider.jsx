@@ -1,6 +1,6 @@
-// src/context/AuthContext.jsx
+// src/app/providers/AuthProvider.jsx
 import { createContext, useContext, useMemo, useState } from "react";
-import { login as apiLogin, logout as apiLogout } from "../api/auth";
+import { login as apiLogin, logout as apiLogout } from "../../api/auth";
 
 const AuthCtx = createContext(null);
 

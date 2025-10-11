@@ -1,34 +1,34 @@
 import { lazy } from "react";
-import ForgetPwd from "../components/authentication/ForgetPwd";
-import Login from "../pages/auth/Login";
-import AllUsers from "../pages/dashboard/users/AllUsers";
-import AllChildren from "../pages/dashboard/children/AllChildren";
-import ChildDetails from "../pages/dashboard/children/ChildDetails";
-import AllGroups from "../pages/dashboard/groups/AllGroups";
-import AllNews from "../pages/dashboard/news/AllNews";
+import ForgetPwd from "../../components/authentication/ForgetPwd";
+import Login from "../../pages/auth/Login";
+import AllUsers from "../../pages/dashboard/users/AllUsers";
+import AllChildren from "../../pages/dashboard/children/AllChildren";
+import ChildDetails from "../../pages/dashboard/children/ChildDetails";
+import AllGroups from "../../pages/dashboard/groups/AllGroups";
+import AllNews from "../../pages/dashboard/news/AllNews";
 
 // Lazy pages
-const HomePage = lazy(() => import("../pages/HomePage"));
-const AboutUsPage = lazy(() => import("../pages/AboutUsPage"));
-const Contact = lazy(() => import("../components/layout/Contact"));
-const ActivitiesPage = lazy(() => import("../pages/ActivitiesPage"));
-const AutismInfo = lazy(() => import("../pages/AutismInfo"));
-const FAQPage = lazy(() => import("../pages/FAQPage"));
-const NewsPage = lazy(() => import("../pages/NewsPage"));
-const MoreAboutNewsPage = lazy(() => import("../pages/MoreAboutNewsPage"));
+const HomePage = lazy(() => import("../../pages/HomePage"));
+const AboutUsPage = lazy(() => import("../../pages/AboutUsPage"));
+const Contact = lazy(() => import("../../components/layout/Contact"));
+const ActivitiesPage = lazy(() => import("../../pages/ActivitiesPage"));
+const AutismInfo = lazy(() => import("../../pages/AutismInfo"));
+const FAQPage = lazy(() => import("../../pages/FAQPage"));
+const NewsPage = lazy(() => import("../../pages/NewsPage"));
+const MoreAboutNewsPage = lazy(() => import("../../pages/MoreAboutNewsPage"));
 // const Login = lazy(() => import("../pages/auth/Login"));
 // const PageNotFound = lazy(() => import("../pages/PageNotFound"));
 const PresidentOverview = lazy(() =>
-  import("../components/dashboard/president/Overview")
+  import("../../components/dashboard/president/Overview")
 );
 const DashboardLayout = lazy(() =>
-  import("../components/dashboard/DashboardLayout")
+  import("../../components/dashboard/DashboardLayout")
 );
 const NotificationsPage = lazy(() =>
-  import("../pages/dashboard/NotificationsPage")
+  import("../../pages/dashboard/NotificationsPage")
 );
 const AddChildWizard = lazy(() =>
-  import("../pages/dashboard/children/AddChildWizard")
+  import("../../pages/dashboard/children/AddChildWizard")
 );
 // const DashboardHome = lazy(() => import("../pages/dashboard/DashboardHome"));
 // const DashboardUsers = lazy(() => import("../pages/dashboard/DashboardUsers"));
