@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 // src/pages/dashboard/groups/AllGroupes.jsx
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -776,7 +776,11 @@ function EnfantsTabSelection({
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
-  const [checked, setChecked] = useState(new Set());
+  const [selected, setSelected] = useState(new Set());
+
+  useEffect(() => {
+    setSelected(new Set());
+  }, [q, page, limit]);
 
   // Search list (paged)
   const enfantsQ = useQuery({
@@ -789,32 +793,18 @@ function EnfantsTabSelection({
 
   // computed: current members ids to mark disabled/selected
   const currentMemberIds = new Set((inscQ.data || []).map((m) => m.enfant_id));
+  const selectedIds = Array.from(selected).filter(
+    (id) => !currentMemberIds.has(id)
+  );
+  const canAdd = selectedIds.length > 0 && !archived && !isAdding;
+  const listSize = Math.max(4, Math.min(10, items.length || 0));
 
-  // handle check/uncheck
-  const toggle = (id) => {
-    const next = new Set(checked);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setChecked(next);
+  const handleSelectChange = (event) => {
+    const values = Array.from(event.target.selectedOptions || []).map((opt) =>
+      Number(opt.value)
+    );
+    setSelected(new Set(values));
   };
-
-  const allIdsOnPage = items
-    .map((x) => x.id)
-    .filter((id) => !currentMemberIds.has(id));
-  const isAllOnPageChecked =
-    allIdsOnPage.length > 0 && allIdsOnPage.every((id) => checked.has(id));
-
-  const toggleAll = () => {
-    const next = new Set(checked);
-    if (isAllOnPageChecked) {
-      allIdsOnPage.forEach((id) => next.delete(id));
-    } else {
-      allIdsOnPage.forEach((id) => next.add(id));
-    }
-    setChecked(next);
-  };
-
-  const canAdd = checked.size > 0 && !archived && !isAdding;
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -840,7 +830,7 @@ function EnfantsTabSelection({
               onClick={() => {
                 setQ("");
                 setPage(1);
-                setChecked(new Set());
+                setSelected(new Set());
               }}
             >
               مسح
@@ -848,17 +838,10 @@ function EnfantsTabSelection({
           </div>
         </div>
 
-        <div className="border rounded-xl overflow-hidden">
-          <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b">
-            <div className="text-xs text-gray-600">نتائج</div>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="text-xs text-gray-600">نتائج البحث</div>
             <div className="flex items-center gap-2">
-              <button
-                className="text-xs px-2 py-1 rounded-lg border"
-                disabled={archived || items.length === 0}
-                onClick={toggleAll}
-              >
-                {isAllOnPageChecked ? "إلغاء تحديد الكل" : "تحديد الكل"}
-              </button>
               <select
                 className="text-xs rounded-lg border px-2 py-1 bg-white"
                 value={limit}
@@ -873,84 +856,74 @@ function EnfantsTabSelection({
                   </option>
                 ))}
               </select>
+              <div className="text-xs text-gray-500">الصفحة {page}</div>
             </div>
           </div>
 
           {enfantsQ.isLoading ? (
-            <div className="p-3 text-sm text-gray-500">جارٍ التحميل…</div>
+            <div className="p-3 text-sm text-gray-500 border rounded-xl">
+              جارٍ التحميل…
+            </div>
           ) : items.length === 0 ? (
-            <div className="p-3 text-sm text-gray-500">لا نتائج.</div>
+            <div className="p-3 text-sm text-gray-500 border rounded-xl">
+              لا نتائج.
+            </div>
           ) : (
-            <ul className="divide-y max-h-72 overflow-auto">
+            <select
+              multiple
+              disabled={archived}
+              className="w-full border rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring"
+              size={listSize}
+              value={Array.from(selected).map(String)}
+              onChange={handleSelectChange}
+            >
               {items.map((c) => {
-                const disabled = archived || currentMemberIds.has(c.id);
-                const isChecked = checked.has(c.id);
+                const disabled = currentMemberIds.has(c.id);
                 return (
-                  <li
+                  <option
                     key={c.id}
-                    className="p-3 flex items-center justify-between"
+                    value={String(c.id)}
+                    disabled={disabled}
+                    className="text-sm"
                   >
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        className="w-5 h-5"
-                        disabled={disabled}
-                        checked={isChecked}
-                        onChange={() => toggle(c.id)}
-                      />
-                      <div className="text-sm">
-                        <div className="font-medium text-gray-900">
-                          {c.prenom} {c.nom}{" "}
-                          <span className="text-gray-500 text-xs">#{c.id}</span>
-                        </div>
-                        <div className="text-gray-500 text-xs">
-                          {c.date_naissance
-                            ? new Date(c.date_naissance).toLocaleDateString()
-                            : "—"}
-                        </div>
-                      </div>
-                    </div>
-                    {currentMemberIds.has(c.id) && (
-                      <span className="text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">
-                        عضو حالياً
-                      </span>
-                    )}
-                  </li>
+                    {c.prenom} {c.nom} #{c.id}
+                    {disabled ? " — عضو حاليًا" : ""}
+                  </option>
                 );
               })}
-            </ul>
+            </select>
           )}
 
-          {/* Pagination */}
-          <div className="flex items-center justify-between px-3 py-2 border-t text-xs">
-            <button
-              className="px-2 py-1 rounded-lg border disabled:opacity-50"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1 || enfantsQ.isLoading}
-            >
-              السابق
-            </button>
-            <div className="text-gray-600">الصفحة {page}</div>
-            <button
-              className="px-2 py-1 rounded-lg border"
-              onClick={() => setPage((p) => p + 1)}
-              disabled={enfantsQ.isLoading || items.length < limit}
-            >
-              التالي
-            </button>
+          <div className="flex items-center justify-between text-xs text-gray-600">
+            <div>
+              المختارون للإضافة: <b>{selectedIds.length}</b>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                className="px-2 py-1 rounded-lg border"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1 || enfantsQ.isLoading}
+              >
+                السابق
+              </button>
+              <button
+                className="px-2 py-1 rounded-lg border"
+                onClick={() => setPage((p) => p + 1)}
+                disabled={enfantsQ.isLoading || items.length < limit}
+              >
+                التالي
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="mt-3 flex items-center justify-between">
-          <div className="text-xs text-gray-600">
-            المحدد: <b>{checked.size}</b> طفل
-          </div>
+        <div className="mt-4 flex items-center justify-end">
           <button
             disabled={!canAdd}
             className="px-4 py-2 rounded-xl bg-emerald-600 text-white disabled:opacity-50"
-            onClick={() => onBatchAdd(Array.from(checked))}
+            onClick={() => onBatchAdd(selectedIds)}
           >
-            {isAdding ? "جارٍ الإضافة…" : "إضافة المحددين"}
+            {isAdding ? "جارٍ الإضافة…" : "إضافة الأطفال المختارين"}
           </button>
         </div>
         {archived && (
@@ -1023,7 +996,11 @@ function EducateurTabSelection({
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
-  const [selected, setSelected] = useState(null);
+  const [selectedId, setSelectedId] = useState("");
+
+  useEffect(() => {
+    setSelectedId("");
+  }, [q, page, limit]);
 
   // Paged educators directory
   const edusQ = useQuery({
@@ -1037,6 +1014,8 @@ function EducateurTabSelection({
   });
 
   const current = affectQ.data;
+  const options = edusQ.data || [];
+  const canAssign = Boolean(selectedId) && !archived && !isAssigning;
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -1098,7 +1077,7 @@ function EducateurTabSelection({
               onClick={() => {
                 setQ("");
                 setPage(1);
-                setSelected(null);
+                setSelectedId("");
               }}
             >
               مسح
@@ -1106,8 +1085,8 @@ function EducateurTabSelection({
           </div>
         </div>
 
-        <div className="border rounded-xl overflow-hidden">
-          <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
             <div className="text-xs text-gray-600">النتائج</div>
             <select
               className="text-xs rounded-lg border px-2 py-1 bg-white"
@@ -1126,63 +1105,65 @@ function EducateurTabSelection({
           </div>
 
           {edusQ.isLoading ? (
-            <div className="p-3 text-sm text-gray-500">جارٍ التحميل…</div>
-          ) : (edusQ.data || []).length === 0 ? (
-            <div className="p-3 text-sm text-gray-500">لا نتائج.</div>
+            <div className="p-3 text-sm text-gray-500 border rounded-xl">
+              جارٍ التحميل…
+            </div>
+          ) : options.length === 0 ? (
+            <div className="p-3 text-sm text-gray-500 border rounded-xl">
+              لا نتائج.
+            </div>
           ) : (
-            <ul className="divide-y max-h-72 overflow-auto">
-              {(edusQ.data || []).map((u) => (
-                <li
-                  key={u.id}
-                  className="p-3 flex items-center justify-between"
-                >
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="educateur"
-                      className="w-5 h-5"
-                      disabled={archived}
-                      checked={selected === u.id}
-                      onChange={() => setSelected(u.id)}
-                    />
-                    <div className="text-sm">
-                      <div className="font-medium text-gray-900">
-                        {u.prenom} {u.nom}{" "}
-                        <span className="text-gray-500 text-xs">#{u.id}</span>
-                      </div>
-                      <div className="text-gray-500 text-xs">{u.email}</div>
-                    </div>
-                  </label>
-                </li>
-              ))}
-            </ul>
+            <select
+              disabled={archived}
+              className="w-full border rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring"
+              value={selectedId}
+              onChange={(e) => setSelectedId(e.target.value)}
+            >
+              <option value="" disabled>
+                — اختر مربيًا —
+              </option>
+              {options.map((u) => {
+                const isCurrent = current?.educateur_id === u.id;
+                return (
+                  <option
+                    key={u.id}
+                    value={String(u.id)}
+                    disabled={isCurrent}
+                  >
+                    {u.prenom} {u.nom} #{u.id} — {u.email}
+                    {isCurrent ? " (المربي الحالي)" : ""}
+                  </option>
+                );
+              })}
+            </select>
           )}
 
-          {/* Pagination */}
-          <div className="flex items-center justify-between px-3 py-2 border-t text-xs">
-            <button
-              className="px-2 py-1 rounded-lg border disabled:opacity-50"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1 || edusQ.isLoading}
-            >
-              السابق
-            </button>
-            <div className="text-gray-600">الصفحة {page}</div>
-            <button
-              className="px-2 py-1 rounded-lg border"
-              onClick={() => setPage((p) => p + 1)}
-              disabled={edusQ.isLoading || (edusQ.data || []).length < limit}
-            >
-              التالي
-            </button>
+          <div className="flex items-center justify-between text-xs text-gray-600">
+            <div>الصفحة {page}</div>
+            <div className="flex items-center gap-2">
+              <button
+                className="px-2 py-1 rounded-lg border disabled:opacity-50"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1 || edusQ.isLoading}
+              >
+                السابق
+              </button>
+              <button
+                className="px-2 py-1 rounded-lg border"
+                onClick={() => setPage((p) => p + 1)}
+                disabled={edusQ.isLoading || options.length < limit}
+              >
+                التالي
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="mt-3 flex items-center justify-end">
+        <div className="mt-4 flex items-center justify-end">
           <button
-            disabled={!selected || archived || isAssigning}
+            disabled={!canAssign}
             className="px-4 py-2 rounded-xl bg-indigo-600 text-white disabled:opacity-50"
-            onClick={() => onAssign(selected)}
+            onClick={() => onAssign(Number(selectedId))}
           >
             {isAssigning ? "جارٍ التعيين…" : "تعيين"}
           </button>
