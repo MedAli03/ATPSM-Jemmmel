@@ -813,15 +813,11 @@ function StepChild({ form }) {
     formState: { errors },
   } = form;
   return (
-    <form
-      className="grid grid-cols-1 md:grid-cols-2 gap-4"
-      onSubmit={(e) => e.preventDefault()}
-    >
+    <div role="group" className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <Field id="nom" label="اللقب" required error={errors.nom?.message}>
         <input
           id="nom"
           {...register("nom")}
-          name="nom"
           aria-invalid={!!errors.nom}
           aria-describedby={errors.nom ? "nom-error" : undefined}
           className="w-full px-3 py-2 rounded-xl border"
@@ -833,7 +829,6 @@ function StepChild({ form }) {
         <input
           id="prenom"
           {...register("prenom")}
-          name="prenom"
           aria-invalid={!!errors.prenom}
           aria-describedby={errors.prenom ? "prenom-error" : undefined}
           className="w-full px-3 py-2 rounded-xl border"
@@ -851,7 +846,6 @@ function StepChild({ form }) {
           id="date_naissance"
           type="date"
           {...register("date_naissance")}
-          name="date_naissance"
           aria-invalid={!!errors.date_naissance}
           aria-describedby={
             errors.date_naissance ? "date_naissance-error" : undefined
@@ -863,7 +857,7 @@ function StepChild({ form }) {
       <div className="md:col-span-2 text-xs text-gray-500">
         * الحقول الأساسية إلزامية.
       </div>
-    </form>
+    </div>
   );
 }
 
@@ -873,10 +867,7 @@ function StepFiche({ form }) {
     formState: { errors },
   } = form;
   return (
-    <form
-      className="grid grid-cols-1 md:grid-cols-2 gap-4"
-      onSubmit={(e) => e.preventDefault()}
-    >
+    <div role="group" className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <Field
         id="lieu_naissance"
         label="مكان الولادة"
@@ -886,7 +877,6 @@ function StepFiche({ form }) {
         <input
           id="lieu_naissance"
           {...register("lieu_naissance")}
-          name="lieu_naissance"
           aria-invalid={!!errors.lieu_naissance}
           aria-describedby={
             errors.lieu_naissance ? "lieu_naissance-error" : undefined
@@ -905,7 +895,6 @@ function StepFiche({ form }) {
         <input
           id="diagnostic_medical"
           {...register("diagnostic_medical")}
-          name="diagnostic_medical"
           aria-invalid={!!errors.diagnostic_medical}
           aria-describedby={
             errors.diagnostic_medical ? "diagnostic_medical-error" : undefined
@@ -926,7 +915,6 @@ function StepFiche({ form }) {
           type="number"
           min="0"
           {...register("nb_freres")}
-          name="nb_freres"
           aria-invalid={!!errors.nb_freres}
           aria-describedby={errors.nb_freres ? "nb_freres-error" : undefined}
           className="w-full px-3 py-2 rounded-xl border"
@@ -944,7 +932,6 @@ function StepFiche({ form }) {
           type="number"
           min="0"
           {...register("nb_soeurs")}
-          name="nb_soeurs"
           aria-invalid={!!errors.nb_soeurs}
           aria-describedby={errors.nb_soeurs ? "nb_soeurs-error" : undefined}
           className="w-full px-3 py-2 rounded-xl border"
@@ -962,7 +949,6 @@ function StepFiche({ form }) {
           type="number"
           min="1"
           {...register("rang_enfant")}
-          name="rang_enfant"
           aria-invalid={!!errors.rang_enfant}
           aria-describedby={
             errors.rang_enfant ? "rang_enfant-error" : undefined
@@ -980,7 +966,6 @@ function StepFiche({ form }) {
         <select
           id="situation_familiale"
           {...register("situation_familiale")}
-          name="situation_familiale"
           aria-invalid={!!errors.situation_familiale}
           aria-describedby={
             errors.situation_familiale ? "situation_familiale-error" : undefined
@@ -1004,7 +989,6 @@ function StepFiche({ form }) {
         <input
           id="diag_auteur_nom"
           {...register("diag_auteur_nom")}
-          name="diag_auteur_nom"
           aria-invalid={!!errors.diag_auteur_nom}
           aria-describedby={
             errors.diag_auteur_nom ? "diag_auteur_nom-error" : undefined
@@ -1022,7 +1006,6 @@ function StepFiche({ form }) {
         <input
           id="diag_auteur_description"
           {...register("diag_auteur_description")}
-          name="diag_auteur_description"
           aria-invalid={!!errors.diag_auteur_description}
           aria-describedby={
             errors.diag_auteur_description
@@ -1041,7 +1024,6 @@ function StepFiche({ form }) {
         <input
           id="carte_invalidite_numero"
           {...register("carte_invalidite_numero")}
-          name="carte_invalidite_numero"
           aria-invalid={!!errors.carte_invalidite_numero}
           aria-describedby={
             errors.carte_invalidite_numero
@@ -1060,7 +1042,6 @@ function StepFiche({ form }) {
         <input
           id="carte_invalidite_couleur"
           {...register("carte_invalidite_couleur")}
-          name="carte_invalidite_couleur"
           aria-invalid={!!errors.carte_invalidite_couleur}
           aria-describedby={
             errors.carte_invalidite_couleur
@@ -1080,7 +1061,6 @@ function StepFiche({ form }) {
         <input
           id="type_handicap"
           {...register("type_handicap")}
-          name="type_handicap"
           aria-invalid={!!errors.type_handicap}
           aria-describedby={
             errors.type_handicap ? "type_handicap-error" : undefined
@@ -1101,7 +1081,6 @@ function StepFiche({ form }) {
               id="troubles_principaux"
               rows={4}
               {...register("troubles_principaux")}
-              name="troubles_principaux"
               aria-invalid={!!errors.troubles_principaux}
               aria-describedby={describedBy}
               className="w-full px-3 py-2 rounded-xl border"
@@ -1109,7 +1088,7 @@ function StepFiche({ form }) {
           )}
         </Field>
       </div>
-    </form>
+    </div>
   );
 }
 
@@ -1133,10 +1112,7 @@ function StepParentsFiche({ form }) {
   );
 
   return (
-    <form
-      className="grid grid-cols-1 md:grid-cols-2 gap-4"
-      onSubmit={(e) => e.preventDefault()}
-    >
+    <div role="group" className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {formLevelError && (
         <div
           id="atLeastOneContact-error"
@@ -1159,7 +1135,6 @@ function StepParentsFiche({ form }) {
             <input
               id="pere_nom"
               {...register("pere_nom")}
-              name="pere_nom"
               className="w-full px-3 py-2 rounded-xl border"
             />
           </Field>
@@ -1172,7 +1147,6 @@ function StepParentsFiche({ form }) {
             <input
               id="pere_prenom"
               {...register("pere_prenom")}
-              name="pere_prenom"
               className="w-full px-3 py-2 rounded-xl border"
             />
           </Field>
@@ -1188,7 +1162,6 @@ function StepParentsFiche({ form }) {
               id="pere_naissance_date"
               type="date"
               {...register("pere_naissance_date")}
-              name="pere_naissance_date"
               className="w-full px-3 py-2 rounded-xl border"
             />
           </Field>
@@ -1200,7 +1173,6 @@ function StepParentsFiche({ form }) {
             <input
               id="pere_naissance_lieu"
               {...register("pere_naissance_lieu")}
-              name="pere_naissance_lieu"
               className="w-full px-3 py-2 rounded-xl border"
             />
           </Field>
@@ -1215,7 +1187,6 @@ function StepParentsFiche({ form }) {
             <input
               id="pere_cin_numero"
               {...register("pere_cin_numero")}
-              name="pere_cin_numero"
               className="w-full px-3 py-2 rounded-xl border"
               placeholder="8 أرقام"
             />
@@ -1228,7 +1199,6 @@ function StepParentsFiche({ form }) {
             <input
               id="pere_cin_delivree_a"
               {...register("pere_cin_delivree_a")}
-              name="pere_cin_delivree_a"
               className="w-full px-3 py-2 rounded-xl border"
             />
           </Field>
@@ -1244,7 +1214,6 @@ function StepParentsFiche({ form }) {
             <input
               id="pere_adresse"
               {...register("pere_adresse")}
-              name="pere_adresse"
               className="w-full px-3 py-2 rounded-xl border"
             />
           </Field>
@@ -1257,7 +1226,6 @@ function StepParentsFiche({ form }) {
             <input
               id="pere_profession"
               {...register("pere_profession")}
-              name="pere_profession"
               className="w-full px-3 py-2 rounded-xl border"
             />
           </Field>
@@ -1272,7 +1240,6 @@ function StepParentsFiche({ form }) {
             <input
               id="pere_tel_domicile"
               {...register("pere_tel_domicile")}
-              name="pere_tel_domicile"
               className="w-full px-3 py-2 rounded-xl border"
             />
           </Field>
@@ -1284,7 +1251,6 @@ function StepParentsFiche({ form }) {
             <input
               id="pere_tel_travail"
               {...register("pere_tel_travail")}
-              name="pere_tel_travail"
               className="w-full px-3 py-2 rounded-xl border"
             />
           </Field>
@@ -1300,7 +1266,6 @@ function StepParentsFiche({ form }) {
             <input
               id="pere_tel_portable"
               {...register("pere_tel_portable")}
-              name="pere_tel_portable"
               className="w-full px-3 py-2 rounded-xl border"
             />
           </Field>
@@ -1313,7 +1278,6 @@ function StepParentsFiche({ form }) {
               id="pere_email"
               type="email"
               {...register("pere_email")}
-              name="pere_email"
               className="w-full px-3 py-2 rounded-xl border"
             />
           </Field>
@@ -1331,7 +1295,6 @@ function StepParentsFiche({ form }) {
             <input
               id="mere_nom"
               {...register("mere_nom")}
-              name="mere_nom"
               className="w-full px-3 py-2 rounded-xl border"
             />
           </Field>
@@ -1344,7 +1307,6 @@ function StepParentsFiche({ form }) {
             <input
               id="mere_prenom"
               {...register("mere_prenom")}
-              name="mere_prenom"
               className="w-full px-3 py-2 rounded-xl border"
             />
           </Field>
@@ -1360,7 +1322,6 @@ function StepParentsFiche({ form }) {
               id="mere_naissance_date"
               type="date"
               {...register("mere_naissance_date")}
-              name="mere_naissance_date"
               className="w-full px-3 py-2 rounded-xl border"
             />
           </Field>
@@ -1372,7 +1333,6 @@ function StepParentsFiche({ form }) {
             <input
               id="mere_naissance_lieu"
               {...register("mere_naissance_lieu")}
-              name="mere_naissance_lieu"
               className="w-full px-3 py-2 rounded-xl border"
             />
           </Field>
@@ -1387,7 +1347,6 @@ function StepParentsFiche({ form }) {
             <input
               id="mere_cin_numero"
               {...register("mere_cin_numero")}
-              name="mere_cin_numero"
               className="w-full px-3 py-2 rounded-xl border"
               placeholder="8 أرقام"
             />
@@ -1400,7 +1359,6 @@ function StepParentsFiche({ form }) {
             <input
               id="mere_cin_delivree_a"
               {...register("mere_cin_delivree_a")}
-              name="mere_cin_delivree_a"
               className="w-full px-3 py-2 rounded-xl border"
             />
           </Field>
@@ -1416,7 +1374,6 @@ function StepParentsFiche({ form }) {
             <input
               id="mere_adresse"
               {...register("mere_adresse")}
-              name="mere_adresse"
               className="w-full px-3 py-2 rounded-xl border"
             />
           </Field>
@@ -1429,7 +1386,6 @@ function StepParentsFiche({ form }) {
             <input
               id="mere_profession"
               {...register("mere_profession")}
-              name="mere_profession"
               className="w-full px-3 py-2 rounded-xl border"
             />
           </Field>
@@ -1444,7 +1400,6 @@ function StepParentsFiche({ form }) {
             <input
               id="mere_tel_domicile"
               {...register("mere_tel_domicile")}
-              name="mere_tel_domicile"
               className="w-full px-3 py-2 rounded-xl border"
             />
           </Field>
@@ -1456,7 +1411,6 @@ function StepParentsFiche({ form }) {
             <input
               id="mere_tel_travail"
               {...register("mere_tel_travail")}
-              name="mere_tel_travail"
               className="w-full px-3 py-2 rounded-xl border"
             />
           </Field>
@@ -1472,7 +1426,6 @@ function StepParentsFiche({ form }) {
             <input
               id="mere_tel_portable"
               {...register("mere_tel_portable")}
-              name="mere_tel_portable"
               className="w-full px-3 py-2 rounded-xl border"
             />
           </Field>
@@ -1485,13 +1438,12 @@ function StepParentsFiche({ form }) {
               id="mere_email"
               type="email"
               {...register("mere_email")}
-              name="mere_email"
               className="w-full px-3 py-2 rounded-xl border"
             />
           </Field>
         </Two>
       </Section>
-    </form>
+    </div>
   );
 }
 
