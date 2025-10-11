@@ -40,6 +40,22 @@ exports.findAll = async (filters = {}, pagination = {}, t = null) => {
   return { rows, count, page, limit };
 };
 
+exports.search = async (term, limit = 10, t = null) => {
+  const where = {};
+  if (term) {
+    const like = `%${term}%`;
+    where[Op.or] = [{ nom: { [Op.like]: like } }, { prenom: { [Op.like]: like } }];
+  }
+
+  return Enfant.findAll({
+    where,
+    order: [["nom", "ASC"], ["prenom", "ASC"]],
+    limit,
+    attributes: ["id", "nom", "prenom", "date_naissance", "parent_user_id"],
+    transaction: t,
+  });
+};
+
 exports.updateById = async (id, attrs, t = null) => {
   const [n] = await Enfant.update(attrs, { where: { id }, transaction: t });
   return n;

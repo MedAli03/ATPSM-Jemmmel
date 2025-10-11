@@ -9,6 +9,23 @@ const repo = require("../repos/enfant.repo");
 exports.list = (q) =>
   repo.findAll({ q: q.q }, { page: q.page, limit: q.limit });
 
+exports.search = async (query) => {
+  const limit = Math.min(20, Math.max(1, Number(query.limit || 10)));
+  const term = query.q || query.query || null;
+  const rows = await repo.search(term, limit);
+  return rows.map((row) =>
+    row.get
+      ? row.get({ plain: true })
+      : {
+          id: row.id,
+          nom: row.nom,
+          prenom: row.prenom,
+          date_naissance: row.date_naissance,
+          parent_user_id: row.parent_user_id,
+        }
+  );
+};
+
 exports.get = async (id, currentUser) => {
   const enfant = await repo.findById(id);
   if (!enfant) {

@@ -48,6 +48,21 @@ const listEnfantsQuerySchema = Joi.object({
   })
   .prefs({ stripUnknown: true, convert: true, allowUnknown: true });
 
+const searchEnfantQuerySchema = Joi.object({
+  query: searchField,
+  q: searchField,
+  limit: Joi.number().integer().min(1).max(20).default(10),
+})
+  .custom((value) => {
+    const normalized = { ...value };
+    const term = extractTerm(normalized.query) ?? extractTerm(normalized.q);
+    normalized.q = term || null;
+    delete normalized.query;
+    if (!normalized.q) delete normalized.q;
+    return normalized;
+  })
+  .prefs({ stripUnknown: true, convert: true, allowUnknown: true });
+
 // Create / update
 const createEnfantSchema = Joi.object({
   nom: Joi.string().max(100).required(),
@@ -91,4 +106,5 @@ module.exports = {
   linkParentSchema,
   createParentAccountSchema,
   enfantIdParamSchema,
+  searchEnfantQuerySchema,
 };

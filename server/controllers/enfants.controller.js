@@ -9,7 +9,28 @@ const {
   linkParentSchema,
   createParentAccountSchema,
   enfantIdParamSchema,
+  searchEnfantQuerySchema,
 } = require("../validations/enfants.schema");
+
+// Search (autocomplete)
+exports.search = async (req, res, next) => {
+  try {
+    const { error, value } = searchEnfantQuerySchema.validate(req.query, {
+      abortEarly: false,
+    });
+    if (error) {
+      error.status = 422;
+      return next(error);
+    }
+    const items = await svc.search(value);
+    res.json({
+      data: items,
+      meta: { total: items.length, page: 1, limit: value.limit || 10 },
+    });
+  } catch (e) {
+    next(e);
+  }
+};
 
 // List
 exports.list = async (req, res, next) => {

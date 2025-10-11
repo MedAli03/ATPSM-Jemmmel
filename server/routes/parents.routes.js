@@ -20,11 +20,33 @@ router.post("/parents", requireRole("PRESIDENT", "DIRECTEUR"), ctrl.create);
 // Mettre à jour (profil)
 router.put("/parents/:id", requireRole("PRESIDENT", "DIRECTEUR"), ctrl.update);
 
+router.post(
+  "/parents/:id/archive",
+  requireRole("PRESIDENT", "DIRECTEUR"),
+  ctrl.archive
+);
+router.post(
+  "/parents/:id/unarchive",
+  requireRole("PRESIDENT", "DIRECTEUR"),
+  ctrl.unarchive
+);
+
 // Changer le mot de passe
 router.patch(
   "/parents/:id/change-password",
   requireRole("PRESIDENT", "DIRECTEUR"),
   ctrl.changePassword
+);
+
+router.post(
+  "/parents/:id/link-child",
+  requireRole("PRESIDENT", "DIRECTEUR"),
+  ctrl.linkChild
+);
+router.delete(
+  "/parents/:id/unlink-child/:enfantId",
+  requireRole("PRESIDENT", "DIRECTEUR"),
+  ctrl.unlinkChild
 );
 
 // Enfants du parent

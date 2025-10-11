@@ -34,7 +34,12 @@ const createChildForParentSchema = Joi.object({
   fiche: ficheEnfantSchema, // optionnelle
 });
 
+const linkExistingChildSchema = Joi.object({
+  enfant_id: Joi.number().integer().positive().required(),
+});
+
 module.exports = {
   parentIdParamSchema,
   createChildForParentSchema,
+  linkExistingChildSchema,
 };

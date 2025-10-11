@@ -6,6 +6,7 @@ router.use("/me", require("../middlewares/auth"), (req, res) =>
 );
 
 router.use("/utilisateurs", require("./utilisateurs.routes"));
+router.use("/educateurs", require("./educateurs.routes"));
 
 router.use("/groupes", require("./groupes.routes"));
 

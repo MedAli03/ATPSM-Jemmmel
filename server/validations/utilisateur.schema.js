@@ -6,6 +6,7 @@ exports.createUserSchema = Joi.object({
   email: Joi.string().email().max(150).required(),
   mot_de_passe: Joi.string().min(6).max(100).required(),
   telephone: Joi.string().max(50).allow("", null),
+  adresse: Joi.string().max(255).allow("", null),
   role: Joi.string()
     .valid("PRESIDENT", "DIRECTEUR", "EDUCATEUR", "PARENT")
     .required(),
@@ -18,6 +19,7 @@ exports.updateUserSchema = Joi.object({
   prenom: Joi.string().max(100),
   email: Joi.string().email().max(150),
   telephone: Joi.string().max(50).allow("", null),
+  adresse: Joi.string().max(255).allow("", null),
   role: Joi.string().valid("PRESIDENT", "DIRECTEUR", "EDUCATEUR", "PARENT"),
   is_active: Joi.boolean(),
   avatar_url: Joi.string().uri().allow(null, ""),
