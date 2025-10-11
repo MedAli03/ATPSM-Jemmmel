@@ -1,5 +1,5 @@
 // src/pages/dashboard/children/AddChildWizard.jsx
-import { useMemo, useRef, useState } from "react";
+import { cloneElement, isValidElement, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -12,6 +12,14 @@ import { useToast } from "../../../components/common/ToastProvider";
    Helpers
    ========================= */
 const nullIfEmpty = (v) => (v === "" ? null : v);
+const cx = (...classes) => classes.filter(Boolean).join(" ");
+const controlClasses = (hasError) =>
+  cx(
+    "w-full px-3 py-2 rounded-xl border focus:outline-none focus:ring-2 focus:ring-offset-0 transition",
+    hasError
+      ? "border-rose-300 focus:border-rose-400 focus:ring-rose-200 bg-rose-50"
+      : "border-gray-200 focus:border-indigo-400 focus:ring-indigo-100 bg-white"
+  );
 const phoneRegex = /^[0-9+()\-\s]{7,20}$/;
 const cinRegex = /^\d{8}$/;
 const isDate = (v) => !!v && !Number.isNaN(Date.parse(v));
@@ -20,7 +28,9 @@ const isDate = (v) => !!v && !Number.isNaN(Date.parse(v));
 function focusFirstError(errors, root) {
   const firstKey = Object.keys(errors)[0];
   if (!firstKey) return;
-  const el = root?.querySelector?.(`[name="${firstKey}"], #${firstKey}`);
+  const el = root?.querySelector?.(
+    `[name="${firstKey}"], #${firstKey}, #${firstKey}-error`
+  );
   if (el) {
     el.focus({ preventScroll: true });
     el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -325,7 +335,7 @@ const parentsFicheSchema = yup
   .test(
     "at-least-one-contact",
     "يجب توفير وسيلة اتصال واحدة على الأقل (هاتف أو بريد) لأحد الوالدين",
-    (values) => {
+    (values, ctx) => {
       const contactFields = [
         "pere_tel_portable",
         "pere_tel_travail",
@@ -336,12 +346,22 @@ const parentsFicheSchema = yup
         "mere_tel_domicile",
         "mere_email",
       ];
-      return contactFields.some((k) => {
+      const hasContact = contactFields.some((k) => {
         const value = values?.[k];
         if (typeof value === "string") {
           return value.trim().length > 0;
         }
         return Boolean(value);
+      });
+
+      if (hasContact) {
+        return true;
+      }
+
+      return ctx.createError({
+        path: "atLeastOneContact",
+        message:
+          "يجب توفير وسيلة اتصال واحدة على الأقل (هاتف أو بريد) لأحد الوالدين",
       });
     }
   );
@@ -635,14 +655,31 @@ function WizardSteps({ step }) {
 
 function Field({ id, label, required, error, children }) {
   const describedBy = error ? `${id}-error` : undefined;
+  let control;
+
+  if (typeof children === "function") {
+    control = children({
+      describedBy,
+      error,
+      controlClassName: controlClasses(Boolean(error)),
+    });
+  } else if (isValidElement(children)) {
+    control = cloneElement(children, {
+      id,
+      "aria-invalid": Boolean(error),
+      "aria-describedby": describedBy,
+      className: cx(children.props.className, controlClasses(Boolean(error))),
+    });
+  } else {
+    control = children;
+  }
+
   return (
     <div>
       <label htmlFor={id} className="block text-sm mb-1 text-gray-700">
         {label} {required && <span className="text-rose-600">*</span>}
       </label>
-      {typeof children === "function"
-        ? children({ describedBy, error })
-        : children}
+      {control}
       {error && (
         <p id={describedBy} className="mt-1 text-xs text-rose-600">
           {error}
@@ -1081,6 +1118,7 @@ function StepParentsFiche({ form }) {
     register,
     formState: { errors },
   } = form;
+  const formLevelError = errors?.atLeastOneContact?.message;
 
   const Two = ({ children }) => (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2">
@@ -1099,6 +1137,17 @@ function StepParentsFiche({ form }) {
       className="grid grid-cols-1 md:grid-cols-2 gap-4"
       onSubmit={(e) => e.preventDefault()}
     >
+      {formLevelError && (
+        <div
+          id="atLeastOneContact-error"
+          role="alert"
+          tabIndex={-1}
+          className="md:col-span-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-300"
+        >
+          {formLevelError}
+        </div>
+      )}
+
       <Section title="معلومات الأب">
         <Two>
           <Field
