@@ -3,7 +3,29 @@
 const Joi = require("joi");
 
 // List / pagination
-const searchField = Joi.string().trim().max(120).allow("", null).optional();
+const searchField = Joi.alternatives()
+  .try(
+    Joi.string(),
+    Joi.number(),
+    Joi.array().items(Joi.string().allow("", null), Joi.number()).single()
+  )
+  .allow("", null)
+  .optional();
+
+const extractTerm = (input) => {
+  if (Array.isArray(input)) {
+    for (const entry of input) {
+      const picked = extractTerm(entry);
+      if (picked) return picked;
+    }
+    return null;
+  }
+  if (input === undefined || input === null) {
+    return null;
+  }
+  const str = String(input).trim();
+  return str.length ? str : null;
+};
 
 const listEnfantsQuerySchema = Joi.object({
   q: searchField,
@@ -13,22 +35,18 @@ const listEnfantsQuerySchema = Joi.object({
 })
   .custom((value) => {
     const normalized = { ...value };
-    const raw = normalized.q ?? normalized.search;
-
-    if (typeof raw === "string") {
-      const trimmed = raw.trim();
-      if (trimmed) {
-        normalized.q = trimmed;
-      } else {
-        delete normalized.q;
-      }
+    const normalizedTerm = extractTerm(normalized.q) ?? extractTerm(normalized.search);
+    if (normalizedTerm) {
+      normalized.q = normalizedTerm;
+    } else {
+      delete normalized.q;
     }
 
     delete normalized.search;
 
     return normalized;
   })
-  .prefs({ stripUnknown: true });
+  .prefs({ stripUnknown: true, convert: true, allowUnknown: true });
 
 // Create / update
 const createEnfantSchema = Joi.object({
