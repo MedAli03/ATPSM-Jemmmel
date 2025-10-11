@@ -46,7 +46,12 @@ const enfantSchema = yup.object({
   date_naissance: yup
     .string()
     .required("تاريخ الولادة مطلوب")
-    .test("is-date", "صيغة التاريخ غير صحيحة", isDate),
+    .test("is-date", "صيغة التاريخ غير صحيحة", isDate)
+    .test(
+      "not-in-future",
+      "تاريخ الولادة لا يمكن أن يكون في المستقبل",
+      (value) => !value || new Date(value) <= new Date()
+    ),
   // parent_user_id is set later via link; keep it out of the form for now
 });
 
@@ -64,18 +69,27 @@ const ficheSchema = yup.object({
     .required("التشخيص الطبي مطلوب"),
   nb_freres: yup
     .number()
+    .transform((value, originalValue) =>
+      originalValue === "" ? null : Number(originalValue)
+    )
     .typeError("يرجى إدخال رقم صالح")
     .integer("يرجى إدخال عدد صحيح")
     .min(0, "يجب أن تكون ≥ 0")
     .required("عدد الإخوة مطلوب"),
   nb_soeurs: yup
     .number()
+    .transform((value, originalValue) =>
+      originalValue === "" ? null : Number(originalValue)
+    )
     .typeError("يرجى إدخال رقم صالح")
     .integer("يرجى إدخال عدد صحيح")
     .min(0, "يجب أن تكون ≥ 0")
     .required("عدد الأخوات مطلوب"),
   rang_enfant: yup
     .number()
+    .transform((value, originalValue) =>
+      originalValue === "" ? null : Number(originalValue)
+    )
     .typeError("يرجى إدخال رقم صالح")
     .integer("يرجى إدخال عدد صحيح")
     .min(1, "يجب أن تكون ≥ 1")
@@ -172,14 +186,12 @@ const parentsFicheSchema = yup
       .string()
       .trim()
       .max(500, "الحد الأقصى 500 حرف")
-      .nullable()
-      .transform(nullIfEmpty),
+      .required("عنوان الأب مطلوب"),
     pere_profession: yup
       .string()
       .trim()
       .max(255, "الحد الأقصى 255 حرف")
-      .nullable()
-      .transform(nullIfEmpty),
+      .required("مهنة الأب مطلوبة"),
     pere_couverture_sociale: yup
       .string()
       .trim()
@@ -209,13 +221,8 @@ const parentsFicheSchema = yup
     pere_tel_portable: yup
       .string()
       .trim()
-      .nullable()
-      .transform(nullIfEmpty)
-      .test(
-        "phone",
-        "رقم هاتف غير صالح",
-        (v) => v == null || phoneRegex.test(v)
-      ),
+      .required("رقم هاتف الأب الجوال مطلوب")
+      .test("phone", "رقم هاتف غير صالح", (v) => phoneRegex.test(v)),
     pere_email: yup
       .string()
       .trim()
@@ -271,14 +278,12 @@ const parentsFicheSchema = yup
       .string()
       .trim()
       .max(500, "الحد الأقصى 500 حرف")
-      .nullable()
-      .transform(nullIfEmpty),
+      .required("عنوان الأم مطلوب"),
     mere_profession: yup
       .string()
       .trim()
       .max(255, "الحد الأقصى 255 حرف")
-      .nullable()
-      .transform(nullIfEmpty),
+      .required("مهنة الأم مطلوبة"),
     mere_couverture_sociale: yup
       .string()
       .trim()
@@ -308,13 +313,8 @@ const parentsFicheSchema = yup
     mere_tel_portable: yup
       .string()
       .trim()
-      .nullable()
-      .transform(nullIfEmpty)
-      .test(
-        "phone",
-        "رقم هاتف غير صالح",
-        (v) => v == null || phoneRegex.test(v)
-      ),
+      .required("رقم هاتف الأم الجوال مطلوب")
+      .test("phone", "رقم هاتف غير صالح", (v) => phoneRegex.test(v)),
     mere_email: yup
       .string()
       .trim()
@@ -328,15 +328,21 @@ const parentsFicheSchema = yup
     (values) => {
       const contactFields = [
         "pere_tel_portable",
+        "pere_tel_travail",
+        "pere_tel_domicile",
         "pere_email",
         "mere_tel_portable",
-        "mere_email",
-        "pere_tel_travail",
-        "mere_tel_domicile",
         "mere_tel_travail",
         "mere_tel_domicile",
+        "mere_email",
       ];
-      return contactFields.some((k) => values?.[k]);
+      return contactFields.some((k) => {
+        const value = values?.[k];
+        if (typeof value === "string") {
+          return value.trim().length > 0;
+        }
+        return Boolean(value);
+      });
     }
   );
 
@@ -837,6 +843,7 @@ function StepFiche({ form }) {
       <Field
         id="lieu_naissance"
         label="مكان الولادة"
+        required
         error={errors.lieu_naissance?.message}
       >
         <input
@@ -855,6 +862,7 @@ function StepFiche({ form }) {
       <Field
         id="diagnostic_medical"
         label="التشخيص الطبي"
+        required
         error={errors.diagnostic_medical?.message}
       >
         <input
@@ -873,6 +881,7 @@ function StepFiche({ form }) {
       <Field
         id="nb_freres"
         label="عدد الإخوة"
+        required
         error={errors.nb_freres?.message}
       >
         <input
@@ -890,6 +899,7 @@ function StepFiche({ form }) {
       <Field
         id="nb_soeurs"
         label="عدد الأخوات"
+        required
         error={errors.nb_soeurs?.message}
       >
         <input
@@ -907,6 +917,7 @@ function StepFiche({ form }) {
       <Field
         id="rang_enfant"
         label="ترتيب الطفل"
+        required
         error={errors.rang_enfant?.message}
       >
         <input
@@ -926,6 +937,7 @@ function StepFiche({ form }) {
       <Field
         id="situation_familiale"
         label="الوضعية العائلية"
+        required
         error={errors.situation_familiale?.message}
       >
         <select
@@ -949,6 +961,7 @@ function StepFiche({ form }) {
       <Field
         id="diag_auteur_nom"
         label="اسم مُصدر التشخيص"
+        required
         error={errors.diag_auteur_nom?.message}
       >
         <input
@@ -966,6 +979,7 @@ function StepFiche({ form }) {
       <Field
         id="diag_auteur_description"
         label="وصف مُصدر التشخيص"
+        required
         error={errors.diag_auteur_description?.message}
       >
         <input
@@ -1023,6 +1037,7 @@ function StepFiche({ form }) {
       <Field
         id="type_handicap"
         label="نوع الإعاقة"
+        required
         error={errors.type_handicap?.message}
       >
         <input
@@ -1038,31 +1053,24 @@ function StepFiche({ form }) {
       </Field>
 
       <div className="md:col-span-2">
-        <label
-          htmlFor="troubles_principaux"
-          className="block text-sm mb-1 text-gray-700"
-        >
-          الاضطرابات الرئيسية
-        </label>
-        <textarea
+        <Field
           id="troubles_principaux"
-          rows={4}
-          {...register("troubles_principaux")}
-          name="troubles_principaux"
-          aria-invalid={!!errors.troubles_principaux}
-          aria-describedby={
-            errors.troubles_principaux ? "troubles_principaux-error" : undefined
-          }
-          className="w-full px-3 py-2 rounded-xl border"
-        />
-        {errors.troubles_principaux?.message && (
-          <p
-            id="troubles_principaux-error"
-            className="mt-1 text-xs text-rose-600"
-          >
-            {errors.troubles_principaux.message}
-          </p>
-        )}
+          label="الاضطرابات الرئيسية"
+          required
+          error={errors.troubles_principaux?.message}
+        >
+          {({ describedBy }) => (
+            <textarea
+              id="troubles_principaux"
+              rows={4}
+              {...register("troubles_principaux")}
+              name="troubles_principaux"
+              aria-invalid={!!errors.troubles_principaux}
+              aria-describedby={describedBy}
+              className="w-full px-3 py-2 rounded-xl border"
+            />
+          )}
+        </Field>
       </div>
     </form>
   );
@@ -1093,7 +1101,12 @@ function StepParentsFiche({ form }) {
     >
       <Section title="معلومات الأب">
         <Two>
-          <Field id="pere_nom" label="اللقب" error={errors.pere_nom?.message}>
+          <Field
+            id="pere_nom"
+            label="اللقب"
+            required
+            error={errors.pere_nom?.message}
+          >
             <input
               id="pere_nom"
               {...register("pere_nom")}
@@ -1104,6 +1117,7 @@ function StepParentsFiche({ form }) {
           <Field
             id="pere_prenom"
             label="الإسم"
+            required
             error={errors.pere_prenom?.message}
           >
             <input
@@ -1175,6 +1189,7 @@ function StepParentsFiche({ form }) {
           <Field
             id="pere_adresse"
             label="العنوان"
+            required
             error={errors.pere_adresse?.message}
           >
             <input
@@ -1187,6 +1202,7 @@ function StepParentsFiche({ form }) {
           <Field
             id="pere_profession"
             label="المهنة"
+            required
             error={errors.pere_profession?.message}
           >
             <input
@@ -1229,6 +1245,7 @@ function StepParentsFiche({ form }) {
           <Field
             id="pere_tel_portable"
             label="هاتف (جوال)"
+            required
             error={errors.pere_tel_portable?.message}
           >
             <input
@@ -1256,7 +1273,12 @@ function StepParentsFiche({ form }) {
 
       <Section title="معلومات الأم">
         <Two>
-          <Field id="mere_nom" label="اللقب" error={errors.mere_nom?.message}>
+          <Field
+            id="mere_nom"
+            label="اللقب"
+            required
+            error={errors.mere_nom?.message}
+          >
             <input
               id="mere_nom"
               {...register("mere_nom")}
@@ -1267,6 +1289,7 @@ function StepParentsFiche({ form }) {
           <Field
             id="mere_prenom"
             label="الإسم"
+            required
             error={errors.mere_prenom?.message}
           >
             <input
@@ -1338,6 +1361,7 @@ function StepParentsFiche({ form }) {
           <Field
             id="mere_adresse"
             label="العنوان"
+            required
             error={errors.mere_adresse?.message}
           >
             <input
@@ -1350,6 +1374,7 @@ function StepParentsFiche({ form }) {
           <Field
             id="mere_profession"
             label="المهنة"
+            required
             error={errors.mere_profession?.message}
           >
             <input
@@ -1392,6 +1417,7 @@ function StepParentsFiche({ form }) {
           <Field
             id="mere_tel_portable"
             label="هاتف (جوال)"
+            required
             error={errors.mere_tel_portable?.message}
           >
             <input
