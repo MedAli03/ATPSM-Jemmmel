@@ -15,9 +15,20 @@ exports.updateGroupeSchema = Joi.object({
 }).min(1);
 
 exports.inscrireEnfantsSchema = Joi.object({
-  // normalize to enfants[] consistently
-  enfants: Joi.array().items(Joi.number().integer().positive()).min(1).required(),
-});
+  // Allow both { enfants: [] } and { enfant_ids: [] } from client
+  enfants: Joi.array().items(Joi.number().integer().positive()).min(1),
+  enfant_ids: Joi.array().items(Joi.number().integer().positive()).min(1),
+})
+  .custom((value, helpers) => {
+    const source = value.enfants ?? value.enfant_ids;
+    if (!source || source.length === 0) {
+      return helpers.error("any.required", { label: "enfants" });
+    }
+    return { enfants: source };
+  })
+  .messages({
+    "any.required": "Veuillez fournir au moins un enfant.",
+  });
 
 exports.affecterEducateurSchema = Joi.object({
   educateur_id: Joi.number().integer().positive().required(),

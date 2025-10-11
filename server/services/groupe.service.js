@@ -10,7 +10,22 @@ exports.create = async (payload) => {
   return repo.create(payload);
 };
 
-exports.list = (filters) => repo.list(filters);
+exports.list = async (filters = {}) => {
+  const rows = await repo.list(filters);
+  const plain = rows.map((g) => g.get({ plain: true }));
+
+  if (!plain.length) return [];
+
+  const counts = await repo.countEnfantsByGroup({
+    annee_id: filters?.anneeId,
+    groupe_ids: plain.map((g) => g.id),
+  });
+
+  return plain.map((g) => ({
+    ...g,
+    nb_enfants: counts[g.id] ?? 0,
+  }));
+};
 
 exports.get = async (id) => {
   const g = await repo.findById(id);
@@ -68,8 +83,25 @@ exports.remove = async (id, annee_id) => {
 exports.listByYear = (annee_id) => repo.listByYear(annee_id);
 
 /* ===================== Inscriptions ===================== */
-exports.listInscriptions = ({ groupe_id, annee_id, page, limit }) =>
-  repo.listInscriptions({ groupe_id, annee_id, page, limit });
+exports.listInscriptions = async ({ groupe_id, annee_id, page, limit }) => {
+  const rows = await repo.listInscriptions({ groupe_id, annee_id, page, limit });
+  return rows.map((row) => {
+    const plain = row.get({ plain: true });
+    const enfant = plain.enfant || {};
+    return {
+      id: plain.id,
+      groupe_id: plain.groupe_id,
+      annee_id: plain.annee_id,
+      enfant_id: plain.enfant_id,
+      date_inscription: plain.date_inscription,
+      created_at: plain.created_at,
+      updated_at: plain.updated_at,
+      prenom: enfant.prenom ?? null,
+      nom: enfant.nom ?? null,
+      date_naissance: enfant.date_naissance ?? null,
+    };
+  });
+};
 
 exports.inscrireEnfants = async (groupe_id, annee_id, enfant_ids) => {
   // Normalize & dedupe
@@ -141,9 +173,15 @@ exports.affecterEducateur = async (groupe_id, annee_id, educateur_id) => {
 };
 
 exports.removeAffectation = async (groupe_id, affectation_id) => {
-  // Simple guard: ensure affectation belongs to this groupe (optional, implement in repo if needed)
-  const deleted = await sequelize.transaction(async (t) => {
-    return (await repo.clearAffectation(groupe_id, undefined, t)) || 1; // or implement a targeted delete by id
-  });
-  return { deleted: Boolean(deleted) };
+  const deleted = await sequelize.transaction((t) =>
+    repo.removeAffectationById(groupe_id, affectation_id, t)
+  );
+
+  if (!deleted) {
+    const e = new Error("Affectation introuvable");
+    e.status = 404;
+    throw e;
+  }
+
+  return { deleted: true };
 };
