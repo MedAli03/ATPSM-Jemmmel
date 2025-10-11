@@ -41,6 +41,11 @@ const schema = yup.object({
     .trim()
     .email("البريد الإلكتروني غير صالح")
     .required("البريد الإلكتروني إجباري"),
+  mot_de_passe: yup
+    .string()
+    .trim()
+    .min(6, "كلمة المرور يجب أن تتكون من 6 أحرف على الأقل")
+    .notRequired(),
 });
 
 const dateFormatter = new Intl.DateTimeFormat("ar-TN", {
@@ -79,13 +84,14 @@ function extractGroups(item) {
 
 function toFormValues(data) {
   if (!data || typeof data !== "object") {
-    return { prenom: "", nom: "", telephone: "", email: "" };
+    return { prenom: "", nom: "", telephone: "", email: "", mot_de_passe: "" };
   }
   return {
     prenom: data.prenom || data.first_name || "",
     nom: data.nom || data.last_name || "",
     telephone: data.telephone || data.phone || "",
     email: data.email || "",
+    mot_de_passe: "",
   };
 }
 
@@ -173,9 +179,11 @@ export default function AllEducators() {
     reset,
     formState: { errors },
     setFocus,
+    setError,
+    clearErrors,
   } = useForm({
     resolver: yupResolver(schema),
-    defaultValues: { prenom: "", nom: "", telephone: "", email: "" },
+    defaultValues: { prenom: "", nom: "", telephone: "", email: "", mot_de_passe: "" },
     mode: "onSubmit",
   });
 
@@ -185,7 +193,7 @@ export default function AllEducators() {
       if (educatorQuery.isFetching) return;
       reset(toFormValues(educatorQuery.data));
     } else {
-      reset({ prenom: "", nom: "", telephone: "", email: "" });
+      reset({ prenom: "", nom: "", telephone: "", email: "", mot_de_passe: "" });
     }
     const t = setTimeout(() => setFocus("prenom"), 50);
     return () => clearTimeout(t);
@@ -242,6 +250,25 @@ export default function AllEducators() {
       telephone: values.telephone?.trim() || "",
       email: values.email?.trim() || "",
     };
+
+    const password = values.mot_de_passe?.trim() || "";
+
+    if (!editingId) {
+      if (!password) {
+        setError("mot_de_passe", {
+          type: "required",
+          message: "كلمة المرور إجبارية للمربّي الجديد",
+        });
+        return;
+      }
+      clearErrors("mot_de_passe");
+      payload.mot_de_passe = password;
+    } else if (password) {
+      clearErrors("mot_de_passe");
+      payload.mot_de_passe = password;
+    } else {
+      clearErrors("mot_de_passe");
+    }
 
     if (editingId) {
       updateMut.mutate({ id: editingId, payload });
@@ -795,6 +822,26 @@ export default function AllEducators() {
               />
               {errors.email ? (
                 <p className="text-xs text-rose-600">{errors.email.message}</p>
+              ) : null}
+            </div>
+            <div className="flex flex-col gap-1.5 sm:col-span-2">
+              <label className="text-sm font-medium text-gray-700" htmlFor="mot_de_passe">
+                كلمة المرور المبدئية
+              </label>
+              <input
+                id="mot_de_passe"
+                type="password"
+                className="rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder={editingId ? "اترك الحقل فارغًا إذا لم ترغب بتغييره" : "كلمة مرور من 6 أحرف على الأقل"}
+                {...register("mot_de_passe")}
+              />
+              <p className="text-xs text-gray-500">
+                {editingId
+                  ? "يمكنك تحديث كلمة المرور بكتابة قيمة جديدة أو ترك الحقل فارغًا للإبقاء على الحالية."
+                  : "سيتم إنشاء حساب المربّي باستخدام كلمة المرور التي تُدخلها هنا."}
+              </p>
+              {errors.mot_de_passe ? (
+                <p className="text-xs text-rose-600">{errors.mot_de_passe.message}</p>
               ) : null}
             </div>
           </div>
