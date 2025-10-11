@@ -11,6 +11,8 @@ const {
   listQuerySchema,
   createActualiteSchema,
   updateActualiteSchema,
+  updateStatusSchema,
+  updatePinSchema,
 } = require("../validations/actualites.schema");
 
 router.use(auth);
@@ -53,6 +55,22 @@ router.put(
   validate(idParamSchema, "params"),
   validate(updateActualiteSchema, "body"),
   ctrl.update
+);
+
+router.patch(
+  "/:id/status",
+  requireRole("PRESIDENT"),
+  validate(idParamSchema, "params"),
+  validate(updateStatusSchema, "body"),
+  ctrl.updateStatus
+);
+
+router.patch(
+  "/:id/pin",
+  requireRole("PRESIDENT"),
+  validate(idParamSchema, "params"),
+  validate(updatePinSchema, "body"),
+  ctrl.togglePin
 );
 
 // DELETE (Président)

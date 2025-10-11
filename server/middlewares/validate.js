@@ -1,6 +1,8 @@
 // src/middlewares/validate.js
 "use strict";
 
+const ApiError = require("../utils/api-error");
+
 module.exports =
   (schema, location = "body") =>
   (req, _res, next) => {
@@ -13,13 +15,22 @@ module.exports =
     const { error, value } = schema.validate(target, {
       abortEarly: false,
       stripUnknown: true,
+      convert: true,
     });
     if (error) {
-      const e = new Error(
-        "Validation error: " + error.details.map((d) => d.message).join(", ")
+      const details = error.details.map((detail) => ({
+        message: detail.message.replace(/"/g, ""),
+        path: detail.path,
+        type: detail.type,
+      }));
+      return next(
+        new ApiError({
+          status: 422,
+          code: "VALIDATION_ERROR",
+          message: "الرجاء التحقق من الحقول المدخلة",
+          details,
+        })
       );
-      e.status = 422;
-      return next(e);
     }
     if (location === "params") req.params = value;
     else if (location === "query") req.query = value;

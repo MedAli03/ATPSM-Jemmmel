@@ -11,6 +11,7 @@ const { randomUUID } = require("crypto");
 
 const routes = require("./routes"); // make sure src/routes/index.js exists (exports an Express router)
 const { sequelize } = require("./models"); // Sequelize instance
+const ApiError = require("./utils/api-error");
 
 // (Swagger) comment these 2 lines out if you don't want docs yet
 const { setupSwagger } = require("./swagger"); // exposes /docs + /docs.json
@@ -83,14 +84,18 @@ app.use(express.urlencoded({ extended: true }));
 /*                                  Health                                     */
 /* -------------------------------------------------------------------------- */
 
-app.get("/", (_req, res) => res.json({ name: "ATPSM API", version: "1.0.0" }));
-app.get("/health", (_req, res) => res.json({ ok: true }));
+app.get("/", (_req, res) => res.json({ data: { name: "ATPSM API", version: "1.0.0" }, meta: null }));
+app.get("/health", (_req, res) => res.json({ data: { ok: true }, meta: null }));
 app.get("/health/db", async (_req, res) => {
   try {
     await sequelize.authenticate();
-    res.json({ ok: true });
+    res.json({ data: { ok: true }, meta: null });
   } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
+    res.status(500).json({
+      status: 500,
+      code: "DB_UNAVAILABLE",
+      message: e.message || "قاعدة البيانات غير متاحة",
+    });
   }
 });
 
@@ -128,7 +133,12 @@ app.use("/api", routes);
 
 app.use((req, res, next) => {
   if (req.path.startsWith("/api")) {
-    return res.status(404).json({ code: "NOT_FOUND", message: "Not Found" });
+    return res.status(404).json({
+      status: 404,
+      code: "NOT_FOUND",
+      message: "المورد المطلوب غير موجود",
+      details: [{ path: [req.method, req.path] }],
+    });
   }
   next();
 });
@@ -138,30 +148,52 @@ app.use((req, res, next) => {
 /* -------------------------------------------------------------------------- */
 
 // eslint-disable-next-line no-unused-vars
-app.use((err, _req, res, _next) => {
+app.use((err, req, res, _next) => {
   const isProd = process.env.NODE_ENV === "production";
   let status = Number.isInteger(err.status) ? err.status : 500;
-  let code = err.code || "INTERNAL";
+  let code = err.code || (status >= 500 ? "INTERNAL_ERROR" : "UNEXPECTED_ERROR");
+  let details = err.details || null;
 
-  // Sequelize validation / unique constraint
+  if (err instanceof ApiError) {
+    status = err.status;
+    code = err.code;
+    details = err.details;
+  }
+
   if (
     err.name === "SequelizeValidationError" ||
     err.name === "SequelizeUniqueConstraintError"
   ) {
     status = 400;
     code = "VALIDATION_ERROR";
+    details = err.errors?.map?.((item) => ({
+      message: item.message,
+      path: item.path ? [item.path] : undefined,
+      type: item.type || "sequelize",
+    }));
   }
-  // Example for Joi/Zod (if you use them)
+
   if (err.isJoi || err.name === "ZodError") {
     status = 400;
     code = "VALIDATION_ERROR";
   }
 
   const payload = {
+    status,
     code,
-    message: err.message || "Internal Server Error",
-    ...(isProd ? {} : { stack: err.stack }),
+    message: err.message || "حدث خطأ غير متوقع",
   };
+
+  if (details && details.length) {
+    payload.details = details;
+  }
+
+  if (!isProd) {
+    payload.meta = {
+      stack: err.stack,
+      requestId: req.id,
+    };
+  }
 
   res.status(status).json(payload);
 });

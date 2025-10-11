@@ -4,8 +4,10 @@ export default function ConfirmDialog({
   open,
   title = "تأكيد",
   message = "هل أنت متأكد؟",
+  description,
   confirmText = "تأكيد",
   cancelText = "إلغاء",
+  loading = false,
   onClose,
   onConfirm,
 }) {
@@ -27,19 +29,21 @@ export default function ConfirmDialog({
         className="relative w-full max-w-md bg-white rounded-2xl shadow-xl p-5"
       >
         <h3 className="text-lg font-bold text-gray-900 mb-2">{title}</h3>
-        <p className="text-gray-600 mb-4">{message}</p>
+        <p className="text-gray-600 mb-4">{description || message}</p>
         <div className="flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="px-3 py-1.5 rounded-lg border hover:bg-gray-50"
+            className="px-3 py-1.5 rounded-lg border hover:bg-gray-50 disabled:opacity-50"
+            disabled={loading}
           >
             {cancelText}
           </button>
           <button
             onClick={onConfirm}
-            className="px-3 py-1.5 rounded-lg bg-rose-600 text-white hover:bg-rose-700"
+            className="px-3 py-1.5 rounded-lg bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50"
+            disabled={loading}
           >
-            {confirmText}
+            {loading ? "جارٍ التنفيذ…" : confirmText}
           </button>
         </div>
       </div>
