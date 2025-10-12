@@ -479,7 +479,11 @@ export default function DashboardSidebar({ open, onClose }) {
 
           <Section title="المحتوى والتواصل" icon="news">
             <Item to="/dashboard/president/news" label="الأخبار" icon="news" />
-            <Item to="/dashboard/events" label="الفعاليات" icon="events" />
+            <Item
+              to="/dashboard/president/events"
+              label="الفعاليات"
+              icon="events"
+            />
             <Item to="/dashboard/resources" label="الموارد" icon="resources" />
             <Item to="/dashboard/messaging" label="الرسائل" icon="chat" />
             <Item

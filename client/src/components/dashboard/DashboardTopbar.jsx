@@ -234,7 +234,11 @@ export default function TopbarNeo({ onMenuClick }) {
               <CmdItem to="/dashboard/children" label="فتح إدارة الأطفال" onClose={() => setOpenCmd(false)} />
               <CmdItem to="/dashboard/pei" label="مشاريع PEI" onClose={() => setOpenCmd(false)} />
               <CmdItem to="/dashboard/actualites" label="الأخبار" onClose={() => setOpenCmd(false)} />
-              <CmdItem to="/dashboard/events" label="الفعاليات" onClose={() => setOpenCmd(false)} />
+              <CmdItem
+                to="/dashboard/president/events"
+                label="الفعاليات"
+                onClose={() => setOpenCmd(false)}
+              />
             </ul>
           </div>
         </div>
