@@ -91,7 +91,7 @@ const protectedRoutes = [
   {
     path: "/dashboard/director",
     element: DashboardLayout,
-    roles: ["DIRECTOR"],
+    roles: ["DIRECTEUR", "DIRECTOR"],
     children: [
       { index: true, element: DirectorDashboard, title: "لوحة المدير" },
     ],
