@@ -30,6 +30,9 @@ const DashboardLayout = lazy(() =>
 const DirectorDashboard = lazy(() =>
   import("../pages/dashboard/director/Dashboard")
 );
+const ProfilePage = lazy(() =>
+  import("../pages/dashboard/profile/ProfilePage")
+);
 const NotificationsPage = lazy(() =>
   import("../pages/dashboard/NotificationsPage")
 );
@@ -57,6 +60,14 @@ const publicRoutes = [
 
 // Protected routes — auth required
 const protectedRoutes = [
+  {
+    path: "/dashboard/profile",
+    element: DashboardLayout,
+    roles: ["PRESIDENT", "DIRECTEUR"],
+    children: [
+      { index: true, element: ProfilePage, title: "الملف الشخصي" },
+    ],
+  },
   // {
   //   path: "/dashboard",
   //   element: DashboardLayout,

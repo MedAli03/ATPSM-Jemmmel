@@ -370,6 +370,7 @@ const NAV_CONFIG = {
     ],
     rootItems: [
       { to: "/dashboard/president", label: "لوحة التحكم", icon: "dashboard" },
+      { to: "/dashboard/profile", label: "الملف الشخصي", icon: "settings" },
     ],
     sections: [
       {
@@ -449,6 +450,7 @@ const NAV_CONFIG = {
     ],
     rootItems: [
       { to: "/dashboard/manager", label: "لوحة المدير", icon: "dashboard" },
+      { to: "/dashboard/profile", label: "الملف الشخصي", icon: "settings" },
     ],
     sections: [
       {
