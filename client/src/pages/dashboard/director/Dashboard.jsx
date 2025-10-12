@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bar,
   BarChart,
@@ -22,10 +18,7 @@ import {
 import { useToast } from "../../../components/common/ToastProvider";
 import Modal from "../../../components/common/Modal";
 import ConfirmDialog from "../../../components/common/ConfirmDialog";
-import {
-  fetchActiveSchoolYear,
-  fetchSchoolYears,
-} from "../../../api/annees";
+import { fetchActiveSchoolYear, fetchSchoolYears } from "../../../api/annees";
 import {
   getChildrenPerGroupStats,
   getDirectorStats,
@@ -57,7 +50,9 @@ function formatNumber(value) {
 function resolveChildName(child) {
   if (!child) return "";
   const parts = [child.prenom, child.nom].filter(Boolean);
-  return parts.length ? parts.join(" ") : child.full_name || child.name || "طفل";
+  return parts.length
+    ? parts.join(" ")
+    : child.full_name || child.name || "طفل";
 }
 
 function useToastOnError(toast, query, fallbackMessage) {
@@ -116,7 +111,11 @@ export default function DirectorDashboard() {
   });
 
   useToastOnError(toast, anneesQuery, "تعذّر تحميل السنوات الدراسية");
-  useToastOnError(toast, activeAnneeQuery, "تعذّر تحديد السنة الدراسية الحالية");
+  useToastOnError(
+    toast,
+    activeAnneeQuery,
+    "تعذّر تحديد السنة الدراسية الحالية"
+  );
 
   useEffect(() => {
     const active = activeAnneeQuery.data;
@@ -148,21 +147,33 @@ export default function DirectorDashboard() {
     queryFn: () => getChildrenPerGroupStats({ ...baseFilters, limit: 10 }),
     enabled: Boolean(anneeId),
   });
-  useToastOnError(toast, groupesStatsQuery, "تعذّر تحميل توزيع الأطفال على المجموعات");
+  useToastOnError(
+    toast,
+    groupesStatsQuery,
+    "تعذّر تحميل توزيع الأطفال على المجموعات"
+  );
 
   const monthlyInscriptionsQuery = useQuery({
     queryKey: ["director-monthly-inscriptions", baseFilters],
     queryFn: () => getMonthlyInscriptions(baseFilters),
     enabled: Boolean(anneeId),
   });
-  useToastOnError(toast, monthlyInscriptionsQuery, "تعذّر تحميل تطوّر التسجيلات");
+  useToastOnError(
+    toast,
+    monthlyInscriptionsQuery,
+    "تعذّر تحميل تطوّر التسجيلات"
+  );
 
   const familySituationQuery = useQuery({
     queryKey: ["director-family-situation", baseFilters],
     queryFn: () => getFamilySituationDistribution(baseFilters),
     enabled: Boolean(anneeId),
   });
-  useToastOnError(toast, familySituationQuery, "تعذّر تحميل بيانات الوضعية العائلية");
+  useToastOnError(
+    toast,
+    familySituationQuery,
+    "تعذّر تحميل بيانات الوضعية العائلية"
+  );
 
   const eventsQuery = useQuery({
     queryKey: ["director-upcoming-events", baseFilters],
@@ -195,7 +206,11 @@ export default function DirectorDashboard() {
   const searchNonInscritsQuery = useQuery({
     queryKey: ["director-non-inscrits-search", anneeId, childSearch.trim()],
     queryFn: () =>
-      listNonInscrits({ annee_id: anneeId, limit: 10, search: childSearch.trim() }),
+      listNonInscrits({
+        annee_id: anneeId,
+        limit: 10,
+        search: childSearch.trim(),
+      }),
     enabled: isRegisterModalOpen && Boolean(anneeId),
   });
   useToastOnError(toast, searchNonInscritsQuery, "تعذّر البحث عن الأطفال");
@@ -223,10 +238,16 @@ export default function DirectorDashboard() {
       setRegisterModalOpen(false);
       setSelectedChild(null);
       queryClient.invalidateQueries({ queryKey: ["director-stats"] });
-      queryClient.invalidateQueries({ queryKey: ["director-children-per-group"] });
-      queryClient.invalidateQueries({ queryKey: ["director-monthly-inscriptions"] });
+      queryClient.invalidateQueries({
+        queryKey: ["director-children-per-group"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["director-monthly-inscriptions"],
+      });
       queryClient.invalidateQueries({ queryKey: ["director-non-inscrits"] });
-      queryClient.invalidateQueries({ queryKey: ["director-non-inscrits-search"] });
+      queryClient.invalidateQueries({
+        queryKey: ["director-non-inscrits-search"],
+      });
     },
     onError: (error) => {
       const message =
@@ -275,9 +296,12 @@ export default function DirectorDashboard() {
     const groups = Array.isArray(groupesQuery.data) ? groupesQuery.data : [];
     const childCandidates = searchNonInscritsQuery.data || [];
     const chosenChild =
-      childCandidates.find((item) => String(item.id) === String(selectedChildId)) ||
-      selectedChild;
-    const chosenGroup = groups.find((g) => String(g.id) === String(selectedGroupId));
+      childCandidates.find(
+        (item) => String(item.id) === String(selectedChildId)
+      ) || selectedChild;
+    const chosenGroup = groups.find(
+      (g) => String(g.id) === String(selectedGroupId)
+    );
 
     setConfirmPayload({
       enfant_id: Number(selectedChildId),
@@ -309,12 +333,17 @@ export default function DirectorDashboard() {
     return raw.map((item, index) => {
       const dateString = item.mois || item.month || item.label;
       let parsed = dateString ? new Date(dateString) : null;
-      if (parsed && Number.isNaN(parsed.getTime()) && dateString?.length === 7) {
+      if (
+        parsed &&
+        Number.isNaN(parsed.getTime()) &&
+        dateString?.length === 7
+      ) {
         parsed = new Date(`${dateString}-01`);
       }
-      const label = parsed && !Number.isNaN(parsed.getTime())
-        ? monthFormatter.format(parsed)
-        : dateString || `الشهر ${index + 1}`;
+      const label =
+        parsed && !Number.isNaN(parsed.getTime())
+          ? monthFormatter.format(parsed)
+          : dateString || `الشهر ${index + 1}`;
       return {
         name: label,
         value: Number(item.total || item.value || item.count || 0),
@@ -345,13 +374,14 @@ export default function DirectorDashboard() {
 
   return (
     <div className="space-y-6" dir="rtl">
-      <header className="sticky top-0 z-20 bg-white/80 backdrop-blur border-b border-gray-200">
+      <header className=" top-0 z-20 bg-white/80 backdrop-blur border-b border-gray-200">
         <div className="px-4 pt-4 pb-3 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">لوحة المدير</h1>
               <p className="text-sm text-gray-500">
-                نظرة شاملة على الأداء والتسجيلات والفعاليات الخاصة بالسنة الدراسية الحالية.
+                نظرة شاملة على الأداء والتسجيلات والفعاليات الخاصة بالسنة
+                الدراسية الحالية.
               </p>
             </div>
             <div className="flex flex-wrap items-end gap-3">
@@ -365,7 +395,10 @@ export default function DirectorDashboard() {
                 >
                   <option value="">اختر سنة</option>
                   {(anneesQuery.data || []).map((annee) => (
-                    <option key={annee.id ?? annee.value} value={annee.id ?? annee.value}>
+                    <option
+                      key={annee.id ?? annee.value}
+                      value={annee.id ?? annee.value}
+                    >
                       {annee.libelle || annee.label || annee.name}
                     </option>
                   ))}
@@ -395,7 +428,38 @@ export default function DirectorDashboard() {
           </div>
         </div>
       </header>
-
+      <section className="px-4 sm:px-6 lg:px-8">
+        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-900">إجراءات سريعة</h2>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            <QuickActionButton
+              icon="📦"
+              label="إنشاء مجموعة جديدة"
+              onClick={handleQuickNavigate("/dashboard/manager/groups")}
+            />
+            <QuickActionButton
+              icon="👩‍🏫"
+              label="تعيين مربٍّ لمجموعة"
+              onClick={handleQuickNavigate("/dashboard/manager/groups")}
+            />
+            <QuickActionButton
+              icon="🧒"
+              label="تسجيل طفل في مجموعة"
+              onClick={() => openRegisterModal(null)}
+            />
+            <QuickActionButton
+              icon="📅"
+              label="إنشاء حدث جديد"
+              onClick={handleQuickNavigate("/dashboard/manager/events")}
+            />
+            <QuickActionButton
+              icon="📢"
+              label="إنشاء إعلان جديد"
+              onClick={handleQuickNavigate("/dashboard/manager/news")}
+            />
+          </div>
+        </div>
+      </section>
       <section className="px-4 sm:px-6 lg:px-8">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           {[
@@ -451,7 +515,9 @@ export default function DirectorDashboard() {
         <div className="grid gap-6 lg:grid-cols-12">
           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm lg:col-span-7">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">الأطفال لكل مجموعة</h2>
+              <h2 className="text-lg font-semibold text-gray-900">
+                الأطفال لكل مجموعة
+              </h2>
               <span className="text-xs text-gray-400">أعلى 10 مجموعات</span>
             </div>
             <div className="mt-4 h-72">
@@ -463,7 +529,12 @@ export default function DirectorDashboard() {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={groupesData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="name" angle={-15} textAnchor="end" height={60} />
+                    <XAxis
+                      dataKey="name"
+                      angle={-15}
+                      textAnchor="end"
+                      height={60}
+                    />
                     <YAxis allowDecimals={false} />
                     <Tooltip formatter={(value) => formatNumber(value)} />
                     <Bar dataKey="value" fill="#2563eb" radius={[6, 6, 0, 0]} />
@@ -476,7 +547,9 @@ export default function DirectorDashboard() {
           </div>
 
           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm lg:col-span-5">
-            <h2 className="text-lg font-semibold text-gray-900">التسجيلات خلال الأشهر الأخيرة</h2>
+            <h2 className="text-lg font-semibold text-gray-900">
+              التسجيلات خلال الأشهر الأخيرة
+            </h2>
             <div className="mt-4 h-72">
               {isLoadingLine ? (
                 <div className="flex h-full items-center justify-center">
@@ -489,7 +562,13 @@ export default function DirectorDashboard() {
                     <XAxis dataKey="name" tick={{ fontSize: 12 }} height={50} />
                     <YAxis allowDecimals={false} />
                     <Tooltip formatter={(value) => formatNumber(value)} />
-                    <Line type="monotone" dataKey="value" stroke="#16a34a" strokeWidth={2} dot />
+                    <Line
+                      type="monotone"
+                      dataKey="value"
+                      stroke="#16a34a"
+                      strokeWidth={2}
+                      dot
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
@@ -502,7 +581,9 @@ export default function DirectorDashboard() {
 
       <section className="px-4 sm:px-6 lg:px-8">
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900">الوضعية العائلية للأطفال</h2>
+          <h2 className="text-lg font-semibold text-gray-900">
+            الوضعية العائلية للأطفال
+          </h2>
           <div className="mt-4 h-80">
             {isLoadingPie ? (
               <div className="flex h-full items-center justify-center">
@@ -526,10 +607,12 @@ export default function DirectorDashboard() {
                       />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value, _name, { payload }) => [
-                    formatNumber(value),
-                    payload?.name,
-                  ]} />
+                  <Tooltip
+                    formatter={(value, _name, { payload }) => [
+                      formatNumber(value),
+                      payload?.name,
+                    ]}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
@@ -543,7 +626,9 @@ export default function DirectorDashboard() {
         <div className="grid gap-6 lg:grid-cols-12">
           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm lg:col-span-5">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">الفعاليات القادمة</h2>
+              <h2 className="text-lg font-semibold text-gray-900">
+                الفعاليات القادمة
+              </h2>
               <button
                 type="button"
                 onClick={handleQuickNavigate("/dashboard/manager/events")}
@@ -562,7 +647,10 @@ export default function DirectorDashboard() {
                 ))
               ) : upcomingEvents.length ? (
                 upcomingEvents.map((event) => (
-                  <li key={event.id} className="rounded-xl border border-gray-100 p-3">
+                  <li
+                    key={event.id}
+                    className="rounded-xl border border-gray-100 p-3"
+                  >
                     <p className="text-sm font-semibold text-gray-900">
                       {event.titre || event.nom}
                     </p>
@@ -584,7 +672,9 @@ export default function DirectorDashboard() {
 
           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm lg:col-span-7">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">آخر الأخبار والإعلانات</h2>
+              <h2 className="text-lg font-semibold text-gray-900">
+                آخر الأخبار والإعلانات
+              </h2>
               <button
                 type="button"
                 onClick={handleQuickNavigate("/dashboard/manager/news")}
@@ -603,7 +693,10 @@ export default function DirectorDashboard() {
                 ))
               ) : latestActualites.length ? (
                 latestActualites.map((item) => (
-                  <li key={item.id} className="rounded-xl border border-gray-100 p-3">
+                  <li
+                    key={item.id}
+                    className="rounded-xl border border-gray-100 p-3"
+                  >
                     <p className="text-sm font-semibold text-gray-900">
                       {item.titre || item.title}
                     </p>
@@ -631,8 +724,12 @@ export default function DirectorDashboard() {
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">الأطفال غير المسجّلين</h2>
-              <p className="text-sm text-gray-500">سجّل الأطفال بسرعة في مجموعات مناسبة.</p>
+              <h2 className="text-lg font-semibold text-gray-900">
+                الأطفال غير المسجّلين
+              </h2>
+              <p className="text-sm text-gray-500">
+                سجّل الأطفال بسرعة في مجموعات مناسبة.
+              </p>
             </div>
             <button
               type="button"
@@ -648,16 +745,28 @@ export default function DirectorDashboard() {
             <table className="min-w-full divide-y divide-gray-200 text-right">
               <thead className="bg-gray-50">
                 <tr>
-                  <th scope="col" className="px-4 py-2 text-xs font-semibold text-gray-500">
+                  <th
+                    scope="col"
+                    className="px-4 py-2 text-xs font-semibold text-gray-500"
+                  >
                     الطفل
                   </th>
-                  <th scope="col" className="px-4 py-2 text-xs font-semibold text-gray-500">
+                  <th
+                    scope="col"
+                    className="px-4 py-2 text-xs font-semibold text-gray-500"
+                  >
                     تاريخ الميلاد
                   </th>
-                  <th scope="col" className="px-4 py-2 text-xs font-semibold text-gray-500">
+                  <th
+                    scope="col"
+                    className="px-4 py-2 text-xs font-semibold text-gray-500"
+                  >
                     آخر تحديث
                   </th>
-                  <th scope="col" className="px-4 py-2 text-xs font-semibold text-gray-500">
+                  <th
+                    scope="col"
+                    className="px-4 py-2 text-xs font-semibold text-gray-500"
+                  >
                     إجراء سريع
                   </th>
                 </tr>
@@ -709,46 +818,16 @@ export default function DirectorDashboard() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={4} className="px-4 py-6 text-center text-sm text-gray-500">
+                    <td
+                      colSpan={4}
+                      className="px-4 py-6 text-center text-sm text-gray-500"
+                    >
                       لا يوجد أطفال في انتظار التسجيل حالياً.
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
-          </div>
-        </div>
-      </section>
-
-      <section className="px-4 sm:px-6 lg:px-8">
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900">إجراءات سريعة</h2>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            <QuickActionButton
-              icon="📦"
-              label="إنشاء مجموعة جديدة"
-              onClick={handleQuickNavigate("/dashboard/manager/groups")}
-            />
-            <QuickActionButton
-              icon="👩‍🏫"
-              label="تعيين مربٍّ لمجموعة"
-              onClick={handleQuickNavigate("/dashboard/manager/groups")}
-            />
-            <QuickActionButton
-              icon="🧒"
-              label="تسجيل طفل في مجموعة"
-              onClick={() => openRegisterModal(null)}
-            />
-            <QuickActionButton
-              icon="📅"
-              label="إنشاء حدث جديد"
-              onClick={handleQuickNavigate("/dashboard/manager/events")}
-            />
-            <QuickActionButton
-              icon="📢"
-              label="إنشاء إعلان جديد"
-              onClick={handleQuickNavigate("/dashboard/manager/news")}
-            />
           </div>
         </div>
       </section>
@@ -762,7 +841,10 @@ export default function DirectorDashboard() {
       >
         <form className="space-y-4" onSubmit={handlePrepareRegistration}>
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700" htmlFor="child-search">
+            <label
+              className="text-sm font-semibold text-gray-700"
+              htmlFor="child-search"
+            >
               البحث عن الطفل
             </label>
             <input
@@ -796,18 +878,25 @@ export default function DirectorDashboard() {
                         onChange={() => setSelectedChildId(id)}
                         className="h-4 w-4 accent-blue-600"
                       />
-                      <span className="text-sm text-gray-800">{resolveChildName(child)}</span>
+                      <span className="text-sm text-gray-800">
+                        {resolveChildName(child)}
+                      </span>
                     </label>
                   );
                 })
               ) : (
-                <div className="p-4 text-sm text-gray-500">لا يوجد أطفال مطابقون للبحث.</div>
+                <div className="p-4 text-sm text-gray-500">
+                  لا يوجد أطفال مطابقون للبحث.
+                </div>
               )}
             </div>
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700" htmlFor="group-select">
+            <label
+              className="text-sm font-semibold text-gray-700"
+              htmlFor="group-select"
+            >
               اختر المجموعة
             </label>
             <select
