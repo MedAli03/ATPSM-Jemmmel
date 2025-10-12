@@ -31,12 +31,14 @@ import { listNonInscrits } from "../../../api/enfants";
 import { listGroupes } from "../../../api/groups";
 import { createInscription } from "../../../api/inscriptions";
 
-const numberFormatter = new Intl.NumberFormat("ar-EG");
-const monthFormatter = new Intl.DateTimeFormat("ar", {
+const numberFormatter = new Intl.NumberFormat("ar-EG-u-nu-latn");
+const monthFormatter = new Intl.DateTimeFormat("ar-u-nu-latn", {
   month: "short",
   year: "numeric",
 });
-const dateFormatter = new Intl.DateTimeFormat("ar-TN", { dateStyle: "medium" });
+const dateFormatter = new Intl.DateTimeFormat("ar-TN-u-nu-latn", {
+  dateStyle: "medium",
+});
 
 const PIE_COLORS = ["#2563eb", "#16a34a", "#f59e0b", "#ef4444", "#8b5cf6"];
 
@@ -632,7 +634,7 @@ export default function DirectorDashboard() {
               <button
                 type="button"
                 onClick={handleQuickNavigate("/dashboard/manager/events")}
-                className="text-xs text-blue-600 hover:underline"
+                className="cursor-pointer text-xs text-blue-600 hover:underline"
               >
                 عرض الكل
               </button>
@@ -678,7 +680,7 @@ export default function DirectorDashboard() {
               <button
                 type="button"
                 onClick={handleQuickNavigate("/dashboard/manager/news")}
-                className="text-xs text-blue-600 hover:underline"
+                className="cursor-pointer text-xs text-blue-600 hover:underline"
               >
                 عرض الكل
               </button>
@@ -734,7 +736,7 @@ export default function DirectorDashboard() {
             <button
               type="button"
               onClick={() => openRegisterModal(null)}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+              className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
             >
               <span aria-hidden>＋</span>
               تسجيل طفل في مجموعة
@@ -809,7 +811,7 @@ export default function DirectorDashboard() {
                         <button
                           type="button"
                           onClick={() => openRegisterModal(child)}
-                          className="rounded-xl border border-blue-200 px-3 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-50"
+                          className="cursor-pointer rounded-xl border border-blue-200 px-3 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-50"
                         >
                           تسجيل في مجموعة
                         </button>
@@ -918,13 +920,13 @@ export default function DirectorDashboard() {
             <button
               type="button"
               onClick={() => setRegisterModalOpen(false)}
-              className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              className="cursor-pointer rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
             >
               إلغاء
             </button>
             <button
               type="submit"
-              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+              className="cursor-pointer rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
             >
               متابعة للتأكيد
             </button>
@@ -963,7 +965,7 @@ function QuickActionButton({ icon, label, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-3 text-right shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+      className="flex cursor-pointer items-center gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-3 text-right shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
     >
       <span className="text-xl" aria-hidden>
         {icon}

@@ -1,5 +1,6 @@
-import { NavLink } from "react-router-dom";
-import { useState } from "react";
+import { NavLink, useLocation } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { useAuth } from "../../context/AuthContext";
 
 /** Small inline icon set (keeps deps minimal) */
 function Icon({ name, className = "w-5 h-5" }) {
@@ -288,14 +289,13 @@ function Icon({ name, className = "w-5 h-5" }) {
   }
 }
 
-function Section({ title, icon, children, defaultOpen = true }) {
+function Section({ title, icon, items = [], defaultOpen = true }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="mt-2">
       <button
         onClick={() => setOpen((s) => !s)}
-        className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-semibold rounded-lg
-                   hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/40 transition"
+        className="flex w-full cursor-pointer items-center justify-between rounded-lg px-4 py-2.5 text-sm font-semibold transition hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/40"
       >
         <span className="flex items-center gap-2">
           <Icon name={icon} className="w-5 h-5 opacity-90" />
@@ -320,7 +320,11 @@ function Section({ title, icon, children, defaultOpen = true }) {
           open ? "max-h-96" : "max-h-0"
         }`}
       >
-        <div className="py-1">{children}</div>
+        <div className="py-1">
+          {items.map((item) => (
+            <Item key={item.to} {...item} />
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -348,7 +352,137 @@ function Item({ to, label, icon }) {
   );
 }
 
+const NAV_CONFIG = {
+  PRESIDENT: {
+    brandTitle: "لوحة الرئيس",
+    brandSubtitle: "منصة إدارة الجمعية",
+    quickLinks: [
+      {
+        to: "/dashboard/president",
+        label: "الإحصائيات",
+        variant: "primary",
+      },
+      {
+        to: "/dashboard/broadcast",
+        label: "بثّ إشعار",
+        variant: "ghost",
+      },
+    ],
+    rootItems: [
+      { to: "/dashboard/president", label: "لوحة التحكم", icon: "dashboard" },
+    ],
+    sections: [
+      {
+        title: "المستخدمون والصلاحيات",
+        icon: "users",
+        defaultOpen: true,
+        items: [
+          { to: "/dashboard/president/users", label: "كلّ المستخدمين", icon: "users" },
+          { to: "/dashboard/president/educators", label: "المربّون", icon: "users" },
+          { to: "/dashboard/president/parents", label: "الأولياء", icon: "users" },
+          { to: "/dashboard/admins", label: "المديرون", icon: "settings" },
+        ],
+      },
+      {
+        title: "الأطفال والمجموعات",
+        icon: "child",
+        defaultOpen: true,
+        items: [
+          { to: "/dashboard/president/children", label: "الأطفال", icon: "child" },
+          { to: "/dashboard/president/groups", label: "المجموعات", icon: "groups" },
+          { to: "/dashboard/years", label: "السنوات الدراسية", icon: "years" },
+        ],
+      },
+      {
+        title: "PEI والتقييمات",
+        icon: "pei",
+        defaultOpen: true,
+        items: [
+          { to: "/dashboard/pei", label: "مشاريع PEI", icon: "pei" },
+          { to: "/dashboard/evaluations", label: "التقييمات", icon: "eval" },
+          {
+            to: "/dashboard/recommendations",
+            label: "توصيات الذكاء الاصطناعي",
+            icon: "reco",
+          },
+        ],
+      },
+      {
+        title: "المحتوى والتواصل",
+        icon: "news",
+        defaultOpen: true,
+        items: [
+          { to: "/dashboard/president/news", label: "الأخبار", icon: "news" },
+          { to: "/dashboard/president/events", label: "الفعاليات", icon: "events" },
+          { to: "/dashboard/resources", label: "الموارد", icon: "resources" },
+          { to: "/dashboard/messaging", label: "الرسائل", icon: "chat" },
+          { to: "/dashboard/notifications", label: "الإشعارات", icon: "notif" },
+        ],
+      },
+      {
+        title: "التقارير والإعدادات",
+        icon: "reports",
+        defaultOpen: true,
+        items: [
+          { to: "/dashboard/reports", label: "التقارير", icon: "reports" },
+          { to: "/dashboard/settings", label: "الإعدادات", icon: "settings" },
+          { to: "/dashboard/audit", label: "سجلّ العمليات", icon: "audit" },
+          { to: "/dashboard/broadcast", label: "بثّ إشعار", icon: "broadcast" },
+        ],
+      },
+    ],
+  },
+  DIRECTEUR: {
+    brandTitle: "لوحة المدير",
+    brandSubtitle: "إدارة الروضة",
+    quickLinks: [
+      {
+        to: "/dashboard/manager",
+        label: "اللوحة الرئيسية",
+        variant: "primary",
+      },
+      {
+        to: "/dashboard/manager/notifications",
+        label: "الإشعارات",
+        variant: "ghost",
+      },
+    ],
+    rootItems: [
+      { to: "/dashboard/manager", label: "لوحة المدير", icon: "dashboard" },
+    ],
+    sections: [
+      {
+        title: "المتابعة",
+        icon: "notif",
+        defaultOpen: true,
+        items: [
+          {
+            to: "/dashboard/manager/notifications",
+            label: "الإشعارات",
+            icon: "notif",
+          },
+        ],
+      },
+    ],
+  },
+};
+
 export default function DashboardSidebar({ open, onClose }) {
+  const { currentUser } = useAuth();
+  const { pathname } = useLocation();
+
+  const roleKey = useMemo(() => {
+    const normalized = String(currentUser?.role || "").toUpperCase();
+    if (normalized === "DIRECTEUR" || normalized === "PRESIDENT") {
+      return normalized;
+    }
+    return pathname.startsWith("/dashboard/manager")
+      ? "DIRECTEUR"
+      : "PRESIDENT";
+  }, [currentUser?.role, pathname]);
+
+  const config = NAV_CONFIG[roleKey] ?? NAV_CONFIG.PRESIDENT;
+
   return (
     <>
       {/* Backdrop for mobile */}
@@ -378,10 +512,10 @@ export default function DashboardSidebar({ open, onClose }) {
               </div>
               <div>
                 <div className="text-lg font-extrabold tracking-wide">
-                  لوحة الرئيس
+                  {config.brandTitle}
                 </div>
                 <div className="text-[11px] text-white/60 -mt-0.5">
-                  منصة إدارة الجمعية
+                  {config.brandSubtitle}
                 </div>
               </div>
             </div>
@@ -406,103 +540,34 @@ export default function DashboardSidebar({ open, onClose }) {
             </button>
           </div>
           {/* Quick actions */}
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <NavLink
-              to="/dashboard/president"
-              className="text-xs bg-white text-blue-700 rounded-lg px-3 py-2 text-center font-semibold hover:bg-blue-50"
-            >
-              الإحصائيات
-            </NavLink>
-            <NavLink
-              to="/dashboard/broadcast"
-              className="text-xs bg-white/10 rounded-lg px-3 py-2 text-center hover:bg-white/15"
-            >
-              بثّ إشعار
-            </NavLink>
-          </div>
+          {config.quickLinks?.length ? (
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {config.quickLinks.map((link) => (
+                <NavLink
+                  key={link.to}
+                  to={link.to}
+                  className={
+                    link.variant === "primary"
+                      ? "text-xs bg-white text-blue-700 rounded-lg px-3 py-2 text-center font-semibold hover:bg-blue-50"
+                      : "text-xs bg-white/10 rounded-lg px-3 py-2 text-center hover:bg-white/15"
+                  }
+                >
+                  {link.label}
+                </NavLink>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-3 space-y-2">
-          <Item
-            to="/dashboard/president"
-            label="لوحة التحكم"
-            icon="dashboard"
-          />
+          {config.rootItems?.map((item) => (
+            <Item key={item.to} {...item} />
+          ))}
 
-          <Section
-            title="المستخدمون والصلاحيات"
-            icon="users"
-            defaultOpen={true}
-          >
-            <Item
-              to="/dashboard/president/users"
-              label="كلّ المستخدمين"
-              icon="users"
-            />
-            <Item
-              to="/dashboard/president/educators"
-              label="المربّون"
-              icon="users"
-            />
-            <Item
-              to="/dashboard/president/parents"
-              label="الأولياء"
-              icon="users"
-            />
-            <Item to="/dashboard/admins" label="المديرون" icon="settings" />
-          </Section>
-
-          <Section title="الأطفال والمجموعات" icon="child" defaultOpen={true}>
-            <Item
-              to="/dashboard/president/children"
-              label="الأطفال"
-              icon="child"
-            />
-            <Item
-              to="/dashboard/president/groups"
-              label="المجموعات"
-              icon="groups"
-            />
-            <Item to="/dashboard/years" label="السنوات الدراسية" icon="years" />
-          </Section>
-
-          <Section title="PEI والتقييمات" icon="pei" defaultOpen={true}>
-            <Item to="/dashboard/pei" label="مشاريع PEI" icon="pei" />
-            <Item to="/dashboard/evaluations" label="التقييمات" icon="eval" />
-            <Item
-              to="/dashboard/recommendations"
-              label="توصيات الذكاء الاصطناعي"
-              icon="reco"
-            />
-          </Section>
-
-          <Section title="المحتوى والتواصل" icon="news">
-            <Item to="/dashboard/president/news" label="الأخبار" icon="news" />
-            <Item
-              to="/dashboard/president/events"
-              label="الفعاليات"
-              icon="events"
-            />
-            <Item to="/dashboard/resources" label="الموارد" icon="resources" />
-            <Item to="/dashboard/messaging" label="الرسائل" icon="chat" />
-            <Item
-              to="/dashboard/notifications"
-              label="الإشعارات"
-              icon="notif"
-            />
-          </Section>
-
-          <Section title="التقارير والإعدادات" icon="reports">
-            <Item to="/dashboard/reports" label="التقارير" icon="reports" />
-            <Item to="/dashboard/settings" label="الإعدادات" icon="settings" />
-            <Item to="/dashboard/audit" label="سجلّ العمليات" icon="audit" />
-            <Item
-              to="/dashboard/broadcast"
-              label="بثّ إشعار"
-              icon="broadcast"
-            />
-          </Section>
+          {config.sections?.map((section) => (
+            <Section key={section.title} {...section} />
+          ))}
         </nav>
 
         {/* Footer user pill */}
