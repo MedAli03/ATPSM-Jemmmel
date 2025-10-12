@@ -27,6 +27,9 @@ const PresidentOverview = lazy(() =>
 const DashboardLayout = lazy(() =>
   import("../components/dashboard/DashboardLayout")
 );
+const DirectorDashboard = lazy(() =>
+  import("../pages/dashboard/director/Dashboard")
+);
 const NotificationsPage = lazy(() =>
   import("../pages/dashboard/NotificationsPage")
 );
@@ -73,6 +76,28 @@ const protectedRoutes = [
         path: "notifications",
         element: NotificationsPage,
         title: "Notifications",
+      },
+      { path: "users", element: AllUsers, title: "كل المستخدمون" },
+      { path: "children", element: AllChildren, title: "كل الأطفال" },
+      { path: "children/new", element: AddChildWizard, title: "إضافة طفل" },
+      { path: "children/:id", element: ChildDetails, title: "تفاصيل الطفل" },
+      { path: "parents", element: AllParents, title: "الأولياء" },
+      { path: "groups", element: AllGroups, title: "المجموعات" },
+      { path: "educators", element: AllEducators, title: "المربّون" },
+      { path: "news", element: AllNews, title: "الأخبار" },
+      { path: "events", element: AllEvents, title: "الفعاليات" },
+    ],
+  },
+  {
+    path: "/dashboard/manager",
+    element: DashboardLayout,
+    roles: ["DIRECTEUR"],
+    children: [
+      { index: true, element: DirectorDashboard, title: "لوحة المدير" },
+      {
+        path: "notifications",
+        element: NotificationsPage,
+        title: "الإشعارات",
       },
       { path: "users", element: AllUsers, title: "كل المستخدمون" },
       { path: "children", element: AllChildren, title: "كل الأطفال" },

@@ -142,6 +142,15 @@ export async function upsertParentsFiche(enfantId, payload) {
   return data?.data;
 }
 
+export async function listNonInscrits({ annee_id, limit = 8, search } = {}) {
+  const params = { limit };
+  if (annee_id) params.annee_id = annee_id;
+  if (search) params.q = search;
+  const { data } = await client.get("/enfants/non-inscrits", { params });
+  const payload = data?.data ?? data;
+  return Array.isArray(payload) ? payload : [];
+}
+
 /**
  * ============ LINK / UNLINK PARENT ============
  */
