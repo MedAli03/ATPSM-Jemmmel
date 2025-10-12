@@ -13,6 +13,7 @@ module.exports = (sequelize) =>
       email: { type: DataTypes.STRING(150), allowNull: false, unique: true },
       mot_de_passe: { type: DataTypes.STRING(255), allowNull: false },
       telephone: { type: DataTypes.STRING(50), allowNull: true },
+      username: { type: DataTypes.STRING(100), allowNull: true, unique: true },
       role: {
         type: DataTypes.ENUM(
           "PRESIDENT",
@@ -24,6 +25,8 @@ module.exports = (sequelize) =>
       },
       is_active: { type: DataTypes.BOOLEAN, defaultValue: true },
       avatar_url: { type: DataTypes.STRING(255), allowNull: true },
+      adresse: { type: DataTypes.STRING(255), allowNull: true },
+      last_login: { type: DataTypes.DATE, allowNull: true },
     },
     { tableName: "utilisateurs", underscored: true, timestamps: true }
   );

@@ -18,13 +18,8 @@ export async function updatePassword({ current_password, new_password }) {
   return response.data;
 }
 
-export async function updateAvatar(file) {
-  const formData = new FormData();
-  formData.append("avatar", file);
-
-  const response = await client.put("/me/avatar", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+export async function updateAvatar(payload) {
+  const response = await client.put("/me/avatar", payload);
   return response.data;
 }
 

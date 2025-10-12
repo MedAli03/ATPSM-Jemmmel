@@ -47,6 +47,7 @@ const sequelize = new Sequelize(
 
 // ---- Load model factories (each should export (sequelize, DataTypes) => Model) ----
 const Utilisateur = require("./utilisateur")(sequelize, DataTypes);
+const UtilisateurSession = require("./utilisateur_session")(sequelize, DataTypes);
 const Enfant = require("./enfant")(sequelize, DataTypes);
 const FicheEnfant = require("./fiche_enfant")(sequelize, DataTypes);
 const ParentsFiche = require("./parents_fiche")(sequelize, DataTypes);
@@ -86,6 +87,16 @@ const Notification = require("./notification")(sequelize, DataTypes);
 /* -------------------------------------------------------------------------- */
 /*                             ASSOCIATIONS INLINE                            */
 /* -------------------------------------------------------------------------- */
+
+// Utilisateur (self profile sessions)
+Utilisateur.hasMany(UtilisateurSession, {
+  as: "sessions",
+  foreignKey: "utilisateur_id",
+});
+UtilisateurSession.belongsTo(Utilisateur, {
+  as: "utilisateur",
+  foreignKey: "utilisateur_id",
+});
 
 // Utilisateur (parent) -> enfants
 Utilisateur.hasMany(Enfant, { as: "enfants", foreignKey: "parent_user_id" });
@@ -328,6 +339,7 @@ const db = {
   Thread,
   Message,
   Notification,
+  UtilisateurSession,
 };
 
 // Optional: print loaded models once (helps debug name mismatches)

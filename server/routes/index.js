@@ -1,10 +1,6 @@
 const router = require("express").Router();
 
 router.use("/auth", require("./auth.routes")); // /api/auth/*
-router.use("/me", require("../middlewares/auth"), (req, res) =>
-  res.json({ you: req.user })
-);
-
 router.use("/utilisateurs", require("./utilisateurs.routes"));
 
 router.use("/groupes", require("./groupes.routes"));
@@ -39,5 +35,5 @@ router.use(require("./president_dashboard.routes"));
 router.use(require("./directeur_dashboard.routes"));
 router.use("/stats", require("./stats.routes"));
 
-router.use("/me", require("../middlewares/auth"), require("./me.routes"));
+router.use("/me", require("./me.routes"));
 module.exports = router;

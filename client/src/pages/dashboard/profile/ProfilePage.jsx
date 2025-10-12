@@ -144,7 +144,8 @@ export default function ProfilePage() {
   const toast = useToast();
   const fileInputRef = useRef(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
-  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarUploadData, setAvatarUploadData] = useState(null);
+  const [avatarFilename, setAvatarFilename] = useState(null);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("basic");
 
@@ -208,9 +209,12 @@ export default function ProfilePage() {
     }
   }, [meQuery.data, reset]);
 
-  useEffect(() => () => {
-    if (avatarPreview) URL.revokeObjectURL(avatarPreview);
-  }, [avatarPreview]);
+  useEffect(
+    () => () => {
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+    },
+    [avatarPreview]
+  );
 
   const updateProfileMutation = useMutation({
     mutationFn: updateMe,
@@ -227,15 +231,31 @@ export default function ProfilePage() {
     onError: () => toast("تعذر حفظ التغييرات", "error"),
   });
 
+  const clearAvatarSelection = () => {
+    setAvatarPreview((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return null;
+    });
+    setAvatarUploadData(null);
+    setAvatarFilename(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const avatarMutation = useMutation({
     mutationFn: updateAvatar,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["me"] });
+    onSuccess: (data) => {
+      if (data) {
+        queryClient.setQueryData(["me"], (previous) => ({
+          ...(previous || {}),
+          ...data,
+        }));
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["me"] });
+      }
       toast("تم تحديث الصورة");
-      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
-      setAvatarPreview(null);
-      setAvatarFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      clearAvatarSelection();
     },
     onError: () => toast("تعذر تحديث الصورة", "error"),
   });
@@ -269,7 +289,7 @@ export default function ProfilePage() {
     reset(toFormValues(meQuery.data));
   };
 
-  const hasPendingAvatar = !!avatarFile && !avatarMutation.isPending;
+  const hasPendingAvatar = !!avatarUploadData && !avatarMutation.isPending;
   const hasDirtyForm = isDirty && !updateProfileMutation.isPending;
   const shouldBlockNavigation = canAccess && (hasPendingAvatar || hasDirtyForm);
 
@@ -283,10 +303,24 @@ export default function ProfilePage() {
   const isLoading = meQuery.isLoading;
   const hasError = meQuery.isError;
   const profile = meQuery.data;
-  const sessions = useMemo(
-    () => normalizeSessions(sessionsQuery.data).slice(0, 10),
-    [sessionsQuery.data]
-  );
+  const sessions = useMemo(() => {
+    return normalizeSessions(sessionsQuery.data)
+      .slice(0, 10)
+      .map((session) => ({
+        id: session.id ?? session.session_id ?? session.uuid ?? undefined,
+        browser:
+          session.browser ||
+          session.platform ||
+          session.device ||
+          session.user_agent ||
+          session.agent ||
+          null,
+        platform: session.platform || session.os || session.system || null,
+        device: session.device || null,
+        ip: session.ip || session.ip_address || session.ipAddress || null,
+        created_at: session.time || session.created_at || session.timestamp || null,
+      }));
+  }, [sessionsQuery.data]);
 
   const profileRole = String(profile?.role || normalizedRole || "").toUpperCase();
   const roleMeta =
@@ -326,22 +360,39 @@ export default function ProfilePage() {
       event.target.value = "";
       return;
     }
+
     if (avatarPreview) URL.revokeObjectURL(avatarPreview);
-    const preview = URL.createObjectURL(file);
-    setAvatarPreview(preview);
-    setAvatarFile(file);
+    const previewUrl = URL.createObjectURL(file);
+    setAvatarPreview(previewUrl);
+    setAvatarFilename(file.name || null);
+    setAvatarUploadData(null);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setAvatarUploadData(reader.result);
+      } else {
+        toast("تعذر قراءة الملف المختار", "error");
+        clearAvatarSelection();
+      }
+    };
+    reader.onerror = () => {
+      toast("تعذر قراءة الملف المختار", "error");
+      clearAvatarSelection();
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleAvatarUpload = () => {
-    if (!avatarFile) return;
-    avatarMutation.mutate(avatarFile);
+    if (!avatarUploadData) return;
+    avatarMutation.mutate({
+      avatar: avatarUploadData,
+      filename: avatarFilename,
+    });
   };
 
   const handleAvatarCancel = () => {
-    if (avatarPreview) URL.revokeObjectURL(avatarPreview);
-    setAvatarPreview(null);
-    setAvatarFile(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    clearAvatarSelection();
   };
 
   const inputClass =
@@ -649,7 +700,15 @@ function TabPanels({
   if (activeTab === "account") {
     return (
       <div className="space-y-4 px-6 py-8">
-        <InfoRow label="اسم المستخدم / المعرّف" value={profile?.username} mono />
+        <InfoRow
+          label="اسم المستخدم / المعرّف"
+          value={
+            profile?.username ||
+            profile?.email ||
+            (profile?.id ? `#${profile.id}` : null)
+          }
+          mono
+        />
         <InfoRow label="الدور" value={profile?.role === "PRESIDENT" ? "الرئيس" : profile?.role === "DIRECTEUR" ? "المدير" : profile?.role || "—"} />
         <InfoRow label="آخر تسجيل دخول" value={formatDateTime(profile?.last_login)} />
         <InfoRow label="تاريخ الإنشاء" value={formatDateTime(profile?.created_at)} />
@@ -708,13 +767,24 @@ function TabPanels({
               {sessions.map((session, index) => (
                 <tr key={session.id || index} className="text-gray-700">
                   <td className="px-4 py-3">
-                    {session.browser || session.platform || session.device || "—"}
+                    <div className="flex flex-col">
+                      <span className="font-medium">
+                        {session.browser || "—"}
+                      </span>
+                      {session.platform || session.device ? (
+                        <span className="text-xs text-gray-500">
+                          {[session.platform, session.device]
+                            .filter(Boolean)
+                            .join(" • ")}
+                        </span>
+                      ) : null}
+                    </div>
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs text-gray-500">
-                    {session.ip || session.ip_address || session.ipAddress || "—"}
+                  <td className="px-4 py-3 font-mono text-xs text-gray-500" dir="ltr">
+                    {session.ip || "—"}
                   </td>
                   <td className="px-4 py-3">
-                    {formatDateTime(session.time || session.created_at || session.timestamp)}
+                    {formatDateTime(session.created_at)}
                   </td>
                 </tr>
               ))}

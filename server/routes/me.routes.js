@@ -1,15 +1,14 @@
 const router = require("express").Router();
+
 const auth = require("../middlewares/auth");
-const requireRole = require("../middlewares/requireRole");
+const controller = require("../controllers/me.controller");
 
-router.use(auth); // <= IMPORTANT
+router.use(auth);
 
-router.get("/", (req, res) => res.json({ you: req.user }));
-
-router.get(
-  "/admin-only",
-  requireRole("DIRECTEUR", "PRESIDENT", "PARENT", "EDUCATEUR"),
-  (_req, res) => res.json({ ok: true })
-);
+router.get("/", controller.getProfile);
+router.put("/", controller.updateProfile);
+router.put("/password", controller.changePassword);
+router.put("/avatar", controller.updateAvatar);
+router.get("/sessions", controller.listSessions);
 
 module.exports = router;
