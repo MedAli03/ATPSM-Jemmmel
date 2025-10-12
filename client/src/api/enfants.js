@@ -200,6 +200,27 @@ export async function createEnfantFlow({ enfant, fiche, parentsFiche }) {
   }
 }
 
+export async function listEnfantsNonInscrits({
+  annee_id,
+  limit = 8,
+  q,
+} = {}) {
+  const params = { limit };
+  if (annee_id != null) params.annee_id = annee_id;
+  if (q) params.q = q;
+
+  const { data } = await client.get("/enfants/non-inscrits", { params });
+  const rows = Array.isArray(data?.data)
+    ? data.data
+    : Array.isArray(data?.items)
+    ? data.items
+    : Array.isArray(data)
+    ? data
+    : [];
+
+  return rows;
+}
+
 export async function getFicheByEnfantId(id) {
   const { data } = await client.get(`/enfants/${id}/fiche`);
   return data.data;

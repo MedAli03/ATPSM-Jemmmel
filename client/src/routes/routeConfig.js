@@ -7,8 +7,6 @@ import ChildDetails from "../pages/dashboard/children/ChildDetails";
 import AllGroups from "../pages/dashboard/groups/AllGroups";
 import AllNews from "../pages/dashboard/news/AllNews";
 import AllEducators from "../pages/dashboard/educators/AllEducators";
-import AllParents from "../pages/dashboard/parents/AllParents";
-import AllEvents from "../pages/dashboard/events/AllEvents";
 
 // Lazy pages
 const HomePage = lazy(() => import("../pages/HomePage"));
@@ -78,11 +76,9 @@ const protectedRoutes = [
       { path: "children", element: AllChildren, title: "كل الأطفال" },
       { path: "children/new", element: AddChildWizard, title: "إضافة طفل" },
       { path: "children/:id", element: ChildDetails, title: "تفاصيل الطفل" },
-      { path: "parents", element: AllParents, title: "الأولياء" },
       { path: "groups", element: AllGroups, title: "المجموعات" },
       { path: "educators", element: AllEducators, title: "المربّون" },
       { path: "news", element: AllNews, title: "الأخبار" },
-      { path: "events", element: AllEvents, title: "الفعاليات" },
     ],
   },
 ];

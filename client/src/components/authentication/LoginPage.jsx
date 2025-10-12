@@ -100,7 +100,8 @@ const LoginPage = () => {
       const roleRoute =
         {
           PRESIDENT: "/dashboard/",
-          DIRECTEUR: "/dashboard/manager",
+          DIRECTEUR: "/dashboard/director",
+          DIRECTOR: "/dashboard/director",
           EDUCATEUR: "/dashboard/educateur",
           PARENT: "/dashboard/parent",
         }[role] || "/dashboard";
