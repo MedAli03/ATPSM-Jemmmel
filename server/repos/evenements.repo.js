@@ -64,3 +64,21 @@ exports.updateById = async (id, attrs, t = null) => {
 
 exports.deleteById = (id, t = null) =>
   Evenement.destroy({ where: { id }, transaction: t });
+
+exports.listUpcoming = async ({ limit = 5 } = {}, t = null) => {
+  const now = new Date();
+  return Evenement.findAll({
+    where: { debut: { [Op.gte]: now } },
+    include: [
+      { model: Document, as: "document" },
+      {
+        model: Utilisateur,
+        as: "admin",
+        attributes: ["id", "nom", "prenom", "email"],
+      },
+    ],
+    order: [["debut", "ASC"]],
+    limit,
+    transaction: t,
+  });
+};

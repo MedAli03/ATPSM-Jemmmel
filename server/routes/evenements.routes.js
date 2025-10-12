@@ -9,11 +9,19 @@ const ctrl = require("../controllers/evenements.controller");
 const {
   idParamSchema,
   listQuerySchema,
+  upcomingQuerySchema,
   createEvenementSchema,
   updateEvenementSchema,
 } = require("../validations/evenements.schema");
 
 router.use(auth);
+
+router.get(
+  "/upcoming",
+  requireRole("PRESIDENT", "DIRECTEUR", "EDUCATEUR"),
+  validate(upcomingQuerySchema, "query"),
+  ctrl.upcoming
+);
 
 /**
  * @swagger

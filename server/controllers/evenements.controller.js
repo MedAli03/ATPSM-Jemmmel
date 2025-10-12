@@ -5,7 +5,15 @@ const svc = require("../services/evenements.service");
 exports.list = async (req, res, next) => {
   try {
     const data = await svc.list(req.query);
-    res.json({ ok: true, ...data });
+    res.json({
+      ok: true,
+      data: data.rows,
+      meta: {
+        total: data.count,
+        page: data.page,
+        limit: data.limit,
+      },
+    });
   } catch (e) {
     next(e);
   }
@@ -14,6 +22,15 @@ exports.list = async (req, res, next) => {
 exports.get = async (req, res, next) => {
   try {
     const data = await svc.get(req.params.id);
+    res.json({ ok: true, data });
+  } catch (e) {
+    next(e);
+  }
+};
+
+exports.upcoming = async (req, res, next) => {
+  try {
+    const data = await svc.listUpcoming(req.query);
     res.json({ ok: true, data });
   } catch (e) {
     next(e);

@@ -5,6 +5,7 @@ const auth = require("../middlewares/auth");
 const requireRole = require("../middlewares/requireRole");
 const validate = require("../middlewares/validate");
 const ctrl = require("../controllers/enfants.controller");
+const { nonInscritsQuerySchema } = require("../validations/stats.schema");
 
 const {
   listEnfantsQuerySchema,
@@ -18,6 +19,13 @@ const {
 
 // All enfants routes require auth
 router.use(auth);
+
+router.get(
+  "/non-inscrits",
+  requireRole("PRESIDENT", "DIRECTEUR"),
+  validate(nonInscritsQuerySchema, "query"),
+  ctrl.listNonInscrits
+);
 
 // LIST (staff only)
 router.get(

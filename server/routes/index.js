@@ -17,12 +17,14 @@ router.use("/", require("./reco.routes"));
 
 router.use("/dashboard", require("./dashboard/index"));
 router.use("/annees", require("./annees.routes"));
+router.use("/annees-scolaires", require("./annees-scolaires.routes"));
 
 router.use("/observation", require("./observation_initiale.routes"));
 router.use("/documents", require("./documents.routes"));
 router.use("/reglements", require("./reglements.routes"));
 router.use("/evenements", require("./evenements.routes"));
 router.use("/actualites", require("./actualites.routes"));
+router.use("/inscriptions", require("./inscriptions.routes"));
 
 router.use(require("./notifications.broadcast.routes"));
 router.use(require("./notifications.user.routes"));
@@ -35,6 +37,7 @@ router.use(require("./parents.routes"));
 
 router.use(require("./president_dashboard.routes"));
 router.use(require("./directeur_dashboard.routes"));
+router.use("/stats", require("./stats.routes"));
 
 router.use("/me", require("../middlewares/auth"), require("./me.routes"));
 module.exports = router;

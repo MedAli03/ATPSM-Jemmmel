@@ -15,6 +15,11 @@ const listQuerySchema = Joi.object({
   limit: Joi.number().integer().min(1).max(100).default(20),
 });
 
+const upcomingQuerySchema = Joi.object({
+  limit: Joi.number().integer().min(1).max(50).default(5),
+  annee_id: Joi.number().integer().positive().optional(),
+});
+
 const createEvenementSchema = Joi.object({
   document_id: Joi.number().integer().positive().allow(null).optional(),
   titre: Joi.string().max(200).required(),
@@ -38,6 +43,7 @@ const updateEvenementSchema = Joi.object({
 module.exports = {
   idParamSchema,
   listQuerySchema,
+  upcomingQuerySchema,
   createEvenementSchema,
   updateEvenementSchema,
 };

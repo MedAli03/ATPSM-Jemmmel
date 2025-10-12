@@ -3,8 +3,26 @@
 const repo = require("../repos/evenements.repo");
 const { Document } = require("../models");
 
-exports.list = (q) =>
-  repo.list(
+function normalize(event) {
+  if (!event) return null;
+  const plain = event.toJSON ? event.toJSON() : event;
+  return {
+    id: plain.id,
+    titre: plain.titre,
+    description: plain.description || null,
+    debut: plain.debut,
+    fin: plain.fin,
+    audience: plain.audience,
+    lieu: plain.lieu || null,
+    document: plain.document || null,
+    admin: plain.admin || null,
+    created_at: plain.created_at,
+    updated_at: plain.updated_at,
+  };
+}
+
+exports.list = async (q) => {
+  const result = await repo.list(
     {
       date_debut: q.date_debut,
       date_fin: q.date_fin,
@@ -14,6 +32,14 @@ exports.list = (q) =>
     { page: q.page, limit: q.limit }
   );
 
+  return {
+    rows: result.rows.map(normalize),
+    count: result.count,
+    page: result.page,
+    limit: result.limit,
+  };
+};
+
 exports.get = async (id) => {
   const e = await repo.findById(id);
   if (!e) {
@@ -21,7 +47,7 @@ exports.get = async (id) => {
     err.status = 404;
     throw err;
   }
-  return e;
+  return normalize(e);
 };
 
 exports.create = async (payload, currentUser) => {
@@ -43,7 +69,9 @@ exports.create = async (payload, currentUser) => {
     throw err;
   }
   const attrs = { ...payload, admin_id: currentUser.id };
-  return repo.create(attrs);
+  const created = await repo.create(attrs);
+  const fresh = await repo.findById(created.id);
+  return normalize(fresh);
 };
 
 exports.update = async (id, payload) => {
@@ -78,7 +106,8 @@ exports.update = async (id, payload) => {
     err.status = 400;
     throw err;
   }
-  return repo.findById(id);
+  const fresh = await repo.findById(id);
+  return normalize(fresh);
 };
 
 exports.remove = async (id) => {
@@ -90,4 +119,10 @@ exports.remove = async (id) => {
   }
   await repo.deleteById(id);
   return { deleted: true };
+};
+
+exports.listUpcoming = async ({ limit = 5 } = {}) => {
+  const safeLimit = Math.min(Math.max(Number(limit) || 5, 1), 50);
+  const events = await repo.listUpcoming({ limit: safeLimit });
+  return events.map(normalize);
 };

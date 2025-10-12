@@ -1,6 +1,7 @@
 "use strict";
 
 const svc = require("../services/enfant.service");
+const statsSvc = require("../services/stats.service");
 const {
   listEnfantsQuerySchema,
   createEnfantSchema,
@@ -10,6 +11,15 @@ const {
   createParentAccountSchema,
   enfantIdParamSchema,
 } = require("../validations/enfants.schema");
+
+exports.listNonInscrits = async (req, res, next) => {
+  try {
+    const data = await statsSvc.getNonInscrits(req.query);
+    res.json({ ok: true, data });
+  } catch (e) {
+    next(e);
+  }
+};
 
 // List
 exports.list = async (req, res, next) => {
