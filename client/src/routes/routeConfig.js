@@ -27,6 +27,9 @@ const PresidentOverview = lazy(() =>
 const DashboardLayout = lazy(() =>
   import("../components/dashboard/DashboardLayout")
 );
+const DirectorDashboard = lazy(() =>
+  import("../pages/dashboard/director/Dashboard")
+);
 const NotificationsPage = lazy(() =>
   import("../pages/dashboard/NotificationsPage")
 );
@@ -83,6 +86,14 @@ const protectedRoutes = [
       { path: "educators", element: AllEducators, title: "المربّون" },
       { path: "news", element: AllNews, title: "الأخبار" },
       { path: "events", element: AllEvents, title: "الفعاليات" },
+    ],
+  },
+  {
+    path: "/dashboard/director",
+    element: DashboardLayout,
+    roles: ["DIRECTOR"],
+    children: [
+      { index: true, element: DirectorDashboard, title: "لوحة المدير" },
     ],
   },
 ];
