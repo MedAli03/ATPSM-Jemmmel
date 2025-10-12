@@ -103,7 +103,9 @@ const LoginPage = () => {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm({ defaultValues: { email: "", mot_de_passe: "", remember: true } });
+  } = useForm({
+    defaultValues: { email: "", mot_de_passe: "", remember: true },
+  });
 
   // Submit handler — uses AuthContext.login(email, mot_de_passe)
   const onSubmit = async ({ email, mot_de_passe, remember }) => {
@@ -126,7 +128,10 @@ const LoginPage = () => {
 
       navigate(roleRoute, { replace: true });
     } catch (e) {
-      const msg = e?.response?.data?.message || e?.message || "حدث خطأ غير متوقع. حاول مجدداً.";
+      const msg =
+        e?.response?.data?.message ||
+        e?.message ||
+        "حدث خطأ غير متوقع. حاول مجدداً.";
       setErrorMsg(msg);
     } finally {
       setLoading(false);
@@ -167,7 +172,12 @@ const LoginPage = () => {
               >
                 <Box sx={{ textAlign: "center", mb: 4 }}>
                   <Lock sx={{ fontSize: 50, color: "#2b6cb0", mb: 1 }} />
-                  <Typography variant="h4" component="h1" fontWeight="bold" color="#1a365d">
+                  <Typography
+                    variant="h4"
+                    component="h1"
+                    fontWeight="bold"
+                    color="#1a365d"
+                  >
                     تسجيل الدخول
                   </Typography>
                   <Typography variant="body1" color="textSecondary" mt={1}>
@@ -242,7 +252,11 @@ const LoginPage = () => {
                           <IconButton
                             onClick={() => setShowPassword((s) => !s)}
                             edge="end"
-                            aria-label={showPassword ? "إخفاء كلمة السر" : "إظهار كلمة السر"}
+                            aria-label={
+                              showPassword
+                                ? "إخفاء كلمة السر"
+                                : "إظهار كلمة السر"
+                            }
                           >
                             {showPassword ? <VisibilityOff /> : <Visibility />}
                           </IconButton>
@@ -253,7 +267,10 @@ const LoginPage = () => {
                     helperText={errors.mot_de_passe?.message}
                     {...register("mot_de_passe", {
                       required: "يرجى إدخال كلمة السر",
-                      minLength: { value: 6, message: "يجب أن تكون كلمة السر 6 أحرف على الأقل" },
+                      minLength: {
+                        value: 6,
+                        message: "يجب أن تكون كلمة السر 6 أحرف على الأقل",
+                      },
                     })}
                     sx={{ mb: 2 }}
                   />
@@ -268,7 +285,11 @@ const LoginPage = () => {
                       />
                     </Grid>
                     <Grid item>
-                      <Link href="/forgot-password" variant="body2" color="primary">
+                      <Link
+                        href="/forgot-password"
+                        variant="body2"
+                        color="primary"
+                      >
                         هل نسيت كلمة المرور؟
                       </Link>
                     </Grid>
@@ -282,7 +303,9 @@ const LoginPage = () => {
                     type="submit"
                     disabled={loading}
                     startIcon={
-                      loading ? <CircularProgress size={20} color="inherit" /> : null
+                      loading ? (
+                        <CircularProgress size={20} color="inherit" />
+                      ) : null
                     }
                     sx={{ py: 1.5, fontSize: "1.1rem" }}
                   >
@@ -301,7 +324,8 @@ const LoginPage = () => {
               <Box
                 sx={{
                   flex: 0.8,
-                  background: "linear-gradient(135deg, #2b6cb0 0%, #1a365d 100%)",
+                  background:
+                    "linear-gradient(135deg, #2b6cb0 0%, #1a365d 100%)",
                   color: "white",
                   p: { xs: 3, md: 4 },
                   display: "flex",
@@ -331,7 +355,8 @@ const LoginPage = () => {
                   لوحة تحكم الجمعية
                 </Typography>
                 <Typography variant="body1" mb={3} sx={{ opacity: 0.9 }}>
-                  نظام إدارة الجمعية يمنحك التحكم الكامل في إدارة الأنشطة والأعضاء والمشاريع.
+                  نظام إدارة الجمعية يمنحك التحكم الكامل في إدارة الأنشطة
+                  والأعضاء والمشاريع.
                 </Typography>
 
                 <Box sx={{ display: "flex", alignItems: "center", mt: 2 }}>
