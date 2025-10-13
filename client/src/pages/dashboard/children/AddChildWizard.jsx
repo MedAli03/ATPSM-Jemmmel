@@ -311,10 +311,9 @@ const schema = yup
     pere_tel_portable: yup
       .string()
       .trim()
-      .nullable()
-      .transform(nullIfEmpty)
+      .required("هاتف الأب (جوال) مطلوب")
       .max(PHONE_MAX, "الحد الأقصى 50 حرف")
-      .test("phone", "رقم هاتف غير صالح", (value) => value == null || phoneRegex.test(value)),
+      .matches(phoneRegex, "رقم هاتف غير صالح"),
     pere_email: yup
       .string()
       .trim()
@@ -398,10 +397,9 @@ const schema = yup
     mere_tel_portable: yup
       .string()
       .trim()
-      .nullable()
-      .transform(nullIfEmpty)
+      .required("هاتف الأم (جوال) مطلوب")
       .max(PHONE_MAX, "الحد الأقصى 50 حرف")
-      .test("phone", "رقم هاتف غير صالح", (value) => value == null || phoneRegex.test(value)),
+      .matches(phoneRegex, "رقم هاتف غير صالح"),
     mere_email: yup
       .string()
       .trim()
@@ -1311,6 +1309,7 @@ function StepParents({ register, errors, control }) {
           <Field
             id="pere_tel_portable"
             label="هاتف (جوال)"
+            required
             error={errors.pere_tel_portable?.message}
           >
             {({ id, describedBy }) => (
@@ -1508,6 +1507,7 @@ function StepParents({ register, errors, control }) {
           <Field
             id="mere_tel_portable"
             label="هاتف (جوال)"
+            required
             error={errors.mere_tel_portable?.message}
           >
             {({ id, describedBy }) => (

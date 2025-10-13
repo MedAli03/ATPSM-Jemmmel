@@ -28,6 +28,18 @@ const phoneField = Joi.string()
     "string.pattern.base": "رقم هاتف غير صالح",
   });
 
+const makeRequiredPhoneField = (missingMessage) =>
+  Joi.string()
+    .trim()
+    .pattern(phoneRegex)
+    .max(50)
+    .required()
+    .messages({
+      "string.empty": missingMessage,
+      "any.required": missingMessage,
+      "string.pattern.base": "رقم هاتف غير صالح",
+    });
+
 const emailField = Joi.string().trim().email().max(150).allow("", null);
 
 const normalizeEmptyToNull = (value) => {
@@ -53,7 +65,7 @@ const upsertParentsFicheSchema = Joi.object({
   pere_couverture_sociale: Joi.string().max(150).allow("", null),
   pere_tel_domicile: phoneField,
   pere_tel_travail: phoneField,
-  pere_tel_portable: phoneField,
+  pere_tel_portable: makeRequiredPhoneField("هاتف الأب (جوال) مطلوب"),
   pere_email: emailField,
 
   // Mère
@@ -69,7 +81,7 @@ const upsertParentsFicheSchema = Joi.object({
   mere_couverture_sociale: Joi.string().max(150).allow("", null),
   mere_tel_domicile: phoneField,
   mere_tel_travail: phoneField,
-  mere_tel_portable: phoneField,
+  mere_tel_portable: makeRequiredPhoneField("هاتف الأم (جوال) مطلوب"),
   mere_email: emailField,
 })
   .custom((value, helpers) => {
