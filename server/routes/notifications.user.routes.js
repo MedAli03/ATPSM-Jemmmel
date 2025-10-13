@@ -11,11 +11,16 @@ const {
   listQuerySchema,
 } = require("../validations/notifications.user.schema");
 
-router.get("/notifications/stream", ctrl.stream);
+const ROLES = ["PRESIDENT", "DIRECTEUR", "EDUCATEUR", "PARENT"];
+
+router.get(
+  "/notifications/stream",
+  auth,
+  requireRole(...ROLES),
+  ctrl.stream
+);
 
 router.use(auth);
-
-const ROLES = ["PRESIDENT", "DIRECTEUR", "EDUCATEUR", "PARENT"];
 
 // Lister MES notifs
 router.get(

@@ -1,9 +1,28 @@
 // Vérifie le JWT et attache req.user = { id, role }
 const jwt = require("jsonwebtoken");
 
+function extractToken(req) {
+  const header = req.headers.authorization || "";
+  if (header.startsWith("Bearer ")) return header.slice(7);
+
+  const queryToken = req.query?.token;
+  if (Array.isArray(queryToken)) {
+    if (queryToken.length === 0) return null;
+    return queryToken[0].startsWith("Bearer ")
+      ? queryToken[0].slice(7)
+      : queryToken[0];
+  }
+  if (typeof queryToken === "string" && queryToken.trim()) {
+    return queryToken.startsWith("Bearer ")
+      ? queryToken.slice(7)
+      : queryToken;
+  }
+
+  return null;
+}
+
 module.exports = (req, res, next) => {
-  const h = req.headers.authorization || "";
-  const token = h.startsWith("Bearer ") ? h.slice(7) : null;
+  const token = extractToken(req);
   if (!token) return res.status(401).json({ message: "Token manquant" });
 
   try {

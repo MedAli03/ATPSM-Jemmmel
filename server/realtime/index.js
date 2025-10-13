@@ -1,6 +1,5 @@
 "use strict";
 
-const jwt = require("jsonwebtoken");
 const notificationsRepo = require("../repos/notifications.user.repo");
 
 const clientsByUser = new Map();
@@ -87,21 +86,20 @@ function emitAllRead(userId) {
 }
 
 async function stream(req, res) {
-  const token = req.query?.token;
-  if (!token) {
+  const userId = req.user?.id;
+  const role = req.user?.role;
+
+  if (!userId) {
     res.status(401).json({ ok: false, message: "TOKEN_REQUIRED" });
     return;
   }
-  try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
-    if (!payload?.id || !ROLES.includes(payload.role)) {
-      res.status(403).json({ ok: false, message: "ROLE_FORBIDDEN" });
-      return;
-    }
-    await register(payload.id, res);
-  } catch (err) {
-    res.status(401).json({ ok: false, message: "TOKEN_INVALID" });
+
+  if (!ROLES.includes(role)) {
+    res.status(403).json({ ok: false, message: "ROLE_FORBIDDEN" });
+    return;
   }
+
+  await register(userId, res);
 }
 
 module.exports = {
