@@ -94,64 +94,146 @@ exports.closeInscriptionById = (id, closedAt, t = null) =>
     { where: { id }, transaction: t }
   );
 
+const buildNameSearchFilters = (search, alias = "Enfant") => {
+  if (!search || typeof search !== "string") return null;
+  const term = `%${search.trim()}%`;
+  if (!term || term === "%%") return null;
+  const prefix = alias ? `${alias}.` : "";
+  return {
+    [Op.or]: [
+      Sequelize.where(Sequelize.col(`${prefix}prenom`), { [Op.like]: term }),
+      Sequelize.where(Sequelize.col(`${prefix}nom`), { [Op.like]: term }),
+      Sequelize.where(
+        Sequelize.fn(
+          "CONCAT",
+          Sequelize.col(`${prefix}prenom`),
+          " ",
+          Sequelize.col(`${prefix}nom`)
+        ),
+        { [Op.like]: term }
+      ),
+    ],
+  };
+};
+
+const listAvailableChildren = async (
+  { annee_id, search, page = 1, limit = 10 },
+  t = null
+) => {
+  const offset = (Number(page) - 1) * Number(limit);
+
+  const assignedRows = await InscriptionEnfant.findAll({
+    attributes: [[Sequelize.fn("DISTINCT", Sequelize.col("enfant_id")), "enfant_id"]],
+    where: { annee_id, est_active: true },
+    raw: true,
+    transaction: t,
+  });
+  const assignedIds = assignedRows.map((row) => row.enfant_id);
+
+  const conditions = [];
+  const searchFilters = buildNameSearchFilters(search, "Enfant");
+  if (searchFilters) conditions.push(searchFilters);
+  if (assignedIds.length > 0)
+    conditions.push({ id: { [Op.notIn]: assignedIds } });
+
+  const where =
+    conditions.length > 1
+      ? { [Op.and]: conditions }
+      : conditions[0] || {};
+
+  const { rows, count } = await Enfant.findAndCountAll({
+    attributes: ["id", "nom", "prenom", "date_naissance"],
+    where,
+    offset,
+    limit: Number(limit),
+    order: [["prenom", "ASC"], ["nom", "ASC"]],
+    transaction: t,
+    distinct: true,
+  });
+
+  const items = rows.map((row) => {
+    const plain = row.get({ plain: true });
+    return {
+      id: plain.id,
+      nom: plain.nom,
+      prenom: plain.prenom,
+      date_naissance: plain.date_naissance,
+      inscription_actuelle: null,
+    };
+  });
+
+  return { items, total: count };
+};
+
+const listAssignedChildren = async (
+  { annee_id, search, page = 1, limit = 10, exclude_groupe_id },
+  t = null
+) => {
+  const offset = (Number(page) - 1) * Number(limit);
+
+  const enfantWhere = buildNameSearchFilters(search, "enfant");
+
+  const { rows, count } = await InscriptionEnfant.findAndCountAll({
+    where: {
+      annee_id,
+      est_active: true,
+      ...(exclude_groupe_id
+        ? { groupe_id: { [Op.ne]: exclude_groupe_id } }
+        : {}),
+    },
+    include: [
+      {
+        model: Enfant,
+        as: "enfant",
+        attributes: ["id", "nom", "prenom", "date_naissance"],
+        required: true,
+        ...(enfantWhere ? { where: enfantWhere } : {}),
+      },
+      {
+        model: Groupe,
+        as: "groupe",
+        attributes: ["id", "nom"],
+        required: false,
+      },
+    ],
+    offset,
+    limit: Number(limit),
+    order: [
+      [{ model: Enfant, as: "enfant" }, "prenom", "ASC"],
+      [{ model: Enfant, as: "enfant" }, "nom", "ASC"],
+    ],
+    transaction: t,
+    distinct: true,
+  });
+
+  const items = rows.map((row) => {
+    const plain = row.get({ plain: true });
+    const enfant = plain.enfant || {};
+    return {
+      id: enfant.id,
+      nom: enfant.nom,
+      prenom: enfant.prenom,
+      date_naissance: enfant.date_naissance,
+      inscription_actuelle: {
+        groupe_id: plain.groupe_id,
+        groupe_nom: plain.groupe?.nom ?? null,
+        inscription_id: plain.id,
+        date_inscription: plain.date_inscription,
+      },
+    };
+  });
+
+  return { items, total: count };
+};
+
 exports.listChildrenCandidates = async (
   { annee_id, search, page = 1, limit = 10, scope = "available", exclude_groupe_id },
   t = null
 ) => {
-  const offset = (Number(page) - 1) * Number(limit);
-  const where = {};
-
-  if (search) {
-    const term = `%${search}%`;
-    where[Op.or] = [
-      { prenom: { [Op.like]: term } },
-      { nom: { [Op.like]: term } },
-      Sequelize.where(
-        Sequelize.fn(
-          "CONCAT",
-          Sequelize.col("Enfant.prenom"),
-          " ",
-          Sequelize.col("Enfant.nom")
-        ),
-        { [Op.like]: term }
-      ),
-    ];
+  if (scope === "assigned") {
+    return listAssignedChildren({ annee_id, search, page, limit, exclude_groupe_id }, t);
   }
-
-  const include = [
-    {
-      model: InscriptionEnfant,
-      as: "inscriptions",
-      where: { annee_id, est_active: true },
-      required: scope === "assigned",
-      include: [
-        {
-          model: Groupe,
-          as: "groupe",
-          attributes: ["id", "nom"],
-        },
-      ],
-    },
-  ];
-
-  const query = {
-    where,
-    include,
-    offset,
-    limit: Number(limit),
-    order: [["prenom", "ASC"], ["nom", "ASC"]],
-    distinct: true,
-    transaction: t,
-  };
-
-  if (scope === "available") {
-    include[0].required = false;
-    query.where[Op.and] = [Sequelize.where(Sequelize.col("inscriptions.id"), null)];
-  } else if (scope === "assigned" && exclude_groupe_id) {
-    include[0].where.groupe_id = { [Op.ne]: exclude_groupe_id };
-  }
-
-  return Enfant.findAndCountAll(query);
+  return listAvailableChildren({ annee_id, search, page, limit }, t);
 };
 
 /* ===== Affectation ===== */

@@ -267,35 +267,33 @@ exports.removeAffectation = async (groupe_id, affectation_id) => {
 
 /* ===================== Candidates ===================== */
 exports.searchEnfantsCandidats = async (params) => {
-  const { rows, count } = await repo.listChildrenCandidates(params);
-  const items = rows.map((row) => {
-    const plain = row.get({ plain: true });
-    const active = Array.isArray(plain.inscriptions)
-      ? plain.inscriptions[0] || null
-      : null;
-    return {
-      id: plain.id,
-      nom: plain.nom,
-      prenom: plain.prenom,
-      date_naissance: plain.date_naissance,
-      inscription_actuelle: active
-        ? {
-            groupe_id: active.groupe_id,
-            groupe_nom: active.groupe?.nom ?? null,
-            inscription_id: active.id,
-            date_inscription: active.date_inscription,
-          }
-        : null,
-    };
+  const page = Number(params.page) || 1;
+  const rawLimit = Number(params.limit) || 10;
+  const limit = Math.max(1, Math.min(rawLimit, 50));
+  const scope = params.scope === "assigned" ? "assigned" : "available";
+  const exclude_groupe_id =
+    params.exclude_groupe_id != null ? Number(params.exclude_groupe_id) : undefined;
+  const search =
+    typeof params.search === "string" && params.search.trim().length > 0
+      ? params.search.trim()
+      : undefined;
+
+  const { items, total } = await repo.listChildrenCandidates({
+    annee_id: params.annee_id,
+    search,
+    page,
+    limit,
+    scope,
+    exclude_groupe_id,
   });
 
   return {
     items,
     meta: {
-      page: params.page,
-      limit: params.limit,
-      total: count,
-      hasMore: params.page * params.limit < count,
+      page,
+      limit,
+      total,
+      hasMore: page * limit < total,
     },
   };
 };

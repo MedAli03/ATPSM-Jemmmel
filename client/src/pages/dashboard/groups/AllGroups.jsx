@@ -144,50 +144,115 @@ export default function AllGroupes() {
     () => (Array.isArray(groupesQ.data) ? groupesQ.data : []),
     [groupesQ.data]
   );
+  const stats = useMemo(() => {
+    let activeCount = 0;
+    let archivedCount = 0;
+    let childrenCount = 0;
+    data.forEach((g) => {
+      if (g?.statut === "actif") activeCount += 1;
+      if (g?.statut === "archive") archivedCount += 1;
+      if (typeof g?.nb_enfants === "number") {
+        childrenCount += g.nb_enfants;
+      }
+    });
+    return {
+      total: data.length,
+      active: activeCount,
+      archived: archivedCount,
+      children: childrenCount,
+    };
+  }, [data]);
+  const activeYearData = activeAnneeQ.data;
+  const effectiveAnneeLabel = useMemo(() => {
+    if (effectiveAnneeId == null) return null;
+    const fromList = anneesOptions.find((a) => a.id === effectiveAnneeId);
+    if (fromList) return fromList.libelle;
+    if (activeYearData?.id === effectiveAnneeId) {
+      return activeYearData?.libelle ?? null;
+    }
+    return null;
+  }, [effectiveAnneeId, anneesOptions, activeYearData]);
+  const isLoadingGroups = groupesQ.isLoading;
+  const hasErrorGroups = groupesQ.isError;
 
   return (
-    <div className="p-4 md:p-6" dir="rtl">
-      {/* If no year at all */}
-      {effectiveAnneeId == null && (
-        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-xl p-4 mb-4">
-          يرجى اختيار السنة الدراسية أولاً.
-        </div>
-      )}
+    <div className="p-4 md:p-6 space-y-6" dir="rtl">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-l from-indigo-700 via-indigo-600 to-indigo-500 text-white shadow-xl">
+        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.6)_0,_rgba(255,255,255,0)_60%)]" />
+        <div className="relative z-10 p-6 md:p-8">
+          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-indigo-100">لوحة التحكم</p>
+              <h1 className="text-2xl md:text-3xl font-bold">المجموعات الدراسية</h1>
+              <p className="max-w-xl text-indigo-100/80 text-sm md:text-base">
+                راقب التقدم، أنشئ مجموعات جديدة، ونسّق توزيع الأطفال والمربين بسهولة ضمن تجربة متكاملة بالعربية.
+              </p>
+              {effectiveAnneeId == null ? (
+                <p className="text-amber-100/90 font-medium">
+                  اختر السنة الدراسية لعرض تفاصيل المجموعات وإدارتها.
+                </p>
+              ) : (
+                <p className="text-indigo-100/90">
+                  السنة المختارة: <span className="font-semibold">{effectiveAnneeLabel ?? `#${effectiveAnneeId}`}</span>
+                </p>
+              )}
+            </div>
+            <div className="flex flex-col items-start gap-3 md:items-end">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditing(null);
+                    setShowForm(true);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-white/90 px-5 py-2.5 text-sm font-semibold text-indigo-700 shadow-lg shadow-indigo-900/20 transition hover:bg-white disabled:opacity-50"
+                  disabled={effectiveAnneeId == null}
+                >
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 font-bold">
+                    +
+                  </span>
+                  مجموعة جديدة
+                </button>
+                <Link
+                  to="/dashboard/children"
+                  className="inline-flex items-center rounded-2xl border border-white/40 bg-white/10 px-4 py-2 text-sm font-medium text-white backdrop-blur transition hover:bg-white/20"
+                >
+                  سجل الأطفال
+                </Link>
+              </div>
+              {activeYearData?.libelle && (
+                <span className="text-xs text-indigo-100/80">
+                  السنة النشطة: {activeYearData.libelle}
+                </span>
+              )}
+            </div>
+          </div>
 
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">المجموعات</h1>
+          <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+            {[
+              { label: "إجمالي المجموعات", value: stats.total },
+              { label: "المجموعات النشطة", value: stats.active },
+              { label: "المجموعات المؤرشفة", value: stats.archived },
+              { label: "عدد الأطفال الحالي", value: stats.children },
+            ].map((card) => (
+              <div
+                key={card.label}
+                className="rounded-2xl border border-white/20 bg-white/10 px-4 py-3 shadow-inner backdrop-blur"
+              >
+                <p className="text-xs text-indigo-100/80">{card.label}</p>
+                <p className="mt-1 text-xl font-bold">{card.value}</p>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              setEditing(null);
-              setShowForm(true);
-            }}
-            className="px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
-            disabled={effectiveAnneeId == null}
-          >
-            مجموعة جديدة
-          </button>
-          <Link
-            to="/dashboard/children"
-            className="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50"
-          >
-            الأطفال
-          </Link>
-        </div>
-      </div>
+      </section>
 
-      {/* Toolbar */}
-      <div className="bg-white rounded-2xl shadow border p-4 mb-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <div>
-            <label className="block text-sm text-gray-700 mb-1">
-              السنة الدراسية
-            </label>
+      <section className="rounded-3xl border border-indigo-100/70 bg-white/80 p-6 shadow-sm backdrop-blur">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-indigo-900/80">السنة الدراسية</label>
             <select
-              className="w-full rounded-xl border px-3 py-2 bg-white"
+              className="w-full rounded-2xl border border-indigo-200 bg-white px-4 py-2.5 text-sm shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               value={effectiveAnneeId || ""}
               onChange={(e) =>
                 setAnneeId(e.target.value ? Number(e.target.value) : undefined)
@@ -202,207 +267,268 @@ export default function AllGroupes() {
             </select>
           </div>
 
-          <div>
-            <label className="block text-sm text-gray-700 mb-1">الحالة</label>
-            <div className="flex items-center gap-2">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-indigo-900/80">الحالة</label>
+            <div className="flex flex-wrap items-center gap-2">
               {[
                 { key: "actif", label: "نشطة" },
                 { key: "archive", label: "مؤرشفة" },
-              ].map((s) => (
-                <button
-                  key={s.key}
-                  type="button"
-                  className={`px-3 py-2 rounded-xl border text-sm ${
-                    statut === s.key
-                      ? "bg-indigo-600 text-white border-indigo-600"
-                      : "bg-white"
-                  }`}
-                  onClick={() => setStatut(s.key)}
-                >
-                  {s.label}
-                </button>
-              ))}
+              ].map((s) => {
+                const active = statut === s.key;
+                return (
+                  <button
+                    key={s.key}
+                    type="button"
+                    className={`rounded-2xl px-4 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 ${
+                      active
+                        ? "bg-indigo-600 text-white shadow"
+                        : "border border-indigo-200 bg-white text-indigo-700 hover:border-indigo-300"
+                    }`}
+                    onClick={() => setStatut(s.key)}
+                  >
+                    {s.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          <div className="md:col-span-2">
-            <label className="block text-sm text-gray-700 mb-1">بحث</label>
-            <div className="flex items-center gap-2">
-              <input
-                className="flex-1 rounded-xl border px-3 py-2"
-                placeholder="ابحث باسم المجموعة…"
-                value={draftSearch}
-                onChange={(e) => setDraftSearch(e.target.value)}
-              />
-              <button
-                className="px-4 py-2 rounded-xl bg-indigo-600 text-white"
-                onClick={applySearch}
-              >
-                بحث
-              </button>
-              <button
-                className="px-4 py-2 rounded-xl border"
-                onClick={resetFilters}
-              >
-                إعادة تعيين
-              </button>
+          <div className="md:col-span-2 space-y-2">
+            <label className="text-sm font-medium text-indigo-900/80">بحث</label>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="relative flex-1">
+                <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-indigo-400">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={1.5}
+                    className="h-5 w-5"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1010.5 18 7.5 7.5 0 0016.65 16.65z"
+                    />
+                  </svg>
+                </span>
+                <input
+                  className="w-full rounded-2xl border border-indigo-200 bg-white py-2.5 pr-4 pl-10 text-sm shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  placeholder="ابحث باسم المجموعة…"
+                  value={draftSearch}
+                  onChange={(e) => setDraftSearch(e.target.value)}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700"
+                  onClick={applySearch}
+                >
+                  بحث
+                </button>
+                <button
+                  type="button"
+                  className="rounded-2xl border border-indigo-200 px-4 py-2 text-sm text-indigo-700 hover:border-indigo-300"
+                  onClick={resetFilters}
+                >
+                  إعادة تعيين
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl shadow border overflow-hidden">
+      <section className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
+        <div className="flex flex-col gap-2 border-b border-gray-100 bg-gray-50/60 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">قائمة المجموعات</h2>
+            <p className="text-sm text-gray-500">
+              استعرض المجموعات الحالية، وقم بإدارتها أو تعديلها بسرعة.
+            </p>
+          </div>
+          <span className="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+            {stats.total} مجموعة
+          </span>
+        </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-gray-50 text-gray-600">
+          <table className="min-w-full divide-y divide-gray-100 text-sm leading-6 text-gray-700">
+            <thead className="bg-white">
               <tr>
-                <th className="text-right px-4 py-3">اسم المجموعة</th>
-                <th className="text-right px-4 py-3">السنة</th>
-                <th className="text-right px-4 py-3">الحالة</th>
-                <th className="text-right px-4 py-3"># الأطفال</th>
-                <th className="text-right px-4 py-3">المربي</th>
-                <th className="text-right px-4 py-3">إجراءات</th>
+                <th className="px-6 py-3 text-right font-semibold text-gray-500">اسم المجموعة</th>
+                <th className="px-6 py-3 text-right font-semibold text-gray-500">السنة</th>
+                <th className="px-6 py-3 text-right font-semibold text-gray-500">الحالة</th>
+                <th className="px-6 py-3 text-right font-semibold text-gray-500">الأطفال</th>
+                <th className="px-6 py-3 text-right font-semibold text-gray-500">إجراءات</th>
               </tr>
             </thead>
-            <tbody>
-              {groupesQ.isLoading ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-4 py-6 text-center text-gray-500"
-                  >
-                    جارٍ التحميل…
-                  </td>
-                </tr>
-              ) : groupesQ.isError ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-4 py-6 text-center text-rose-600"
-                  >
-                    {groupesQ.error?.response?.data?.message ||
-                      "حدث خطأ أثناء الجلب."}
-                  </td>
-                </tr>
-              ) : data.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-4 py-6 text-center text-gray-500"
-                  >
-                    لا توجد مجموعات.
-                  </td>
-                </tr>
-              ) : (
-                data.map((g) => {
-                  const isArchived = g.statut === "archive";
-                  const yearLib =
-                    anneesOptions.find((a) => a.id === g.annee_id)
-                      ?.libelle || "—";
-                  return (
-                    <tr key={g.id} className="border-t">
-                      <td className="px-4 py-3 font-medium text-gray-900">
-                        {g.nom}
+            <tbody className="divide-y divide-gray-100">
+              {isLoadingGroups
+                ? Array.from({ length: 4 }).map((_, index) => (
+                    <tr key={`skeleton-${index}`} className="animate-pulse">
+                      <td className="px-6 py-4">
+                        <div className="h-3 w-24 rounded-full bg-gray-200" />
+                        <div className="mt-2 h-3 w-32 rounded-full bg-gray-100" />
                       </td>
-                      <td className="px-4 py-3">{yearLib}</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs ${
-                            isArchived
-                              ? "bg-gray-200 text-gray-700"
-                              : "bg-emerald-100 text-emerald-700"
-                          }`}
-                        >
-                          {isArchived ? "مؤرشف" : "نشط"}
-                        </span>
+                      <td className="px-6 py-4">
+                        <div className="h-3 w-16 rounded-full bg-gray-200" />
                       </td>
-                      <td className="px-4 py-3">
-                        {typeof g.nb_enfants === "number" ? g.nb_enfants : "—"}
+                      <td className="px-6 py-4">
+                        <div className="h-3 w-20 rounded-full bg-gray-200" />
                       </td>
-                      <td className="px-4 py-3">
-                        {/* Not included in list → shown in Manage modal */}
-                        <span className="text-gray-500">—</span>
+                      <td className="px-6 py-4">
+                        <div className="h-3 w-10 rounded-full bg-gray-200" />
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            className="px-3 py-1.5 rounded-xl border"
-                            onClick={() => {
-                              setEditing(g);
-                              setShowForm(true);
-                            }}
-                          >
-                            تعديل
-                          </button>
-
-                          <button
-                            type="button"
-                            className="px-3 py-1.5 rounded-xl border"
-                            onClick={() =>
-                              setManageModal({
-                                id: g.id,
-                                nom: g.nom,
-                                annee_id: g.annee_id,
-                                archived: isArchived,
-                              })
-                            }
-                          >
-                            إدارة الأعضاء
-                          </button>
-
-                          <button
-                            type="button"
-                            className="px-3 py-1.5 rounded-xl border"
-                            onClick={() =>
-                              setConfirmArchive({
-                                id: g.id,
-                                to: isArchived ? "actif" : "archive",
-                              })
-                            }
-                          >
-                            {isArchived ? "إلغاء الأرشفة" : "أرشفة"}
-                          </button>
-
-                          <button
-                            type="button"
-                            className="px-3 py-1.5 rounded-xl border border-rose-300 text-rose-700"
-                            onClick={() => setConfirmDelete(g.id)}
-                          >
-                            حذف
-                          </button>
-                        </div>
+                      <td className="px-6 py-4">
+                        <div className="h-3 w-28 rounded-full bg-gray-200" />
                       </td>
                     </tr>
-                  );
-                })
-              )}
+                  ))
+                : hasErrorGroups
+                ? (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="px-6 py-6 text-center text-sm font-medium text-rose-600"
+                      >
+                        {groupesQ.error?.response?.data?.message || "حدث خطأ أثناء الجلب."}
+                      </td>
+                    </tr>
+                  )
+                : data.length === 0
+                ? (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="px-6 py-8 text-center text-sm text-gray-500"
+                      >
+                        لا توجد مجموعات مطابقة للمعايير الحالية.
+                      </td>
+                    </tr>
+                  )
+                : (
+                    data.map((g) => {
+                      const isArchived = g.statut === "archive";
+                      const yearLib =
+                        anneesOptions.find((a) => a.id === g.annee_id)?.libelle || "—";
+                      const childrenCount =
+                        typeof g.nb_enfants === "number" ? g.nb_enfants : 0;
+                      return (
+                        <tr
+                          key={g.id}
+                          className="transition hover:bg-indigo-50/40"
+                        >
+                          <td className="px-6 py-4">
+                            <div className="font-semibold text-gray-900">{g.nom}</div>
+                            {g.description && (
+                              <div className="mt-1 text-xs text-gray-500 truncate">
+                                {g.description}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-gray-600">{yearLib}</td>
+                          <td className="px-6 py-4">
+                            <span
+                              className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
+                                isArchived
+                                  ? "bg-gray-100 text-gray-600"
+                                  : "bg-emerald-100 text-emerald-700"
+                              }`}
+                            >
+                              <span className="inline-block h-2 w-2 rounded-full bg-current" />
+                              {isArchived ? "مؤرشفة" : "نشطة"}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">
+                              {childrenCount}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-wrap justify-end gap-2 text-xs font-medium">
+                              <button
+                                type="button"
+                                className="rounded-full border border-indigo-200 px-3 py-1.5 text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50"
+                                onClick={() => {
+                                  setEditing(g);
+                                  setShowForm(true);
+                                }}
+                              >
+                                تعديل
+                              </button>
+                              <button
+                                type="button"
+                                className="rounded-full border border-indigo-200 px-3 py-1.5 text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50"
+                                onClick={() =>
+                                  setManageModal({
+                                    id: g.id,
+                                    nom: g.nom,
+                                    annee_id: g.annee_id,
+                                    archived: isArchived,
+                                  })
+                                }
+                              >
+                                إدارة الأعضاء
+                              </button>
+                              <button
+                                type="button"
+                                className="rounded-full border border-indigo-200 px-3 py-1.5 text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50"
+                                onClick={() =>
+                                  setConfirmArchive({
+                                    id: g.id,
+                                    to: isArchived ? "actif" : "archive",
+                                  })
+                                }
+                              >
+                                {isArchived ? "إلغاء الأرشفة" : "أرشفة"}
+                              </button>
+                              <button
+                                type="button"
+                                className="rounded-full border border-rose-200 px-3 py-1.5 text-rose-600 transition hover:border-rose-300 hover:bg-rose-50"
+                                onClick={() => setConfirmDelete(g.id)}
+                              >
+                                حذف
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
             </tbody>
           </table>
         </div>
 
         {/* Pagination (UI only; legacy route may ignore these on server) */}
-        <div className="flex items-center justify-between px-4 py-3 border-t text-sm">
-          <div className="text-gray-600">الصفحة {page}</div>
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-3 border-t border-gray-100 bg-white px-6 py-4 text-sm text-gray-600 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            الصفحة الحالية: <span className="font-semibold text-gray-800">{page}</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
             <button
-              className="px-3 py-1.5 rounded-xl border disabled:opacity-50"
+              type="button"
+              className="rounded-full border border-indigo-200 px-3 py-1.5 transition hover:border-indigo-300 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50"
               onClick={() => setPage(page - 1)}
-              disabled={page <= 1}
+              disabled={page <= 1 || isLoadingGroups}
             >
               السابق
             </button>
             <button
-              className="px-3 py-1.5 rounded-xl border"
+              type="button"
+              className="rounded-full border border-indigo-200 px-3 py-1.5 transition hover:border-indigo-300 hover:bg-indigo-50"
               onClick={() => setPage(page + 1)}
+              disabled={isLoadingGroups}
             >
               التالي
             </button>
             <select
-              className="px-3 py-1.5 rounded-xl border bg-white"
+              className="rounded-full border border-indigo-200 bg-white px-3 py-1.5 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               value={limit}
               onChange={(e) => setLimit(Number(e.target.value))}
+              disabled={isLoadingGroups}
             >
               {[10, 20, 50].map((n) => (
                 <option key={n} value={n}>
@@ -412,7 +538,7 @@ export default function AllGroupes() {
             </select>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Create/Edit */}
       <GroupeFormModal
