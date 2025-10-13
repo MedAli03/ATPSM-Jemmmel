@@ -2,10 +2,38 @@
 
 const { Notification } = require("../models");
 const { Op } = require("sequelize");
+const { pickExistingColumns } = require("../utils/schema-utils");
 
-exports.findByIdForUser = (id, userId, t = null) =>
+const BASE_ATTRIBUTES = [
+  "id",
+  "utilisateur_id",
+  "type",
+  "titre",
+  "corps",
+  "lu_le",
+  "created_at",
+  "updated_at",
+];
+
+const OPTIONAL_ATTRIBUTES = ["icon", "action_url", "payload"];
+
+let cachedSelectableAttributes = null;
+
+async function getSelectableAttributes() {
+  if (!cachedSelectableAttributes) {
+    const optional = await pickExistingColumns(
+      "notifications",
+      OPTIONAL_ATTRIBUTES
+    );
+    cachedSelectableAttributes = [...BASE_ATTRIBUTES, ...optional];
+  }
+  return cachedSelectableAttributes;
+}
+
+exports.findByIdForUser = async (id, userId, t = null) =>
   Notification.findOne({
     where: { id, utilisateur_id: userId },
+    attributes: await getSelectableAttributes(),
     include: [
       {
         association: "utilisateur",
@@ -35,8 +63,11 @@ exports.listByUser = async (
   const limit = pagination.limit || 20;
   const offset = (page - 1) * limit;
 
+  const attributes = await getSelectableAttributes();
+
   const { rows, count } = await Notification.findAndCountAll({
     where,
+    attributes,
     order: [
       ["lu_le", "ASC"],
       ["created_at", "DESC"],
