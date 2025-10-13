@@ -46,7 +46,7 @@ exports.listByUser = async (
     transaction: t,
   });
 
-  return { rows, count, page, limit };
+  return { rows: rows.map((row) => row.get({ plain: true })), count, page, limit };
 };
 
 exports.countUnread = (userId, t = null) =>
@@ -76,3 +76,9 @@ exports.markAllAsRead = async (userId, t = null) => {
   );
   return n;
 };
+
+exports.deleteForUser = (id, userId, t = null) =>
+  Notification.destroy({
+    where: { id, utilisateur_id: userId },
+    transaction: t,
+  });

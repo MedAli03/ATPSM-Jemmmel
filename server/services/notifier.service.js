@@ -11,7 +11,6 @@
  */
 
 const {
-  sequelize,
   Sequelize,
   Utilisateur,
   Notification,
@@ -27,6 +26,9 @@ const {
   Message,
 } = require("../models");
 
+const realtime = require("../realtime");
+const mapper = require("../utils/notification-mapper");
+
 const { Op } = Sequelize;
 
 // -------------------------------
@@ -35,32 +37,53 @@ const { Op } = Sequelize;
 
 async function bulkSave(rows, t) {
   if (!rows || rows.length === 0) return 0;
-  const now = new Date();
-  const payload = rows.map((r) => ({
-    utilisateur_id: r.utilisateur_id,
-    type: r.type,
-    titre: r.titre,
-    corps: r.corps,
-    lu_le: null,
-    created_at: now,
-    updated_at: now,
-  }));
-  await Notification.bulkCreate(payload, { transaction: t });
-  return payload.length;
+  const created = [];
+  for (const row of rows) {
+    const instance = await Notification.create(
+      {
+        utilisateur_id: row.utilisateur_id,
+        type: (row.type || "info").toLowerCase(),
+        titre: row.titre || "إشعار جديد",
+        corps: row.corps || null,
+        icon: row.icon ?? null,
+        action_url: row.action_url ?? null,
+        payload: row.data ?? row.payload ?? null,
+        lu_le: null,
+      },
+      { transaction: t }
+    );
+    created.push(instance.get({ plain: true }));
+  }
+
+  created.forEach((row) => {
+    const dto = mapper.toDTO(row);
+    if (!dto) return;
+    realtime.emitNotification(dto.user_id, mapper.forClient(dto));
+    realtime.adjustUnread(dto.user_id, 1);
+  });
+
+  return created.length;
 }
 
-async function toUsers(userIds, { type, titre, corps }, t) {
+async function toUsers(
+  userIds,
+  { type, titre, corps, icon = null, action_url = null, data = null },
+  t
+) {
   if (!userIds || userIds.length === 0) return 0;
   const rows = userIds.map((id) => ({
     utilisateur_id: id,
     type,
     titre,
     corps,
+    icon,
+    action_url,
+    data,
   }));
   return bulkSave(rows, t);
 }
 
-async function toRoles(target, { type, titre, corps }, t) {
+async function toRoles(target, payload, t) {
   const where = { is_active: true };
   if (target !== "ALL") where.role = target;
   const users = await Utilisateur.findAll({
@@ -68,7 +91,7 @@ async function toRoles(target, { type, titre, corps }, t) {
     attributes: ["id"],
     transaction: t,
   });
-  return toUsers(users.map((u) => u.id), { type, titre, corps }, t);
+  return toUsers(users.map((u) => u.id), payload, t);
 }
 
 async function parentOfChild(enfantId, t) {
@@ -113,19 +136,33 @@ function short(text, n = 180) {
 
 async function notifyOnNewsPublished(actualite, t = null) {
   // audience: ALL internal roles (you can narrow to "EDUCATEUR"|"DIRECTEUR")
-  return toRoles("ALL", {
-    type: "ACTUALITE",
-    titre: `Nouvelle actualité : ${actualite.titre}`,
-    corps: short(actualite.contenu),
-  }, t);
+  return toRoles(
+    "ALL",
+    {
+      type: "actualite",
+      titre: `Nouvelle actualité : ${actualite.titre}`,
+      corps: short(actualite.contenu),
+      icon: "megaphone",
+      action_url: actualite?.id ? `/dashboard/news/${actualite.id}` : null,
+      data: { actualite_id: actualite?.id ?? null },
+    },
+    t
+  );
 }
 
 async function notifyOnNewsUpdated(actualite, t = null) {
-  return toRoles("ALL", {
-    type: "ACTUALITE",
-    titre: `Mise à jour : ${actualite.titre}`,
-    corps: short(actualite.contenu),
-  }, t);
+  return toRoles(
+    "ALL",
+    {
+      type: "actualite",
+      titre: `Mise à jour : ${actualite.titre}`,
+      corps: short(actualite.contenu),
+      icon: "megaphone",
+      action_url: actualite?.id ? `/dashboard/news/${actualite.id}` : null,
+      data: { actualite_id: actualite?.id ?? null },
+    },
+    t
+  );
 }
 
 // -------------------------------
@@ -135,9 +172,12 @@ async function notifyOnNewsUpdated(actualite, t = null) {
 async function notifyOnEventCreated(evt, t = null) {
   // You can route by audience if needed
   const payload = {
-    type: "EVENEMENT",
+    type: "evenement",
     titre: `Nouvel événement : ${evt.titre}`,
     corps: short(`${evt.description || ""} • Débute: ${new Date(evt.debut).toLocaleString()}`),
+    icon: "calendar",
+    action_url: evt?.id ? `/dashboard/events/${evt.id}` : null,
+    data: { evenement_id: evt?.id ?? null },
   };
   if (evt.audience === "parents") {
     // notify only parents (optionally per group; here we broadcast to all parents)
@@ -151,9 +191,12 @@ async function notifyOnEventCreated(evt, t = null) {
 
 async function notifyOnEventUpdated(evt, t = null) {
   const payload = {
-    type: "EVENEMENT",
+    type: "evenement",
     titre: `Événement mis à jour : ${evt.titre}`,
     corps: short(`${evt.description || ""} • Débute: ${new Date(evt.debut).toLocaleString()}`),
+    icon: "calendar",
+    action_url: evt?.id ? `/dashboard/events/${evt.id}` : null,
+    data: { evenement_id: evt?.id ?? null },
   };
   if (evt.audience === "parents") return toRoles("PARENT", payload, t);
   if (evt.audience === "educateurs") return toRoles("EDUCATEUR", payload, t);
@@ -162,9 +205,12 @@ async function notifyOnEventUpdated(evt, t = null) {
 
 async function notifyOnEventDeleted(evt, t = null) {
   const payload = {
-    type: "EVENEMENT",
+    type: "evenement",
     titre: `Événement annulé : ${evt.titre}`,
     corps: short(evt.description || "Cet événement a été annulé."),
+    icon: "calendar",
+    action_url: evt?.id ? `/dashboard/events/${evt.id}` : null,
+    data: { evenement_id: evt?.id ?? null },
   };
   if (evt.audience === "parents") return toRoles("PARENT", payload, t);
   if (evt.audience === "educateurs") return toRoles("EDUCATEUR", payload, t);
@@ -176,19 +222,29 @@ async function notifyOnEventDeleted(evt, t = null) {
 // -------------------------------
 
 async function notifyOnDocumentPublished(doc, t = null) {
-  return toRoles("ALL", {
-    type: "DOCUMENT",
-    titre: `Document publié : ${doc.titre}`,
-    corps: short(`Disponible: ${doc.url}`),
-  }, t);
+  return toRoles(
+    "ALL",
+    {
+      type: "document",
+      titre: `Document publié : ${doc.titre}`,
+      corps: short(`Disponible: ${doc.url}`),
+      icon: "document",
+      action_url: doc?.id ? `/dashboard/documents/${doc.id}` : null,
+      data: { document_id: doc?.id ?? null },
+    },
+    t
+  );
 }
 
 async function notifyOnReglementUpdated(reglement, t = null) {
   // broadcast to parents + educators
   const payload = {
-    type: "REGLEMENT",
+    type: "reglement",
     titre: `Règlement mis à jour (${reglement.version})`,
     corps: short(`Date d'effet: ${reglement.date_effet}`),
+    icon: "shield",
+    action_url: reglement?.id ? `/dashboard/reglements/${reglement.id}` : null,
+    data: { reglement_id: reglement?.id ?? null },
   };
   const a = await toRoles("PARENT", payload, t);
   const b = await toRoles("EDUCATEUR", payload, t);
@@ -203,17 +259,21 @@ async function notifyOnChildAssignedToGroup({ enfant_id, groupe_id, annee_id }, 
   const parentIds = await parentOfChild(enfant_id, t);
   if (!parentIds.length) return 0;
   return toUsers(parentIds, {
-    type: "INSCRIPTION",
+    type: "inscription",
     titre: "Inscription confirmée",
     corps: `Votre enfant a été inscrit au groupe #${groupe_id} pour l’année #${annee_id}.`,
+    icon: "users",
+    data: { enfant_id, groupe_id, annee_id },
   }, t);
 }
 
 async function notifyOnEducatorAssignedToGroup({ educateur_id, groupe_id, annee_id }, t = null) {
   return toUsers([educateur_id], {
-    type: "AFFECTATION",
+    type: "affectation",
     titre: "Nouvelle affectation",
     corps: `Vous avez été affecté au groupe #${groupe_id} pour l’année #${annee_id}.`,
+    icon: "user-check",
+    data: { educateur_id, groupe_id, annee_id },
   }, t);
 }
 
@@ -227,16 +287,20 @@ async function notifyOnPEICreated(pei, t = null) {
   const eduIds = pei.educateur_id ? [pei.educateur_id] : [];
   const a = parentIds.length
     ? await toUsers(parentIds, {
-        type: "PEI",
+        type: "pei",
         titre: "Nouveau PEI créé",
         corps: "Un nouveau projet éducatif a été créé pour votre enfant.",
+        icon: "sparkles",
+        data: { enfant_id: pei.enfant_id, pei_id: pei.id },
       }, t)
     : 0;
   const b = eduIds.length
     ? await toUsers(eduIds, {
-        type: "PEI",
+        type: "pei",
         titre: "PEI créé",
         corps: `Un PEI vient d’être créé pour l’enfant #${pei.enfant_id}.`,
+        icon: "sparkles",
+        data: { enfant_id: pei.enfant_id, pei_id: pei.id },
       }, t)
     : 0;
   return a + b;
@@ -247,9 +311,11 @@ async function notifyOnPEIUpdated(pei, t = null) {
   const parentIds = await parentOfChild(pei.enfant_id, t);
   if (!parentIds.length) return 0;
   return toUsers(parentIds, {
-    type: "PEI",
+    type: "pei",
     titre: "PEI mis à jour",
     corps: "Le projet éducatif de votre enfant a été mis à jour.",
+    icon: "sparkles",
+    data: { enfant_id: pei.enfant_id, pei_id: pei.id },
   }, t);
 }
 
@@ -257,9 +323,11 @@ async function notifyOnPEIClosed(pei, t = null) {
   const parentIds = await parentOfChild(pei.enfant_id, t);
   if (!parentIds.length) return 0;
   return toUsers(parentIds, {
-    type: "PEI",
+    type: "pei",
     titre: "PEI clôturé",
     corps: "Le projet éducatif de votre enfant a été clôturé.",
+    icon: "sparkles",
+    data: { enfant_id: pei.enfant_id, pei_id: pei.id },
   }, t);
 }
 
@@ -278,9 +346,11 @@ async function notifyOnEvaluationAdded(evaluation, t = null) {
   const parentIds = enfantId ? await parentOfChild(enfantId, t) : [];
   if (!parentIds.length) return 0;
   return toUsers(parentIds, {
-    type: "EVALUATION",
+    type: "evaluation",
     titre: "Nouvelle évaluation",
     corps: "Une nouvelle évaluation a été ajoutée au PEI de votre enfant.",
+    icon: "chart",
+    data: { enfant_id: enfantId, evaluation_id: evaluation.id },
   }, t);
 }
 
@@ -292,9 +362,11 @@ async function notifyOnRecommendationsReady({ enfant_id, educateur_id }, t = nul
   // Educateur uniquement (règle : jamais parent pour les RAW recommendations)
   if (!educateur_id) return 0;
   return toUsers([educateur_id], {
-    type: "RECO_AI",
+    type: "recommandation",
     titre: "Recommandations IA disponibles",
     corps: `De nouvelles recommandations IA sont prêtes pour l’enfant #${enfant_id}.`,
+    icon: "sparkles",
+    data: { enfant_id, educateur_id },
   }, t);
 }
 
@@ -303,9 +375,11 @@ async function notifyOnRecommendationsApplied({ enfant_id }, t = null) {
   const parentIds = await parentOfChild(enfant_id, t);
   if (!parentIds.length) return 0;
   return toUsers(parentIds, {
-    type: "PEI",
+    type: "pei",
     titre: "Mise à jour du PEI",
     corps: "Des recommandations validées ont été ajoutées au PEI de votre enfant.",
+    icon: "sparkles",
+    data: { enfant_id },
   }, t);
 }
 
@@ -317,9 +391,11 @@ async function notifyOnDailyNoteAdded(note, t = null) {
   const parentIds = await parentOfChild(note.enfant_id, t);
   if (!parentIds.length) return 0;
   return toUsers(parentIds, {
-    type: "NOTE",
+    type: "note",
     titre: "Nouvelle note quotidienne",
     corps: short(note.contenu || "Une nouvelle note a été ajoutée."),
+    icon: "book",
+    data: { enfant_id: note.enfant_id, note_id: note.id },
   }, t);
 }
 
@@ -327,9 +403,11 @@ async function notifyOnActivityAdded(activity, t = null) {
   const parentIds = await parentOfChild(activity.enfant_id, t);
   if (!parentIds.length) return 0;
   return toUsers(parentIds, {
-    type: "ACTIVITE",
+    type: "activite",
     titre: `Nouvelle activité : ${activity.titre || "Activité"}`,
     corps: short(activity.description || "Une nouvelle activité a été ajoutée."),
+    icon: "star",
+    data: { enfant_id: activity.enfant_id, activite_id: activity.id },
   }, t);
 }
 
@@ -348,9 +426,11 @@ async function notifyOnNewMessage({ thread_id, expediteur_id, texte }, t = null)
   if (!participants.length) return 0;
 
   return toUsers(participants, {
-    type: "MESSAGE",
+    type: "message",
     titre: "Nouveau message",
     corps: short(texte || "Vous avez reçu un nouveau message."),
+    icon: "message",
+    data: { thread_id, expediteur_id, message_preview: texte },
   }, t);
 }
 

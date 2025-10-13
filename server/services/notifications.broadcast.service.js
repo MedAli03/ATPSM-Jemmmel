@@ -1,27 +1,23 @@
 "use strict";
 
 const { sequelize } = require("../models");
-const repo = require("../repos/notifications.repo");
+const notifier = require("./notifier.service");
 
-exports.broadcast = async ({ target, type, titre, corps }, _currentUser) => {
+exports.broadcast = async (
+  { target, type, titre, corps, icon = null, action_url = null, data = null },
+  _currentUser
+) => {
   return sequelize.transaction(async (t) => {
-    const users = await repo.findTargetUsers(target, t);
-    if (!users.length) {
+    const payload = { type, titre, corps, icon, action_url, data };
+    const created =
+      target === "ALL"
+        ? await notifier.notifyBroadcastToAll(payload, t)
+        : await notifier.notifyBroadcastToRole(target, payload, t);
+    if (!created) {
       const e = new Error("Aucun utilisateur cible");
       e.status = 404;
       throw e;
     }
-    const now = new Date();
-    const rows = users.map((u) => ({
-      utilisateur_id: u.id,
-      type,
-      titre,
-      corps,
-      lu_le: null,
-      created_at: now,
-      updated_at: now,
-    }));
-    const created = await repo.bulkCreateNotifications(rows, t);
     return { created, target, type, titre };
   });
 };

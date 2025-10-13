@@ -21,9 +21,7 @@ export function ToastProvider({ children }) {
         {toasts.map((t) => (
           <div
             key={t.id}
-            className={`px-4 py-2 rounded-xl shadow text-white text-sm ${
-              t.type === "error" ? "bg-rose-600" : "bg-emerald-600"
-            }`}
+            className={`px-4 py-2 rounded-xl shadow text-sm ${toastTone(t.type)}`}
           >
             {t.msg}
           </div>
@@ -35,4 +33,14 @@ export function ToastProvider({ children }) {
 
 export function useToast() {
   return useContext(ToastContext);
+}
+
+function toastTone(type = "success") {
+  const map = {
+    success: "bg-emerald-600 text-white",
+    error: "bg-rose-600 text-white",
+    info: "bg-sky-600 text-white",
+    warning: "bg-amber-400 text-slate-900",
+  };
+  return map[type] || map.success;
 }

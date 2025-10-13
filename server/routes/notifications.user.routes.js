@@ -11,6 +11,8 @@ const {
   listQuerySchema,
 } = require("../validations/notifications.user.schema");
 
+router.get("/notifications/stream", ctrl.stream);
+
 router.use(auth);
 
 const ROLES = ["PRESIDENT", "DIRECTEUR", "EDUCATEUR", "PARENT"];
@@ -51,6 +53,14 @@ router.post(
   "/notifications/mark-all-read",
   requireRole(...ROLES),
   ctrl.readAll
+);
+
+// Supprimer une notification
+router.delete(
+  "/notifications/:id",
+  requireRole(...ROLES),
+  validate(idParamSchema, "params"),
+  ctrl.remove
 );
 
 module.exports = router;

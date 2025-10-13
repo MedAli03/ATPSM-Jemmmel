@@ -3,9 +3,11 @@ import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import DashboardTopbar from "./DashboardTopbar";
 import DashboardSidebar from "./DashboardSidebar";
+import { useNotificationSocket } from "../../hooks/useNotificationSocket";
 
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  useNotificationSocket(true);
 
   return (
     <div className="flex h-screen bg-gray-50" dir="rtl">

@@ -12,6 +12,9 @@ module.exports = (sequelize) =>
       type: DataTypes.STRING(50),
       titre: DataTypes.STRING(200),
       corps: DataTypes.TEXT,
+      icon: DataTypes.STRING(80),
+      action_url: DataTypes.STRING(255),
+      payload: DataTypes.JSON,
       lu_le: DataTypes.DATE,
     },
     { tableName: "notifications", underscored: true, timestamps: true }

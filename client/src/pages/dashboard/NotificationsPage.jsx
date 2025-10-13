@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNotificationsPage } from "../../hooks/useNotifications";
+import {
+  useNotificationsPage,
+  useNotificationMutations,
+} from "../../hooks/useNotifications";
 
 const STATUS_OPTS = [
   { value: "all", label: "الكل" },
@@ -9,11 +12,31 @@ const STATUS_OPTS = [
 
 const TYPE_OPTS = [
   { value: "all", label: "جميع الأنواع" },
-  { value: "news", label: "الأخبار" },
-  { value: "event", label: "الفعاليات" },
-  { value: "reminder", label: "تذكير" },
-  { value: "info", label: "معلومات" },
+  { value: "actualite", label: "الأخبار" },
+  { value: "evenement", label: "الفعاليات" },
+  { value: "inscription", label: "المجموعات" },
+  { value: "pei", label: "مشاريع PEI" },
+  { value: "evaluation", label: "التقييمات" },
+  { value: "activite", label: "الأنشطة" },
+  { value: "note", label: "الملاحظات" },
+  { value: "message", label: "الرسائل" },
 ];
+
+const TYPE_BADGES = {
+  actualite: { text: "خبر", class: "bg-blue-50 text-blue-700" },
+  evenement: { text: "فعالية", class: "bg-violet-50 text-violet-700" },
+  inscription: { text: "مجموعة", class: "bg-emerald-50 text-emerald-700" },
+  affectation: { text: "تعيين", class: "bg-indigo-50 text-indigo-700" },
+  pei: { text: "PEI", class: "bg-sky-50 text-sky-700" },
+  evaluation: { text: "تقييم", class: "bg-amber-50 text-amber-700" },
+  activite: { text: "نشاط", class: "bg-orange-50 text-orange-700" },
+  note: { text: "ملاحظة", class: "bg-rose-50 text-rose-700" },
+  recommandation: { text: "ذكاء اصطناعي", class: "bg-cyan-50 text-cyan-700" },
+  message: { text: "رسالة", class: "bg-gray-100 text-gray-700" },
+  document: { text: "وثيقة", class: "bg-slate-100 text-slate-600" },
+  reglement: { text: "نظام", class: "bg-teal-50 text-teal-700" },
+  info: { text: "معلومة", class: "bg-slate-100 text-slate-600" },
+};
 
 export default function NotificationsPage() {
   const [q, setQ] = useState("");
@@ -28,31 +51,30 @@ export default function NotificationsPage() {
   );
   const { data, isLoading, isError, refetch, isFetching } =
     useNotificationsPage(params);
+  const { markOne, markAll, remove } = useNotificationMutations();
 
   useEffect(() => {
     setPage(1);
-  }, [q, status, type, pageSize]); // reset to page 1 on filters change
+  }, [q, status, type, pageSize]);
 
-  const total = data?.total ?? 0;
-  const lastPage = Math.max(1, Math.ceil(total / pageSize));
   const items = data?.items ?? [];
+  const meta = data?.meta ?? {};
+  const total = meta.total ?? 0;
+  const lastPage = Math.max(1, Math.ceil(total / pageSize));
+  const unreadTotal = meta.unread ?? null;
 
   return (
-    <div className="space-y-4" dir="rtl">
-      <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+    <div className="space-y-5" dir="rtl">
+      <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">الإشعارات</h1>
-          <p className="text-sm text-gray-500">
-            تصفح وأدِر الإشعارات مع البحث والتصفية والصفحات.
+          <h1 className="text-3xl font-bold text-slate-900">الإشعارات</h1>
+          <p className="text-sm text-slate-500">
+            تصفح جميع الإشعارات مع إمكانيات البحث والتصفية وإدارتها.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center bg-gray-100 rounded-xl px-3 py-2 border">
-            <svg
-              className="w-5 h-5 text-gray-500"
-              viewBox="0 0 24 24"
-              fill="none"
-            >
+          <div className="flex items-center rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+            <svg className="h-5 w-5 text-slate-400" viewBox="0 0 24 24" fill="none">
               <path
                 d="M21 21l-4.35-4.35M11 18a7 7 0 110-14 7 7 0 010 14z"
                 stroke="currentColor"
@@ -60,15 +82,14 @@ export default function NotificationsPage() {
               />
             </svg>
             <input
-              className="bg-transparent outline-none pr-2 w-64 text-sm"
-              placeholder="ابحث في العنوان/المحتوى…"
+              className="w-64 bg-transparent pr-2 text-sm outline-none"
+              placeholder="ابحث في العنوان أو المحتوى…"
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
           </div>
-
           <select
-            className="px-3 py-2 rounded-xl border bg-white text-sm"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
             value={status}
             onChange={(e) => setStatus(e.target.value)}
           >
@@ -78,9 +99,8 @@ export default function NotificationsPage() {
               </option>
             ))}
           </select>
-
           <select
-            className="px-3 py-2 rounded-xl border bg-white text-sm"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
             value={type}
             onChange={(e) => setType(e.target.value)}
           >
@@ -90,9 +110,8 @@ export default function NotificationsPage() {
               </option>
             ))}
           </select>
-
           <select
-            className="px-3 py-2 rounded-xl border bg-white text-sm"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
             value={pageSize}
             onChange={(e) => setPageSize(Number(e.target.value))}
           >
@@ -102,100 +121,133 @@ export default function NotificationsPage() {
               </option>
             ))}
           </select>
-
           <button
+            type="button"
             onClick={() => refetch()}
-            className="px-3 py-2 rounded-xl border text-sm hover:bg-gray-50"
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-600 transition hover:bg-slate-50"
           >
             تحديث
           </button>
         </div>
       </header>
 
-      <section className="bg-white border rounded-2xl shadow-sm">
-        {/* table header */}
-        <div className="grid grid-cols-12 gap-2 px-4 py-3 border-b text-sm text-gray-500">
-          <div className="col-span-5">العنوان / المحتوى</div>
-          <div className="col-span-2">النوع</div>
-          <div className="col-span-2">الحالة</div>
-          <div className="col-span-3">التاريخ</div>
+      <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3 text-sm text-slate-500">
+          <div>
+            إجمالي العناصر: <span className="font-medium text-slate-900">{total}</span>
+          </div>
+          {unreadTotal != null && (
+            <div className="flex items-center gap-2 text-xs">
+              <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
+                غير مقروءة: {unreadTotal}
+              </span>
+              <button
+                type="button"
+                onClick={() => markAll.mutate()}
+                className="rounded-full border border-slate-200 px-3 py-1 text-slate-600 transition hover:bg-slate-100"
+              >
+                تمييز الكل كمقروء
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* body */}
         {isLoading ? (
           <div className="p-4">
-            <div className="animate-pulse space-y-3">
+            <div className="space-y-3 animate-pulse">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="h-12 bg-gray-100 rounded" />
+                <div key={i} className="h-12 rounded bg-slate-100" />
               ))}
             </div>
           </div>
         ) : isError ? (
-          <div className="p-6 text-red-600">
+          <div className="p-6 text-sm text-rose-600">
             حدث خطأ أثناء تحميل البيانات.
             <button onClick={() => refetch()} className="mr-2 text-blue-600">
               إعادة المحاولة
             </button>
           </div>
         ) : items.length === 0 ? (
-          <div className="p-10 text-center text-gray-500">
-            لا توجد نتائج مطابقة
-          </div>
+          <div className="p-10 text-center text-slate-500">لا توجد نتائج مطابقة</div>
         ) : (
-          <ul className="divide-y">
+          <ul className="divide-y divide-slate-100">
             {items.map((n) => (
-              <li key={n.id} className="grid grid-cols-12 gap-2 px-4 py-3">
-                <div className="col-span-5">
-                  <div className="text-sm font-medium text-gray-900 truncate">
-                    {n.title || "—"}
+              <li
+                key={n.id}
+                className={`flex flex-col gap-2 px-5 py-4 transition md:flex-row md:items-center ${
+                  n.read ? "bg-white" : "bg-sky-50/70"
+                }`}
+              >
+                <div className="flex-1">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                    {badgeForType(n.type)}
+                    <span>{n.read ? "مقروء" : "غير مقروء"}</span>
+                    <span>{formatDate(n.createdAt)}</span>
                   </div>
-                  {n.content && (
-                    <div className="text-sm text-gray-600 line-clamp-2">
-                      {n.content}
-                    </div>
+                  <div className="mt-1 text-sm font-semibold text-slate-900">
+                    {n.title || n.text || "—"}
+                  </div>
+                  {n.body && (
+                    <p className="mt-1 text-sm text-slate-600 line-clamp-2">{n.body}</p>
+                  )}
+                  {n.actionUrl && (
+                    <a
+                      href={n.actionUrl}
+                      className="mt-2 inline-flex items-center text-xs font-medium text-blue-600 hover:underline"
+                    >
+                      الانتقال للصفحة
+                      <svg className="mr-1 h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+                        <path
+                          d="M5 12h14M13 6l6 6-6 6"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </a>
                   )}
                 </div>
-                <div className="col-span-2">
-                  <TypeBadge type={n.type} />
-                </div>
-                <div className="col-span-2">
-                  {n.read ? (
-                    <span className="text-xs px-2 py-1 rounded-full bg-emerald-50 text-emerald-700">
-                      مقروء
-                    </span>
-                  ) : (
-                    <span className="text-xs px-2 py-1 rounded-full bg-blue-50 text-blue-700">
-                      غير مقروء
-                    </span>
+                <div className="flex items-center gap-2 self-end md:self-auto">
+                  {!n.read && (
+                    <button
+                      type="button"
+                      onClick={() => markOne.mutate(n.id)}
+                      className="rounded-full border border-emerald-200 px-3 py-1 text-xs text-emerald-600 transition hover:bg-emerald-500 hover:text-white"
+                    >
+                      تمييز كمقروء
+                    </button>
                   )}
-                </div>
-                <div className="col-span-3 text-sm text-gray-600">
-                  {formatDate(n.time)}
+                  <button
+                    type="button"
+                    onClick={() => remove.mutate(n.id)}
+                    className="rounded-full border border-rose-200 px-3 py-1 text-xs text-rose-600 transition hover:bg-rose-500 hover:text-white"
+                  >
+                    حذف
+                  </button>
                 </div>
               </li>
             ))}
           </ul>
         )}
 
-        {/* footer */}
-        <div
-          className="flex items-center justify-between px-4 py-3 border-t text-sm"
-          dir="rtl"
-        >
-          <div className="text-gray-600">
+        <div className="flex items-center justify-between border-t border-slate-100 px-5 py-3 text-sm text-slate-600">
+          <div>
             الصفحة <b>{page}</b> من <b>{lastPage}</b>
-            {isFetching && <span className="ml-2 text-gray-400">(تحديث…)</span>}
+            {isFetching && <span className="ml-2 text-slate-400">(تحديث…)</span>}
           </div>
           <div className="flex items-center gap-2">
             <button
-              className="px-3 py-1.5 rounded-lg border hover:bg-gray-50 disabled:opacity-50"
+              type="button"
+              className="rounded-lg border border-slate-200 px-3 py-1.5 hover:bg-slate-50 disabled:opacity-50"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1}
             >
               السابق
             </button>
             <button
-              className="px-3 py-1.5 rounded-lg border hover:bg-gray-50 disabled:opacity-50"
+              type="button"
+              className="rounded-lg border border-slate-200 px-3 py-1.5 hover:bg-slate-50 disabled:opacity-50"
               onClick={() => setPage((p) => Math.min(lastPage, p + 1))}
               disabled={page >= lastPage}
             >
@@ -208,27 +260,17 @@ export default function NotificationsPage() {
   );
 }
 
-function TypeBadge({ type }) {
-  const map = {
-    news: { text: "الأخبار", class: "bg-blue-50 text-blue-700" },
-    event: { text: "فعالية", class: "bg-violet-50 text-violet-700" },
-    reminder: { text: "تذكير", class: "bg-amber-50 text-amber-700" },
-    info: { text: "معلومة", class: "bg-gray-100 text-gray-700" },
-  };
-  const m = map[type] || map.info;
-  return (
-    <span className={`text-xs px-2 py-1 rounded-full ${m.class}`}>
-      {m.text}
-    </span>
-  );
+function badgeForType(type) {
+  const badge = TYPE_BADGES[type] || TYPE_BADGES.info;
+  return <span className={`rounded-full px-2 py-1 text-xs ${badge.class}`}>{badge.text}</span>;
 }
 
 function formatDate(d) {
   if (!d) return "—";
   const date = new Date(d);
   if (Number.isNaN(+date)) return d;
-  return date.toLocaleString("ar-TN", {
+  return new Intl.DateTimeFormat("ar-TN", {
     dateStyle: "medium",
     timeStyle: "short",
-  });
+  }).format(date);
 }

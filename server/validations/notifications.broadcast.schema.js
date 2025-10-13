@@ -8,8 +8,11 @@ const broadcastSchema = Joi.object({
     .valid("ALL", ...ROLES)
     .required(),
   type: Joi.string().max(50).required(),
-  titre: Joi.string().max(50).required(),
-  corps: Joi.string().min(3).required(),
+  titre: Joi.string().max(150).required(),
+  corps: Joi.string().allow("", null).max(500).optional(),
+  icon: Joi.string().max(50).allow(null, "").optional(),
+  action_url: Joi.string().uri().allow(null, "").optional(),
+  data: Joi.object().unknown(true).optional(),
 });
 
 module.exports = { broadcastSchema };
