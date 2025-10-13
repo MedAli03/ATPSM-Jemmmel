@@ -1080,6 +1080,21 @@ function StepFiche({ register, errors }) {
     </div>
   );
 }
+function ParentsTwoCols({ children }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2">{children}</div>
+  );
+}
+
+function ParentsSection({ title, children }) {
+  return (
+    <section className="md:col-span-2 p-4 rounded-xl border bg-gray-50 space-y-4">
+      <h3 className="text-sm font-semibold text-gray-700">{title}</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{children}</div>
+    </section>
+  );
+}
+
 function StepParents({ register, errors, control }) {
   const formLevelError = errors?.atLeastOneContact?.message;
   const contactValues = control
@@ -1094,15 +1109,6 @@ function StepParents({ register, errors, control }) {
       }).length
     : 0;
   const hasContact = contactCount > 0;
-  const TwoCols = ({ children }) => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2">{children}</div>
-  );
-  const Section = ({ title, children }) => (
-    <section className="md:col-span-2 p-4 rounded-xl border bg-gray-50 space-y-4">
-      <h3 className="text-sm font-semibold text-gray-700">{title}</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{children}</div>
-    </section>
-  );
 
   return (
     <div role="group" className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1139,8 +1145,8 @@ function StepParents({ register, errors, control }) {
         </div>
       )}
 
-      <Section title="معلومات الأب">
-        <TwoCols>
+      <ParentsSection title="معلومات الأب">
+        <ParentsTwoCols>
           <Field id="pere_nom" label="اللقب" required error={errors.pere_nom?.message}>
             {({ id, describedBy }) => (
               <input
@@ -1163,9 +1169,9 @@ function StepParents({ register, errors, control }) {
               />
             )}
           </Field>
-        </TwoCols>
+        </ParentsTwoCols>
 
-        <TwoCols>
+        <ParentsTwoCols>
           <Field
             id="pere_naissance_date"
             label="تاريخ الميلاد"
@@ -1197,9 +1203,9 @@ function StepParents({ register, errors, control }) {
               />
             )}
           </Field>
-        </TwoCols>
+        </ParentsTwoCols>
 
-        <TwoCols>
+        <ParentsTwoCols>
           <Field
             id="pere_cin_numero"
             label="رقم بطاقة التعريف"
@@ -1231,9 +1237,9 @@ function StepParents({ register, errors, control }) {
               />
             )}
           </Field>
-        </TwoCols>
+        </ParentsTwoCols>
 
-        <TwoCols>
+        <ParentsTwoCols>
           <Field
             id="pere_adresse"
             label="العنوان"
@@ -1266,9 +1272,9 @@ function StepParents({ register, errors, control }) {
               />
             )}
           </Field>
-        </TwoCols>
+        </ParentsTwoCols>
 
-        <TwoCols>
+        <ParentsTwoCols>
           <Field
             id="pere_tel_domicile"
             label="هاتف (منزل)"
@@ -1299,9 +1305,9 @@ function StepParents({ register, errors, control }) {
               />
             )}
           </Field>
-        </TwoCols>
+        </ParentsTwoCols>
 
-        <TwoCols>
+        <ParentsTwoCols>
           <Field
             id="pere_tel_portable"
             label="هاتف (جوال)"
@@ -1333,11 +1339,11 @@ function StepParents({ register, errors, control }) {
               />
             )}
           </Field>
-        </TwoCols>
-      </Section>
+        </ParentsTwoCols>
+      </ParentsSection>
 
-      <Section title="معلومات الأم">
-        <TwoCols>
+      <ParentsSection title="معلومات الأم">
+        <ParentsTwoCols>
           <Field id="mere_nom" label="اللقب" required error={errors.mere_nom?.message}>
             {({ id, describedBy }) => (
               <input
@@ -1360,9 +1366,9 @@ function StepParents({ register, errors, control }) {
               />
             )}
           </Field>
-        </TwoCols>
+        </ParentsTwoCols>
 
-        <TwoCols>
+        <ParentsTwoCols>
           <Field
             id="mere_naissance_date"
             label="تاريخ الميلاد"
@@ -1394,9 +1400,9 @@ function StepParents({ register, errors, control }) {
               />
             )}
           </Field>
-        </TwoCols>
+        </ParentsTwoCols>
 
-        <TwoCols>
+        <ParentsTwoCols>
           <Field
             id="mere_cin_numero"
             label="رقم بطاقة التعريف"
@@ -1428,9 +1434,9 @@ function StepParents({ register, errors, control }) {
               />
             )}
           </Field>
-        </TwoCols>
+        </ParentsTwoCols>
 
-        <TwoCols>
+        <ParentsTwoCols>
           <Field
             id="mere_adresse"
             label="العنوان"
@@ -1463,9 +1469,9 @@ function StepParents({ register, errors, control }) {
               />
             )}
           </Field>
-        </TwoCols>
+        </ParentsTwoCols>
 
-        <TwoCols>
+        <ParentsTwoCols>
           <Field
             id="mere_tel_domicile"
             label="هاتف (منزل)"
@@ -1496,9 +1502,9 @@ function StepParents({ register, errors, control }) {
               />
             )}
           </Field>
-        </TwoCols>
+        </ParentsTwoCols>
 
-        <TwoCols>
+        <ParentsTwoCols>
           <Field
             id="mere_tel_portable"
             label="هاتف (جوال)"
@@ -1530,8 +1536,8 @@ function StepParents({ register, errors, control }) {
               />
             )}
           </Field>
-        </TwoCols>
-      </Section>
+        </ParentsTwoCols>
+      </ParentsSection>
     </div>
   );
 }
