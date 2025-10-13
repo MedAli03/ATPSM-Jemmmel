@@ -25,6 +25,6 @@ exports.upsert = async (enfantId, payload) => {
 
     // Upsert fiche parents
     const fiche = await repo.upsert(enfantId, payload, t);
-    return fiche;
+    return fiche?.get ? fiche.get({ plain: true }) : fiche;
   });
 };

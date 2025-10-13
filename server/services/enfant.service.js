@@ -35,7 +35,10 @@ exports.create = async (payload) => {
         nom: payload.nom,
         prenom: payload.prenom,
         date_naissance: payload.date_naissance,
-        parent_user_id: null, // linked later
+        parent_user_id:
+          payload.parent_user_id != null
+            ? Number(payload.parent_user_id)
+            : null,
       },
       t
     );

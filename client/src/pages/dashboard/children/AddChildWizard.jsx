@@ -10,7 +10,14 @@ import { useToast } from "../../../components/common/ToastProvider";
 /* =========================
    Helpers & constants
    ========================= */
-const nullIfEmpty = (value) => (value === "" ? null : value);
+const nullIfEmpty = (value) => {
+  if (value === null || typeof value === "undefined") return null;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : null;
+  }
+  return value === "" ? null : value;
+};
 const inputClass = (hasError) =>
   [
     "w-full px-3 py-2 rounded-xl border transition focus:outline-none focus:ring-2 focus:ring-offset-0",
@@ -69,6 +76,23 @@ const PARENT_FIELDS = [
   "mere_email",
   "atLeastOneContact",
 ];
+const CONTACT_FIELDS = [
+  "pere_tel_portable",
+  "pere_tel_travail",
+  "pere_tel_domicile",
+  "pere_email",
+  "mere_tel_portable",
+  "mere_tel_travail",
+  "mere_tel_domicile",
+  "mere_email",
+];
+
+const NAME_MAX = 100;
+const ADDRESS_MAX = 255;
+const PROFESSION_MAX = 150;
+const COVERAGE_MAX = 150;
+const EMAIL_MAX = 150;
+const PHONE_MAX = 50;
 
 const defaultValues = {
   nom: "",
@@ -117,6 +141,7 @@ const defaultValues = {
   mere_tel_travail: "",
   mere_tel_portable: "",
   mere_email: "",
+  atLeastOneContact: "",
 };
 const schema = yup
   .object({
@@ -214,12 +239,12 @@ const schema = yup
     pere_nom: yup
       .string()
       .trim()
-      .max(255, "الحد الأقصى 255 حرف")
+      .max(NAME_MAX, "الحد الأقصى 100 حرف")
       .required("لقب الأب مطلوب"),
     pere_prenom: yup
       .string()
       .trim()
-      .max(255, "الحد الأقصى 255 حرف")
+      .max(NAME_MAX, "الحد الأقصى 100 حرف")
       .required("اسم الأب مطلوب"),
     pere_naissance_date: yup
       .string()
@@ -229,13 +254,13 @@ const schema = yup
     pere_naissance_lieu: yup
       .string()
       .trim()
-      .max(255, "الحد الأقصى 255 حرف")
+      .max(150, "الحد الأقصى 150 حرف")
       .nullable()
       .transform(nullIfEmpty),
     pere_origine: yup
       .string()
       .trim()
-      .max(255, "الحد الأقصى 255 حرف")
+      .max(150, "الحد الأقصى 150 حرف")
       .nullable()
       .transform(nullIfEmpty),
     pere_cin_numero: yup
@@ -243,29 +268,30 @@ const schema = yup
       .trim()
       .nullable()
       .transform(nullIfEmpty)
+      .max(100, "الحد الأقصى 100 حرف")
       .test("cin", "رقم بطاقة تعريف غير صالح (8 أرقام)", (value) =>
         value == null || cinRegex.test(value)
       ),
     pere_cin_delivree_a: yup
       .string()
       .trim()
-      .max(255, "الحد الأقصى 255 حرف")
+      .max(150, "الحد الأقصى 150 حرف")
       .nullable()
       .transform(nullIfEmpty),
     pere_adresse: yup
       .string()
       .trim()
-      .max(500, "الحد الأقصى 500 حرف")
+      .max(ADDRESS_MAX, "الحد الأقصى 255 حرف")
       .required("عنوان الأب مطلوب"),
     pere_profession: yup
       .string()
       .trim()
-      .max(255, "الحد الأقصى 255 حرف")
+      .max(PROFESSION_MAX, "الحد الأقصى 150 حرف")
       .required("مهنة الأب مطلوبة"),
     pere_couverture_sociale: yup
       .string()
       .trim()
-      .max(255, "الحد الأقصى 255 حرف")
+      .max(COVERAGE_MAX, "الحد الأقصى 150 حرف")
       .nullable()
       .transform(nullIfEmpty),
     pere_tel_domicile: yup
@@ -273,34 +299,39 @@ const schema = yup
       .trim()
       .nullable()
       .transform(nullIfEmpty)
+      .max(PHONE_MAX, "الحد الأقصى 50 حرف")
       .test("phone", "رقم هاتف غير صالح", (value) => value == null || phoneRegex.test(value)),
     pere_tel_travail: yup
       .string()
       .trim()
       .nullable()
       .transform(nullIfEmpty)
+      .max(PHONE_MAX, "الحد الأقصى 50 حرف")
       .test("phone", "رقم هاتف غير صالح", (value) => value == null || phoneRegex.test(value)),
     pere_tel_portable: yup
       .string()
       .trim()
-      .required("رقم هاتف الأب الجوال مطلوب")
-      .test("phone", "رقم هاتف غير صالح", (value) => phoneRegex.test(value)),
+      .nullable()
+      .transform(nullIfEmpty)
+      .max(PHONE_MAX, "الحد الأقصى 50 حرف")
+      .test("phone", "رقم هاتف غير صالح", (value) => value == null || phoneRegex.test(value)),
     pere_email: yup
       .string()
       .trim()
       .email("بريد إلكتروني غير صالح")
       .nullable()
+      .max(EMAIL_MAX, "الحد الأقصى 150 حرف")
       .transform(nullIfEmpty),
 
     mere_nom: yup
       .string()
       .trim()
-      .max(255, "الحد الأقصى 255 حرف")
+      .max(NAME_MAX, "الحد الأقصى 100 حرف")
       .required("لقب الأم مطلوب"),
     mere_prenom: yup
       .string()
       .trim()
-      .max(255, "الحد الأقصى 255 حرف")
+      .max(NAME_MAX, "الحد الأقصى 100 حرف")
       .required("اسم الأم مطلوب"),
     mere_naissance_date: yup
       .string()
@@ -310,13 +341,13 @@ const schema = yup
     mere_naissance_lieu: yup
       .string()
       .trim()
-      .max(255, "الحد الأقصى 255 حرف")
+      .max(150, "الحد الأقصى 150 حرف")
       .nullable()
       .transform(nullIfEmpty),
     mere_origine: yup
       .string()
       .trim()
-      .max(255, "الحد الأقصى 255 حرف")
+      .max(150, "الحد الأقصى 150 حرف")
       .nullable()
       .transform(nullIfEmpty),
     mere_cin_numero: yup
@@ -324,29 +355,30 @@ const schema = yup
       .trim()
       .nullable()
       .transform(nullIfEmpty)
+      .max(100, "الحد الأقصى 100 حرف")
       .test("cin", "رقم بطاقة تعريف غير صالح (8 أرقام)", (value) =>
         value == null || cinRegex.test(value)
       ),
     mere_cin_delivree_a: yup
       .string()
       .trim()
-      .max(255, "الحد الأقصى 255 حرف")
+      .max(150, "الحد الأقصى 150 حرف")
       .nullable()
       .transform(nullIfEmpty),
     mere_adresse: yup
       .string()
       .trim()
-      .max(500, "الحد الأقصى 500 حرف")
+      .max(ADDRESS_MAX, "الحد الأقصى 255 حرف")
       .required("عنوان الأم مطلوب"),
     mere_profession: yup
       .string()
       .trim()
-      .max(255, "الحد الأقصى 255 حرف")
+      .max(PROFESSION_MAX, "الحد الأقصى 150 حرف")
       .required("مهنة الأم مطلوبة"),
     mere_couverture_sociale: yup
       .string()
       .trim()
-      .max(255, "الحد الأقصى 255 حرف")
+      .max(COVERAGE_MAX, "الحد الأقصى 150 حرف")
       .nullable()
       .transform(nullIfEmpty),
     mere_tel_domicile: yup
@@ -354,40 +386,35 @@ const schema = yup
       .trim()
       .nullable()
       .transform(nullIfEmpty)
+      .max(PHONE_MAX, "الحد الأقصى 50 حرف")
       .test("phone", "رقم هاتف غير صالح", (value) => value == null || phoneRegex.test(value)),
     mere_tel_travail: yup
       .string()
       .trim()
       .nullable()
       .transform(nullIfEmpty)
+      .max(PHONE_MAX, "الحد الأقصى 50 حرف")
       .test("phone", "رقم هاتف غير صالح", (value) => value == null || phoneRegex.test(value)),
     mere_tel_portable: yup
       .string()
       .trim()
-      .required("رقم هاتف الأم الجوال مطلوب")
-      .test("phone", "رقم هاتف غير صالح", (value) => phoneRegex.test(value)),
+      .nullable()
+      .transform(nullIfEmpty)
+      .max(PHONE_MAX, "الحد الأقصى 50 حرف")
+      .test("phone", "رقم هاتف غير صالح", (value) => value == null || phoneRegex.test(value)),
     mere_email: yup
       .string()
       .trim()
       .email("بريد إلكتروني غير صالح")
       .nullable()
+      .max(EMAIL_MAX, "الحد الأقصى 150 حرف")
       .transform(nullIfEmpty),
   })
   .test(
     "at-least-one-contact",
     "يجب توفير وسيلة اتصال واحدة على الأقل (هاتف أو بريد) لأحد الوالدين",
     (values, ctx) => {
-      const contactFields = [
-        "pere_tel_portable",
-        "pere_tel_travail",
-        "pere_tel_domicile",
-        "pere_email",
-        "mere_tel_portable",
-        "mere_tel_travail",
-        "mere_tel_domicile",
-        "mere_email",
-      ];
-      const hasContact = contactFields.some((field) => {
+      const hasContact = CONTACT_FIELDS.some((field) => {
         const value = values?.[field];
         if (typeof value === "string") {
           return value.trim().length > 0;
@@ -544,7 +571,9 @@ export default function AddChildWizard() {
             <div ref={activeStepRef}>
               {step === 0 && <StepChild register={register} errors={errors} />}
               {step === 1 && <StepFiche register={register} errors={errors} />}
-              {step === 2 && <StepParents register={register} errors={errors} />}
+              {step === 2 && (
+                <StepParents register={register} errors={errors} control={control} />
+              )}
             </div>
 
             <PreviewPanel
@@ -1051,8 +1080,20 @@ function StepFiche({ register, errors }) {
     </div>
   );
 }
-function StepParents({ register, errors }) {
+function StepParents({ register, errors, control }) {
   const formLevelError = errors?.atLeastOneContact?.message;
+  const contactValues = control
+    ? useWatch({ control, name: CONTACT_FIELDS })
+    : [];
+  const contactCount = Array.isArray(contactValues)
+    ? contactValues.filter((value) => {
+        if (typeof value === "string") {
+          return value.trim().length > 0;
+        }
+        return Boolean(value);
+      }).length
+    : 0;
+  const hasContact = contactCount > 0;
   const TwoCols = ({ children }) => (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2">{children}</div>
   );
@@ -1065,6 +1106,28 @@ function StepParents({ register, errors }) {
 
   return (
     <div role="group" className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div
+        className={[
+          "md:col-span-2 flex items-center justify-between rounded-xl border px-4 py-3 text-sm",
+          hasContact
+            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+            : "border-amber-200 bg-amber-50 text-amber-700",
+        ].join(" ")}
+        aria-live="polite"
+      >
+        <div>
+          <p className="font-semibold">وسائل الاتصال</p>
+          <p className="text-xs opacity-90">
+            {hasContact
+              ? "تم توفير وسيلة اتصال على الأقل."
+              : "الرجاء إدخال رقم هاتف أو بريد إلكتروني لأحد الوالدين."}
+          </p>
+        </div>
+        <span className="text-xs font-medium">
+          {contactCount} / 1 مطلوب
+        </span>
+      </div>
+
       {formLevelError && (
         <div
           id="atLeastOneContact-error"
@@ -1242,7 +1305,6 @@ function StepParents({ register, errors }) {
           <Field
             id="pere_tel_portable"
             label="هاتف (جوال)"
-            required
             error={errors.pere_tel_portable?.message}
           >
             {({ id, describedBy }) => (
@@ -1440,7 +1502,6 @@ function StepParents({ register, errors }) {
           <Field
             id="mere_tel_portable"
             label="هاتف (جوال)"
-            required
             error={errors.mere_tel_portable?.message}
           >
             {({ id, describedBy }) => (

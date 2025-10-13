@@ -29,6 +29,7 @@ module.exports = (sequelize, DataTypes) => {
       pere_tel_domicile: { type: DataTypes.STRING, allowNull: true },
       pere_tel_travail: { type: DataTypes.STRING, allowNull: true },
       pere_tel_portable: { type: DataTypes.STRING, allowNull: true },
+      pere_email: { type: DataTypes.STRING(150), allowNull: true },
 
       // Mère
       mere_nom: { type: DataTypes.STRING, allowNull: true },
@@ -44,6 +45,7 @@ module.exports = (sequelize, DataTypes) => {
       mere_tel_domicile: { type: DataTypes.STRING, allowNull: true },
       mere_tel_travail: { type: DataTypes.STRING, allowNull: true },
       mere_tel_portable: { type: DataTypes.STRING, allowNull: true },
+      mere_email: { type: DataTypes.STRING(150), allowNull: true },
 
       created_at: { type: DataTypes.DATE, allowNull: true },
       updated_at: { type: DataTypes.DATE, allowNull: true },
