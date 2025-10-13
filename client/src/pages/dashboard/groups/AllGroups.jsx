@@ -53,6 +53,15 @@ export default function AllGroupes() {
 
   // Years
   const anneesQ = useQuery({ queryKey: ["annees"], queryFn: listAnnees });
+  const anneesOptions = useMemo(() => {
+    const raw = anneesQ.data;
+    if (Array.isArray(raw)) return raw;
+    if (raw && typeof raw === "object") {
+      if (Array.isArray(raw.data)) return raw.data;
+      if (Array.isArray(raw.items)) return raw.items;
+    }
+    return [];
+  }, [anneesQ.data]);
   const activeAnneeQ = useQuery({
     queryKey: ["anneeActive"],
     queryFn: getActiveAnnee,
@@ -185,7 +194,7 @@ export default function AllGroupes() {
               }
             >
               {!effectiveAnneeId && <option value="">— اختر السنة —</option>}
-              {(anneesQ.data || []).map((a) => (
+              {anneesOptions.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.libelle} {a.est_active ? "• الحالية" : ""}
                 </option>
@@ -289,7 +298,7 @@ export default function AllGroupes() {
                 data.map((g) => {
                   const isArchived = g.statut === "archive";
                   const yearLib =
-                    (anneesQ.data || []).find((a) => a.id === g.annee_id)
+                    anneesOptions.find((a) => a.id === g.annee_id)
                       ?.libelle || "—";
                   return (
                     <tr key={g.id} className="border-t">
@@ -409,7 +418,7 @@ export default function AllGroupes() {
       <GroupeFormModal
         open={showForm}
         initial={editing}
-        annees={anneesQ.data || []}
+        annees={anneesOptions}
         onClose={() => {
           setShowForm(false);
           setEditing(null);

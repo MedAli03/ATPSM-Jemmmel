@@ -114,6 +114,16 @@ export default function AllEducators() {
   }, [filters.search]);
 
   const anneesQuery = useQuery({ queryKey: ["annees"], queryFn: listAnnees });
+
+  const anneesOptions = useMemo(() => {
+    const raw = anneesQuery.data;
+    if (Array.isArray(raw)) return raw;
+    if (raw && typeof raw === "object") {
+      if (Array.isArray(raw.data)) return raw.data;
+      if (Array.isArray(raw.items)) return raw.items;
+    }
+    return [];
+  }, [anneesQuery.data]);
   const activeAnneeQuery = useQuery({
     queryKey: ["anneeActive"],
     queryFn: getActiveAnnee,
@@ -379,7 +389,7 @@ export default function AllEducators() {
               }
             >
               <option value="">كل السنوات الدراسية</option>
-              {(anneesQuery.data || []).map((annee) => (
+              {anneesOptions.map((annee) => (
                 <option key={annee.id} value={annee.id}>
                   {annee.libelle || annee.nom || `سنة ${annee.id}`}
                 </option>

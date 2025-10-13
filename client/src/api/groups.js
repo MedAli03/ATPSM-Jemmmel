@@ -21,7 +21,18 @@ function toArray(x) {
 /* --------------------------- années scolaires --------------------------- */
 export async function listAnnees() {
   const res = await client.get("/annees");
-  return unwrap(res) || [];
+  const data = unwrap(res);
+
+  if (Array.isArray(data)) return data;
+
+  if (data && typeof data === "object") {
+    if (Array.isArray(data.data)) return data.data;
+    if (Array.isArray(data.items)) return data.items;
+  }
+
+  if (Array.isArray(res?.data?.data)) return res.data.data;
+
+  return [];
 }
 
 export async function getActiveAnnee() {
