@@ -9,5 +9,6 @@ router.get("/hero", ctrl.hero);
 router.get("/highlights", ctrl.highlights);
 router.get("/footer", ctrl.footer);
 router.get("/contact", ctrl.contact);
+router.get("/about", ctrl.about);
 
 module.exports = router;

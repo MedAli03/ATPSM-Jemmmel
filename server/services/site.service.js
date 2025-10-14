@@ -41,6 +41,60 @@ const FALLBACK_NAVIGATION = {
   cta: { label: "تواصل معنا", href: "/contact" },
 };
 
+const FALLBACK_ABOUT = {
+  heading: "نصنع الفارق مع أطفال طيف التوحد وأسرهم",
+  intro:
+    "منذ تأسيس الجمعية ونحن نوحّد جهود المختصين والمتطوعين لرسم مسار تعليمي وعلاجي إنساني يرتكز على احترام خصوصية كل طفل.",
+  story:
+    "نواكب العائلات منذ اللحظة الأولى للتشخيص بتقييمات دقيقة، خطط فردية، ومتابعة متعددة التخصصات تعزز ثقة الأسرة والطفل في رحلتهما.",
+  highlights: [
+    {
+      id: "family",
+      title: "شراكة مع العائلات",
+      description: "لقاءات دورية، مجموعات دعم، واستشارات فردية تبقي الأسرة محور الاهتمام.",
+    },
+    {
+      id: "programs",
+      title: "برامج علاجية متكاملة",
+      description: "فرق متخصصة في العلاج الوظيفي والنطق والتربية الخاصة بتكامل مع المدرسة.",
+    },
+    {
+      id: "community",
+      title: "مجتمع داعم وفعّال",
+      description: "شبكة متطوعين وخبراء تبني مبادرات توعوية وورشات دمج على مدار العام.",
+    },
+  ],
+  pillars: [
+    {
+      id: "vision",
+      title: "الرؤية",
+      points: [
+        "مجتمع تونسي يحتضن جميع الأطفال دون استثناء",
+        "حضور وطني للبرامج النوعية الموجهة لطيف التوحد",
+      ],
+    },
+    {
+      id: "mission",
+      title: "الرسالة",
+      points: [
+        "تمكين الطفل من مهارات الاستقلال والتواصل",
+        "تأهيل الأسرة بالأدوات العملية والدعم النفسي",
+        "العمل مع الشركاء لتسهيل الاندماج المدرسي والمجتمعي",
+      ],
+    },
+    {
+      id: "values",
+      title: "قيمنا",
+      points: [
+        "التعاطف والاحترام",
+        "الابتكار والاستناد للأدلة العلمية",
+        "الشفافية والعمل المشترك",
+      ],
+    },
+  ],
+  cta: { label: "اكتشف خدماتنا", href: "/services/education" },
+};
+
 const FALLBACK_FOOTER = {
   about: {
     title: "جمعية الحمائم",
@@ -245,6 +299,8 @@ async function getHeadlineStats() {
 
 exports.getNavigation = async () => ({ ...FALLBACK_NAVIGATION });
 
+exports.getAbout = async () => ({ ...FALLBACK_ABOUT });
+
 exports.getFooter = async () => ({ ...FALLBACK_FOOTER });
 
 exports.getHero = async () => ({ slides: await getHeroSlides() });
@@ -261,13 +317,14 @@ exports.getContact = async () => ({
 });
 
 exports.getOverview = async () => {
-  const [navigation, hero, highlights, footer, contact] = await Promise.all([
+  const [navigation, hero, highlights, footer, contact, about] = await Promise.all([
     exports.getNavigation(),
     exports.getHero(),
     exports.getHighlights(),
     exports.getFooter(),
     exports.getContact(),
+    exports.getAbout(),
   ]);
 
-  return { navigation, hero, highlights, footer, contact };
+  return { navigation, hero, highlights, footer, contact, about };
 };

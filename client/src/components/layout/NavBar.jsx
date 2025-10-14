@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { FiChevronDown, FiMenu, FiX } from "react-icons/fi";
+import {
+  FiChevronDown,
+  FiLogIn,
+  FiMail,
+  FiMenu,
+  FiPhone,
+  FiX,
+} from "react-icons/fi";
 import { useSiteOverview } from "../../hooks/useSiteOverview";
 
 const FALLBACK_NAVIGATION = {
@@ -31,6 +38,11 @@ const FALLBACK_NAVIGATION = {
     { label: "الفعاليات", href: "/events" },
   ],
   cta: { label: "تواصل معنا", href: "/contact" },
+};
+
+const FALLBACK_CONTACT = {
+  phone: "+216 73 000 000",
+  email: "contact@hamaim.tn",
 };
 
 function isValidArray(value) {
@@ -66,6 +78,7 @@ const NavBar = () => {
   const location = useLocation();
   const { data, isLoading } = useSiteOverview();
   const navigation = data?.navigation ?? FALLBACK_NAVIGATION;
+  const contact = data?.contact ?? FALLBACK_CONTACT;
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [expandedDropdown, setExpandedDropdown] = useState(null);
@@ -104,10 +117,44 @@ const NavBar = () => {
         className={`fixed inset-x-0 top-0 z-50 border-b border-transparent transition ${
           scrolled
             ? "bg-white/95 border-slate-100 shadow-sm backdrop-blur"
-            : "bg-white/60 backdrop-blur-lg"
+            : "bg-white/70 backdrop-blur-lg"
         }`}
         dir="rtl"
       >
+        <div className="hidden border-b border-white/30 bg-slate-900/95 text-white backdrop-blur-sm lg:block">
+          <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2 text-xs sm:px-6">
+            <div className="flex items-center gap-4">
+              {contact.phone && (
+                <a
+                  href={`tel:${contact.phone}`}
+                  className="inline-flex items-center gap-2 text-slate-200 transition hover:text-white"
+                >
+                  <FiPhone className="h-4 w-4" />
+                  <span>{contact.phone}</span>
+                </a>
+              )}
+              {contact.email && (
+                <a
+                  href={`mailto:${contact.email}`}
+                  className="inline-flex items-center gap-2 text-slate-200 transition hover:text-white"
+                >
+                  <FiMail className="h-4 w-4" />
+                  <span>{contact.email}</span>
+                </a>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-slate-200">بوابة الإدارة</span>
+              <Link
+                to="/login"
+                className="inline-flex items-center gap-2 rounded-full border border-white/40 px-3 py-1 font-semibold text-white transition hover:border-white hover:bg-white/10"
+              >
+                <FiLogIn className="h-4 w-4" />
+                تسجيل الدخول
+              </Link>
+            </div>
+          </div>
+        </div>
         <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6">
           <Link to="/" className="flex items-center gap-3" aria-label="العودة للرئيسية">
             <span className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-indigo-50">
@@ -197,14 +244,23 @@ const NavBar = () => {
                 </Link>
               );
             })}
-            {navigation.cta?.href && (
+            <div className="flex items-center gap-3">
               <Link
-                to={navigation.cta.href}
-                className={`${buttonBase} border-indigo-500 bg-indigo-500 text-white hover:-translate-y-0.5 hover:shadow-lg focus-visible:ring-indigo-600`}
+                to="/login"
+                className={`${buttonBase} border-slate-200 bg-white text-slate-700 shadow-sm hover:-translate-y-0.5 hover:border-indigo-200 hover:text-indigo-600 focus-visible:ring-indigo-200`}
               >
-                {navigation.cta.label || "تواصل معنا"}
+                <FiLogIn className="h-4 w-4" />
+                دخول الإدارة
               </Link>
-            )}
+              {navigation.cta?.href && (
+                <Link
+                  to={navigation.cta.href}
+                  className={`${buttonBase} border-indigo-500 bg-indigo-500 text-white hover:-translate-y-0.5 hover:shadow-lg focus-visible:ring-indigo-600`}
+                >
+                  {navigation.cta.label || "تواصل معنا"}
+                </Link>
+              )}
+            </div>
           </nav>
 
           <button
@@ -279,6 +335,12 @@ const NavBar = () => {
                   </Link>
                 );
               })}
+              <Link
+                to="/login"
+                className="block rounded-3xl border border-slate-200 bg-white px-5 py-3 text-center text-base font-semibold text-slate-800 shadow-sm transition hover:border-indigo-200 hover:text-indigo-600"
+              >
+                دخول الإدارة
+              </Link>
               {navigation.cta?.href && (
                 <Link
                   to={navigation.cta.href}
@@ -291,7 +353,7 @@ const NavBar = () => {
           </div>
         </div>
       </header>
-      <div className="h-20" aria-hidden="true" />
+      <div className="h-[6.5rem] lg:h-[8.5rem]" aria-hidden="true" />
     </>
   );
 };

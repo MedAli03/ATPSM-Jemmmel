@@ -37,3 +37,8 @@ export async function fetchSiteContact() {
   const res = await client.get("/site/contact");
   return unwrap(res);
 }
+
+export async function fetchSiteAbout() {
+  const res = await client.get("/site/about");
+  return unwrap(res);
+}

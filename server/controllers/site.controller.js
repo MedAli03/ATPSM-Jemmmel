@@ -59,3 +59,12 @@ exports.contact = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.about = async (req, res, next) => {
+  try {
+    const data = await service.getAbout();
+    respond(res, data);
+  } catch (err) {
+    next(err);
+  }
+};

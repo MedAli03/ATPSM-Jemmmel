@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import {
   FiBookOpen,
   FiCalendar,
+  FiHeart,
   FiLayers,
   FiUsers,
   FiUserCheck,
@@ -10,8 +11,9 @@ import { useSiteOverview } from "../../hooks/useSiteOverview";
 
 const METRICS = [
   { key: "children", label: "الأطفال المستفيدون", icon: FiUsers, accent: "from-indigo-500 to-indigo-400" },
-  { key: "parents", label: "الأسر المساندة", icon: FiUserCheck, accent: "from-emerald-500 to-emerald-400" },
-  { key: "educators", label: "المربون المختصون", icon: FiLayers, accent: "from-violet-500 to-violet-400" },
+  { key: "parents", label: "الأسر المساندة", icon: FiHeart, accent: "from-rose-500 to-rose-400" },
+  { key: "educators", label: "المختصون العاملون", icon: FiUserCheck, accent: "from-violet-500 to-violet-400" },
+  { key: "activeGroups", label: "المجموعات النشطة", icon: FiLayers, accent: "from-emerald-500 to-emerald-400" },
   { key: "events", label: "فعاليات سنوية", icon: FiCalendar, accent: "from-sky-500 to-sky-400" },
   { key: "news", label: "أخبار منشورة", icon: FiBookOpen, accent: "from-amber-500 to-amber-400" },
 ];
@@ -35,8 +37,16 @@ const Stats = () => {
               <span className="text-sm font-semibold text-indigo-100">أثر الجمعية بالأرقام</span>
               <h2 className="mt-3 text-3xl font-black leading-tight">نحتضن أطفال طيف التوحد وأسرهم برؤية علمية وإنسانية.</h2>
               <p className="mt-4 text-sm text-indigo-100/80">
-                تعكس هذه المؤشرات آخر ما تم تسجيله داخل المنظومة الرقمية للجمعية.
+                تعكس هذه المؤشرات البيانات الحية داخل منصتنا الرقمية وتبرز جهود الفرق الميدانية وشركائنا.
               </p>
+              <div className="mt-6 flex flex-wrap justify-end gap-3 text-xs text-indigo-100/70">
+                <span>
+                  {`يقود ${formatNumber(stats.educators)} مختص ${formatNumber(stats.children)} طفلًا عبر ${formatNumber(
+                    stats.activeGroups
+                  )} مجموعات نشطة.`}
+                </span>
+                <span>{`نواكب ${formatNumber(stats.parents)} أسرة بالاستشارات والتدريب.`}</span>
+              </div>
             </div>
             <div className="grid w-full gap-5 sm:grid-cols-2 lg:w-auto lg:grid-cols-3">
               {METRICS.map((metric) => {

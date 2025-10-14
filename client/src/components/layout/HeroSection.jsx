@@ -6,7 +6,10 @@ import {
   FiChevronLeft,
   FiChevronRight,
   FiClock,
+  FiCompass,
+  FiHeart,
   FiMapPin,
+  FiUsers,
 } from "react-icons/fi";
 import { useSiteOverview } from "../../hooks/useSiteOverview";
 import "slick-carousel/slick/slick.css";
@@ -22,6 +25,33 @@ const FALLBACK_SLIDES = [
     ctaSecondary: { label: "تواصل معنا", href: "/contact" },
   },
 ];
+
+const FALLBACK_FEATURES = [
+  {
+    id: "family",
+    title: "مرافقة يومية للأسر",
+    description: "جلسات إرشاد واستشارات فردية لضمان استمرارية الخطة في المنزل.",
+    icon: FiHeart,
+  },
+  {
+    id: "programs",
+    title: "برامج علاجية متخصصة",
+    description: "جلسات علاج وظيفي ونطق وتربية خاصة يقودها فريق متعدد الاختصاصات.",
+    icon: FiUsers,
+  },
+  {
+    id: "community",
+    title: "مجتمع داعم",
+    description: "شراكات مع المدارس والمجتمع المدني لتعزيز الدمج والتوعية.",
+    icon: FiCompass,
+  },
+];
+
+const FEATURE_ICON_MAP = {
+  family: FiHeart,
+  programs: FiUsers,
+  community: FiCompass,
+};
 
 function formatDate(value, options = {}) {
   if (!value) return null;
@@ -55,6 +85,17 @@ const HeroSection = () => {
     }
     return [];
   }, [data?.highlights?.events]);
+
+  const featureCards = useMemo(() => {
+    const highlights = data?.about?.highlights;
+    if (Array.isArray(highlights) && highlights.length) {
+      return highlights.slice(0, 3).map((item, index) => ({
+        ...item,
+        icon: FEATURE_ICON_MAP[item.id] || FEATURE_ICON_MAP[FALLBACK_FEATURES[index]?.id] || FiCompass,
+      }));
+    }
+    return FALLBACK_FEATURES;
+  }, [data?.about?.highlights]);
 
   const settings = {
     dots: true,
@@ -169,6 +210,29 @@ const HeroSection = () => {
           </ul>
         </aside>
       )}
+      <div className="relative mx-auto -mt-16 w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {featureCards.map((feature) => {
+            const Icon = feature.icon || FiCompass;
+            return (
+              <div
+                key={feature.id || feature.title}
+                className="group overflow-hidden rounded-3xl border border-white/20 bg-white/90 p-5 text-right shadow-xl backdrop-blur"
+              >
+                <div className="flex items-center justify-end gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-500">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <h3 className="text-base font-semibold text-slate-900">{feature.title}</h3>
+                </div>
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  {feature.description}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </section>
   );
 };
