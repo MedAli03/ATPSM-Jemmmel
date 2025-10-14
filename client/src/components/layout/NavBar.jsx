@@ -9,6 +9,7 @@ import {
   FiX,
 } from "react-icons/fi";
 import { useSiteOverview } from "../../hooks/useSiteOverview";
+import { resolveApiAssetPath } from "../../utils/url";
 
 const FALLBACK_NAVIGATION = {
   logo: {
@@ -107,6 +108,13 @@ const NavBar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [expandedDropdown, setExpandedDropdown] = useState(null);
+
+  const logoSrc = useMemo(() => {
+    if (navigation.logo?.src) {
+      return resolveApiAssetPath(navigation.logo.src) || navigation.logo.src;
+    }
+    return FALLBACK_NAVIGATION.logo.src;
+  }, [navigation.logo?.src]);
 
   const primaryLinks = useMemo(() => {
     const source = isValidArray(navigation.primary)
@@ -207,7 +215,7 @@ const NavBar = () => {
           <Link to="/" className="flex items-center gap-3" aria-label="العودة للرئيسية">
             <span className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-indigo-50">
               <img
-                src={navigation.logo?.src || FALLBACK_NAVIGATION.logo.src}
+                src={logoSrc}
                 alt={navigation.logo?.alt || FALLBACK_NAVIGATION.logo.alt}
                 className="h-14 w-14 object-cover"
                 loading="lazy"

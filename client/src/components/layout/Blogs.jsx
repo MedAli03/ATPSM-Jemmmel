@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiArrowLeft, FiCalendar, FiChevronLeft, FiMapPin } from "react-icons/fi";
 import { useSiteOverview } from "../../hooks/useSiteOverview";
+import { resolveApiAssetPath } from "../../utils/url";
 
 const BlogSection = () => {
   const navigate = useNavigate();
@@ -9,7 +10,10 @@ const BlogSection = () => {
 
   const news = useMemo(() => {
     if (Array.isArray(data?.highlights?.news)) {
-      return data.highlights.news.slice(0, 4);
+      return data.highlights.news.slice(0, 4).map((item) => ({
+        ...item,
+        couverture_url: resolveApiAssetPath(item?.couverture_url) || item?.couverture_url || null,
+      }));
     }
     return [];
   }, [data?.highlights?.news]);

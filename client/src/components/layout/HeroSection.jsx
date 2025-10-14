@@ -12,6 +12,7 @@ import {
   FiUsers,
 } from "react-icons/fi";
 import { useSiteOverview } from "../../hooks/useSiteOverview";
+import { resolveApiAssetPath } from "../../utils/url";
 
 const AUTOPLAY_MS = 8000;
 
@@ -117,10 +118,16 @@ const HeroSection = () => {
       }
       seen.add(uniqueKey);
 
+      const resolvedGallery = gallery
+        .map((image) => resolveApiAssetPath(image) || null)
+        .filter(Boolean);
+      const resolvedImage = resolveApiAssetPath(merged.image) || fallback.image;
+
       return {
         ...merged,
-        image: merged.image || fallback.image,
-        gallery,
+        image: resolvedImage,
+        gallery: resolvedGallery,
+        preview: resolvedImage || resolveApiAssetPath(fallback.image) || fallback.image,
         ctaPrimary: merged.ctaPrimary || fallback.ctaPrimary,
         ctaSecondary: merged.ctaSecondary || fallback.ctaSecondary,
         tag: merged.tag || fallback.tag || "مبادرة الجمعية",
@@ -132,6 +139,15 @@ const HeroSection = () => {
   const slideCount = slides.length;
   const [activeIndex, setActiveIndex] = useState(0);
   const autoplayRef = useRef(null);
+  const rafRef = useRef(null);
+  const [progress, setProgress] = useState(0);
+
+  const cancelProgress = useCallback(() => {
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     if (activeIndex > slideCount - 1) {
@@ -148,17 +164,26 @@ const HeroSection = () => {
 
   const restartAutoplay = useCallback(() => {
     clearAutoplay();
-    if (slideCount <= 1) return;
+    cancelProgress();
+    if (slideCount <= 1) {
+      setProgress(1);
+      return;
+    }
+
+    setProgress(0);
 
     autoplayRef.current = setInterval(() => {
       setActiveIndex((prev) => (prev + 1) % slideCount);
     }, AUTOPLAY_MS);
-  }, [clearAutoplay, slideCount]);
+  }, [cancelProgress, clearAutoplay, slideCount]);
 
   useEffect(() => {
     restartAutoplay();
-    return clearAutoplay;
-  }, [restartAutoplay, clearAutoplay]);
+    return () => {
+      clearAutoplay();
+      cancelProgress();
+    };
+  }, [restartAutoplay, clearAutoplay, cancelProgress]);
 
   const goTo = useCallback(
     (index) => {
@@ -187,14 +212,29 @@ const HeroSection = () => {
 
   const heroImages = useMemo(() => {
     if (!activeSlide) return [];
-    const images = [
+    const fallback = FALLBACK_SLIDES[activeIndex % FALLBACK_SLIDES.length] || {};
+    const fallbackGallery = Array.isArray(fallback.gallery) ? fallback.gallery : [];
+    const requested = [
       activeSlide.image,
       ...(Array.isArray(activeSlide.gallery) ? activeSlide.gallery : []),
-    ]
-      .filter(Boolean)
-      .slice(0, 3);
-    return images;
-  }, [activeSlide]);
+    ].filter(Boolean);
+    const fallbackImages = [fallback.image, ...fallbackGallery].filter(Boolean);
+
+    const ordered = [...requested, ...fallbackImages].map(
+      (image) => resolveApiAssetPath(image) || image
+    );
+
+    const deduped = [];
+    const seen = new Set();
+    for (const image of ordered) {
+      if (!image || seen.has(image)) continue;
+      seen.add(image);
+      deduped.push(image);
+      if (deduped.length === 3) break;
+    }
+
+    return deduped;
+  }, [activeSlide, activeIndex]);
 
   const events = useMemo(() => {
     if (Array.isArray(data?.highlights?.events)) {
@@ -234,6 +274,32 @@ const HeroSection = () => {
       })
       .filter(Boolean);
   }, [data?.highlights?.stats]);
+
+  useEffect(() => {
+    cancelProgress();
+    if (slideCount <= 1) {
+      setProgress(1);
+      return undefined;
+    }
+
+    setProgress(0);
+    const start = performance.now();
+
+    const step = (timestamp) => {
+      const elapsed = timestamp - start;
+      const ratio = Math.min(elapsed / AUTOPLAY_MS, 1);
+      setProgress(ratio);
+      if (ratio < 1) {
+        rafRef.current = requestAnimationFrame(step);
+      }
+    };
+
+    rafRef.current = requestAnimationFrame(step);
+
+    return () => {
+      cancelProgress();
+    };
+  }, [activeIndex, cancelProgress, slideCount]);
 
   return (
     <section className="relative overflow-hidden bg-slate-950 text-white" dir="rtl">
@@ -324,14 +390,20 @@ const HeroSection = () => {
                       key={slide._key}
                       type="button"
                       onClick={() => goTo(index)}
-                      className={`h-2.5 rounded-full transition ${
+                      className={`relative overflow-hidden rounded-full transition ${
                         isActive
-                          ? "w-8 bg-indigo-400"
-                          : "w-2.5 bg-white/30 hover:bg-white/60"
+                          ? "h-2.5 w-12 bg-white/25"
+                          : "h-2.5 w-2.5 bg-white/25 hover:bg-white/60"
                       }`}
                       aria-label={`الانتقال إلى الشريحة ${index + 1}`}
                       aria-current={isActive ? "true" : undefined}
                     >
+                      {isActive && (
+                        <span
+                          className="absolute inset-y-0 right-0 rounded-full bg-white"
+                          style={{ width: `${Math.max(progress, 0.08) * 100}%` }}
+                        />
+                      )}
                       <span className="sr-only">{slide.title}</span>
                     </button>
                   );
@@ -348,54 +420,62 @@ const HeroSection = () => {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 1.02, y: -18 }}
                 transition={{ duration: 0.6, ease: "easeOut" }}
-                className="relative w-full max-w-xl"
+                className="relative w-full max-w-2xl"
               >
-                <div className="relative h-[440px] overflow-hidden rounded-[2.75rem] border border-white/15 bg-white/5 shadow-[0_45px_90px_rgba(15,23,42,0.45)]">
-                  {heroImages[0] && (
-                    <img
-                      src={heroImages[0]}
-                      alt={activeSlide?.title}
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                    />
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/65 via-transparent to-transparent" aria-hidden="true" />
+                <div className="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full bg-indigo-400/30 blur-3xl" aria-hidden />
+                <div className="pointer-events-none absolute -left-16 bottom-0 h-40 w-40 rounded-full bg-sky-400/20 blur-3xl" aria-hidden />
+
+                <div className="relative grid h-[440px] gap-4 sm:h-[520px] sm:grid-cols-[minmax(0,1.35fr)_minmax(0,0.75fr)]">
+                  <figure className="group relative overflow-hidden rounded-[2.75rem] border border-white/12 bg-white/5 shadow-[0_45px_90px_rgba(15,23,42,0.45)]">
+                    {heroImages[0] ? (
+                      <img
+                        src={heroImages[0]}
+                        alt={activeSlide?.title}
+                        className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.02]"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-slate-900/40 text-4xl text-indigo-300">
+                        <FiUsers aria-hidden="true" />
+                      </div>
+                    )}
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent" aria-hidden="true" />
+                  </figure>
+
+                  <div className="hidden h-full flex-col gap-4 sm:flex">
+                    {[heroImages[1], heroImages[2]].map((image, idx) => (
+                      <motion.figure
+                        // eslint-disable-next-line react/no-array-index-key
+                        key={`${activeSlide?._key}-support-${idx}`}
+                        initial={{ opacity: 0, y: 16 }}
+                        animate={{ opacity: image ? 1 : 0.6, y: 0 }}
+                        exit={{ opacity: 0, y: -12 }}
+                        transition={{ duration: 0.45, delay: idx * 0.08, ease: "easeOut" }}
+                        className="relative flex-1 overflow-hidden rounded-[1.75rem] border border-white/12 bg-white/5 shadow-[0_25px_55px_rgba(15,23,42,0.45)]"
+                        aria-hidden={!image}
+                      >
+                        {image ? (
+                          <img
+                            src={image}
+                            alt=""
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center bg-slate-900/40 text-2xl text-indigo-200">
+                            <FiHeart aria-hidden="true" />
+                          </div>
+                        )}
+                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-slate-950/40 via-transparent to-transparent" aria-hidden />
+                      </motion.figure>
+                    ))}
+                  </div>
                 </div>
 
-                {heroImages[1] && (
-                  <motion.img
-                    key={`${activeSlide?._key}-secondary`}
-                    src={heroImages[1]}
-                    alt=""
-                    aria-hidden="true"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.45, delay: 0.1, ease: "easeOut" }}
-                    className="absolute -left-12 top-16 hidden h-44 w-36 rounded-3xl border-4 border-slate-950 object-cover shadow-2xl sm:block"
-                    loading="lazy"
-                  />
-                )}
-
-                {heroImages[2] && (
-                  <motion.img
-                    key={`${activeSlide?._key}-tertiary`}
-                    src={heroImages[2]}
-                    alt=""
-                    aria-hidden="true"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.45, delay: 0.2, ease: "easeOut" }}
-                    className="absolute -right-10 bottom-12 hidden h-48 w-40 rounded-3xl border-4 border-slate-950 object-cover shadow-xl sm:block"
-                    loading="lazy"
-                  />
-                )}
-
                 {statChips.length > 0 && (
-                  <div className="absolute -bottom-6 left-1/2 flex w-max -translate-x-1/2 items-center gap-4 rounded-full border border-white/15 bg-white/10 px-5 py-2 text-xs font-semibold text-white backdrop-blur">
-                    {statChips.slice(0, 2).map((stat) => (
-                      <span key={stat.id} className="flex items-center gap-2">
+                  <div className="absolute -bottom-8 left-1/2 hidden w-max -translate-x-1/2 items-center gap-4 rounded-full border border-white/15 bg-white/10 px-6 py-3 text-xs font-semibold text-white backdrop-blur sm:flex">
+                    {statChips.slice(0, 3).map((stat) => (
+                      <span key={stat.id} className="flex items-center gap-2 whitespace-nowrap">
                         <span className="text-base font-bold text-white">{stat.formatted}</span>
                         <span className="text-[0.7rem] text-slate-100/90">{stat.label}</span>
                       </span>
@@ -406,6 +486,52 @@ const HeroSection = () => {
             </AnimatePresence>
           </div>
         </div>
+
+        {slides.length > 1 && (
+          <div className="hidden items-stretch justify-end gap-4 lg:flex">
+            {slides.map((slide, index) => {
+              const isActive = index === activeIndex;
+              const preview = resolveApiAssetPath(slide.preview || slide.image) || slide.image;
+              return (
+                <button
+                  key={`preview-${slide._key}`}
+                  type="button"
+                  onClick={() => goTo(index)}
+                  className={`group relative w-40 overflow-hidden rounded-3xl border transition ${
+                    isActive
+                      ? "border-indigo-300/70 shadow-[0_25px_55px_rgba(67,56,202,0.35)]"
+                      : "border-white/10 hover:border-indigo-200/50"
+                  }`}
+                  aria-label={`معاينة ${slide.title}`}
+                >
+                  <div className="aspect-[4/3] overflow-hidden bg-white/5">
+                    {preview ? (
+                      <img
+                        src={preview}
+                        alt=""
+                        className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-slate-900/40 text-indigo-200">
+                        <FiCompass className="h-6 w-6" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-1 px-4 py-3 text-right">
+                    <p className="text-[0.7rem] font-semibold uppercase tracking-wide text-indigo-200/80">
+                      {slide.tag}
+                    </p>
+                    <p className="text-sm font-bold text-white line-clamp-2">{slide.title}</p>
+                  </div>
+                  {isActive && (
+                    <span className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-l from-indigo-400 via-sky-400 to-violet-400" aria-hidden />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
