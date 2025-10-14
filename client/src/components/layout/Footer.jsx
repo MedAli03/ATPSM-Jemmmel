@@ -65,10 +65,41 @@ const Footer = () => {
   const { data } = useSiteOverview();
   const footer = data?.footer ?? FALLBACK_FOOTER;
   const contact = footer.contact ?? FALLBACK_FOOTER.contact;
-  const columns = useMemo(
-    () => (Array.isArray(footer.columns) && footer.columns.length ? footer.columns : FALLBACK_FOOTER.columns),
-    [footer.columns]
-  );
+  const columns = useMemo(() => {
+    const source = Array.isArray(footer.columns) && footer.columns.length
+      ? footer.columns
+      : FALLBACK_FOOTER.columns;
+
+    return source.map((column, columnIndex) => {
+      const linksSource = Array.isArray(column.links) ? column.links : [];
+      const seenLinks = new Set();
+
+      const links = linksSource
+        .filter((link) => link && (link.href || link.label))
+        .map((link, linkIndex) => {
+          const baseKey = link.href || link.label || `link-${linkIndex}`;
+          let uniqueKey = baseKey;
+          let attempt = 1;
+
+          while (seenLinks.has(uniqueKey)) {
+            uniqueKey = `${baseKey}-${attempt++}`;
+          }
+
+          seenLinks.add(uniqueKey);
+
+          return {
+            ...link,
+            _key: `${columnIndex}-${uniqueKey}`,
+          };
+        });
+
+      return {
+        ...column,
+        _key: column.title ? `${column.title}-${columnIndex}` : `column-${columnIndex}`,
+        links,
+      };
+    });
+  }, [footer.columns]);
   const socialLinks = useMemo(
     () => (Array.isArray(footer.social) && footer.social.length ? footer.social : FALLBACK_FOOTER.social),
     [footer.social]
@@ -133,12 +164,11 @@ const Footer = () => {
           </div>
 
           {columns.map((column) => (
-            <div key={column.title} className="space-y-4">
+            <div key={column._key} className="space-y-4">
               <h3 className="text-lg font-semibold text-white">{column.title}</h3>
               <ul className="space-y-3 text-sm text-slate-300">
-                {Array.isArray(column.links) &&
-                  column.links.map((link) => (
-                    <li key={link.href || link.label}>
+                {column.links.map((link) => (
+                    <li key={link._key}>
                       <Link
                         to={link.href}
                         className="transition hover:text-white hover:underline"

@@ -74,6 +74,31 @@ const mobileDropdownInner = "flex flex-col gap-2 py-2";
 const iconButtonClasses =
   "inline-flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm backdrop-blur transition hover:border-indigo-300 hover:text-indigo-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400";
 
+function normalizeChildren(children, prefix) {
+  if (!isValidArray(children)) return [];
+
+  const seen = new Set();
+
+  return children
+    .filter((child) => child && (child.href || child.label))
+    .map((child, index) => {
+      const baseKey = child.href || child.label || `${prefix}-child-${index}`;
+      let uniqueKey = baseKey;
+      let attempt = 1;
+
+      while (seen.has(uniqueKey)) {
+        uniqueKey = `${baseKey}-${attempt++}`;
+      }
+
+      seen.add(uniqueKey);
+
+      return {
+        ...child,
+        _key: `${prefix}-${uniqueKey}`,
+      };
+    });
+}
+
 const NavBar = () => {
   const location = useLocation();
   const { data, isLoading } = useSiteOverview();
@@ -83,10 +108,33 @@ const NavBar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [expandedDropdown, setExpandedDropdown] = useState(null);
 
-  const primaryLinks = useMemo(
-    () => (isValidArray(navigation.primary) ? navigation.primary : FALLBACK_NAVIGATION.primary),
-    [navigation.primary]
-  );
+  const primaryLinks = useMemo(() => {
+    const source = isValidArray(navigation.primary)
+      ? navigation.primary
+      : FALLBACK_NAVIGATION.primary;
+
+    const seen = new Set();
+
+    return source
+      .filter((link) => link && (link.href || link.label))
+      .map((link, index) => {
+        const baseKey = link.href || link.label || `nav-${index}`;
+        let uniqueKey = baseKey;
+        let attempt = 1;
+
+        while (seen.has(uniqueKey)) {
+          uniqueKey = `${baseKey}-${attempt++}`;
+        }
+
+        seen.add(uniqueKey);
+
+        return {
+          ...link,
+          _key: uniqueKey,
+          children: normalizeChildren(link.children, uniqueKey),
+        };
+      });
+  }, [navigation.primary]);
 
   useEffect(() => {
     setMobileOpen(false);
@@ -100,8 +148,8 @@ const NavBar = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const toggleDropdown = (label) => {
-    setExpandedDropdown((current) => (current === label ? null : label));
+  const toggleDropdown = (key) => {
+    setExpandedDropdown((current) => (current === key ? null : key));
   };
 
   const activeLinkClass = (href, children) => {
@@ -189,7 +237,7 @@ const NavBar = () => {
                   .filter(Boolean)
                   .join(" ");
 
-                const isDropdownOpen = expandedDropdown === link.label;
+                const isDropdownOpen = expandedDropdown === link._key;
                 const dropdownPanelClass = [
                   "absolute top-full right-0 z-40 min-w-[14rem] rounded-3xl border border-slate-100 bg-white/95 p-4 text-right shadow-2xl backdrop-blur transition",
                   isDropdownOpen
@@ -200,22 +248,22 @@ const NavBar = () => {
 
                 return (
                   <div
-                    key={link.label}
+                    key={link._key}
                     className="group relative"
-                    onMouseEnter={() => setExpandedDropdown(link.label)}
+                    onMouseEnter={() => setExpandedDropdown(link._key)}
                     onMouseLeave={() => setExpandedDropdown(null)}
                   >
                     <button
                       type="button"
                       className={dropdownClasses}
                       aria-haspopup="true"
-                      aria-expanded={expandedDropdown === link.label}
-                      onClick={() => toggleDropdown(link.label)}
+                      aria-expanded={expandedDropdown === link._key}
+                      onClick={() => toggleDropdown(link._key)}
                     >
                       <span>{link.label}</span>
                       <FiChevronDown
                         className={`h-4 w-4 transition ${
-                          expandedDropdown === link.label ? "rotate-180" : ""
+                          expandedDropdown === link._key ? "rotate-180" : ""
                         }`}
                       />
                     </button>
@@ -223,7 +271,7 @@ const NavBar = () => {
                       <div className="flex flex-col gap-2">
                         {link.children.map((child) => (
                           <Link
-                            key={child.href}
+                            key={child._key}
                             to={child.href}
                             className="rounded-2xl px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-indigo-50 hover:text-indigo-600"
                           >
@@ -239,7 +287,7 @@ const NavBar = () => {
               const linkClasses = [desktopLinkClasses, isActive ? "text-indigo-600" : ""].filter(Boolean).join(" ");
 
               return (
-                <Link key={link.href || link.label} to={link.href} className={linkClasses}>
+                <Link key={link._key} to={link.href} className={linkClasses}>
                   {link.label}
                 </Link>
               );
@@ -286,25 +334,25 @@ const NavBar = () => {
 
                 if (hasChildren) {
                   return (
-                    <div key={link.label} className="rounded-3xl border border-slate-100 bg-white">
+                    <div key={link._key} className="rounded-3xl border border-slate-100 bg-white">
                       <button
                         type="button"
                         className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-right text-sm font-semibold text-slate-700 ${
                           isActive ? "text-indigo-600" : ""
                         }`}
-                        onClick={() => toggleDropdown(link.label)}
-                        aria-expanded={expandedDropdown === link.label}
+                        onClick={() => toggleDropdown(link._key)}
+                        aria-expanded={expandedDropdown === link._key}
                       >
                         <span>{link.label}</span>
                         <FiChevronDown
                           className={`h-4 w-4 transition ${
-                            expandedDropdown === link.label ? "rotate-180" : ""
+                            expandedDropdown === link._key ? "rotate-180" : ""
                           }`}
                         />
                       </button>
                       <div
                         className={`${
-                          expandedDropdown === link.label
+                          expandedDropdown === link._key
                             ? `${mobileDropdownClasses} grid-rows-[1fr]`
                             : `${mobileDropdownClasses} grid-rows-[0fr]`
                         }`}
@@ -312,7 +360,7 @@ const NavBar = () => {
                         <div className={mobileDropdownInner}>
                           {link.children.map((child) => (
                             <Link
-                              key={child.href}
+                              key={child._key}
                               to={child.href}
                               className="rounded-2xl px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-indigo-50 hover:text-indigo-600"
                             >
@@ -327,7 +375,7 @@ const NavBar = () => {
 
                 return (
                   <Link
-                    key={link.href || link.label}
+                    key={link._key}
                     to={link.href}
                     className={`${mobileLinkClasses} ${isActive ? "bg-indigo-50 text-indigo-600" : ""}`}
                   >
