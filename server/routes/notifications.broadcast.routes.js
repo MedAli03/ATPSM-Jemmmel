@@ -9,11 +9,10 @@ const {
   broadcastSchema,
 } = require("../validations/notifications.broadcast.schema");
 
-router.use(auth);
-
 // BROADCAST (Président)
 router.post(
   "/admin/notifications/broadcast",
+  auth,
   requireRole("PRESIDENT"),
   validate(broadcastSchema, "body"),
   ctrl.broadcast

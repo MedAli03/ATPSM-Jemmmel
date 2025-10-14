@@ -12,20 +12,20 @@ const {
 } = require("../validations/notifications.user.schema");
 
 const ROLES = ["PRESIDENT", "DIRECTEUR", "EDUCATEUR", "PARENT"];
+const ensureNotificationRole = requireRole(...ROLES);
 
 router.get(
   "/notifications/stream",
   auth,
-  requireRole(...ROLES),
+  ensureNotificationRole,
   ctrl.stream
 );
-
-router.use(auth);
 
 // Lister MES notifs
 router.get(
   "/notifications/me",
-  requireRole(...ROLES),
+  auth,
+  ensureNotificationRole,
   validate(listQuerySchema, "query"),
   ctrl.listMine
 );
@@ -33,7 +33,8 @@ router.get(
 // Détail d'UNE de MES notifs
 router.get(
   "/notifications/:id",
-  requireRole(...ROLES),
+  auth,
+  ensureNotificationRole,
   validate(idParamSchema, "params"),
   ctrl.getMine
 );
@@ -41,14 +42,16 @@ router.get(
 // Compteur non lues
 router.get(
   "/notifications/me/unread-count",
-  requireRole(...ROLES),
+  auth,
+  ensureNotificationRole,
   ctrl.unreadCount
 );
 
 // Marquer UNE comme lue
 router.patch(
   "/notifications/:id/read",
-  requireRole(...ROLES),
+  auth,
+  ensureNotificationRole,
   validate(idParamSchema, "params"),
   ctrl.readOne
 );
@@ -56,14 +59,16 @@ router.patch(
 // Tout marquer comme lu
 router.post(
   "/notifications/mark-all-read",
-  requireRole(...ROLES),
+  auth,
+  ensureNotificationRole,
   ctrl.readAll
 );
 
 // Supprimer une notification
 router.delete(
   "/notifications/:id",
-  requireRole(...ROLES),
+  auth,
+  ensureNotificationRole,
   validate(idParamSchema, "params"),
   ctrl.remove
 );
