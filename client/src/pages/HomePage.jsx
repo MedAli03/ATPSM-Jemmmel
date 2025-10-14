@@ -5,6 +5,7 @@ import About from "../components/layout/About";
 import BlogSection from "../components/layout/Blogs";
 import Contact from "../components/layout/Contact";
 import HeroSection from "../components/layout/HeroSection";
+import Stats from "../components/layout/Stats";
 
 
 const Header = () => {
@@ -23,9 +24,8 @@ const Header = () => {
   return (
     <Box sx={{ position: "relative", direction: "rtl" }}>
       {/* <NavBar isMobile={isMobile} handleMobileMenuOpen={handleMobileMenuOpen} /> */}
-      <HeroSection 
-      // isMobile={isMobile}
-       />
+      <HeroSection />
+      <Stats />
       <About />
       <BlogSection />
 
