@@ -26,13 +26,19 @@ function toArray(value) {
 function normalizeActualite(record) {
   if (!record) return null;
   const plain = record.toJSON ? record.toJSON() : record;
+  const inferredStatus = plain.statut
+    ? plain.statut
+    : plain.publie_le
+    ? "published"
+    : "draft";
+
   return {
     id: plain.id,
     titre: plain.titre,
     resume: plain.resume || null,
     contenu: plain.contenu,
     contenu_html: plain.contenu_html || plain.contenu,
-    statut: plain.statut || "draft",
+    statut: inferredStatus,
     publie_le: plain.publie_le,
     tags: Array.isArray(plain.tags) ? plain.tags : [],
     couverture_url: plain.couverture_url || null,
