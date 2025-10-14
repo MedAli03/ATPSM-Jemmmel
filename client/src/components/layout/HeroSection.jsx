@@ -51,6 +51,23 @@ const FEATURE_ICON_MAP = {
   community: FiCompass,
 };
 
+function sanitizeText(value, fallback) {
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  if (!trimmed) return fallback;
+
+  // Treat obviously placeholder ASCII strings (e.g. "qsdqdsq") as invalid
+  if (/^[a-z]+$/i.test(trimmed) && !/[aeiou]/i.test(trimmed) && trimmed.length <= 16) {
+    return fallback;
+  }
+
+  if (trimmed.length < 3) {
+    return fallback;
+  }
+
+  return trimmed;
+}
+
 function formatNumber(value) {
   if (value === null || value === undefined) return null;
   const number = Number(value);
@@ -63,11 +80,18 @@ function resolveHero(slides) {
     return FALLBACK_HERO;
   }
 
-  const [first] = slides;
+  const meaningfulSlides = slides.filter((slide) =>
+    Boolean(
+      sanitizeText(slide?.title, "") ||
+        sanitizeText(slide?.subtitle, "")
+    )
+  );
+
+  const [first] = meaningfulSlides.length ? meaningfulSlides : slides;
   return {
-    tag: first.tag || FALLBACK_HERO.tag,
-    title: first.title || FALLBACK_HERO.title,
-    subtitle: first.subtitle || FALLBACK_HERO.subtitle,
+    tag: sanitizeText(first.tag, FALLBACK_HERO.tag) || FALLBACK_HERO.tag,
+    title: sanitizeText(first.title, FALLBACK_HERO.title) || FALLBACK_HERO.title,
+    subtitle: sanitizeText(first.subtitle, FALLBACK_HERO.subtitle) || FALLBACK_HERO.subtitle,
     ctaPrimary: first.ctaPrimary || FALLBACK_HERO.ctaPrimary,
     ctaSecondary: first.ctaSecondary || FALLBACK_HERO.ctaSecondary,
   };
@@ -84,8 +108,8 @@ function resolveFeatures(highlights) {
 
     return {
       id: item.id || fallback.id || `feature-${index}`,
-      title: item.title || fallback.title,
-      description: item.description || fallback.description,
+      title: sanitizeText(item.title, fallback.title) || fallback.title,
+      description: sanitizeText(item.description, fallback.description) || fallback.description,
       icon,
     };
   });
