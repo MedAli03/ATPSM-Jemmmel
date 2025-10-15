@@ -33,9 +33,13 @@ export default function LoginScreen() {
     setSubmitting(true);
     setError('');
     try {
-      await login(values);
+      await login({
+        email: values.email,
+        mot_de_passe: values.password
+      });
     } catch (err) {
-      setError(t('login.error'));
+      const message = err?.response?.data?.message || t('login.error');
+      setError(message);
     } finally {
       setSubmitting(false);
     }
@@ -80,7 +84,11 @@ export default function LoginScreen() {
 
           {error ? <Text className="text-center text-sm text-red-600">{error}</Text> : null}
 
-          <Button title={submitting ? t('login.loading') : t('login.submit')} onPress={handleSubmit(onSubmit)} disabled={submitting} />
+          <Button
+            title={submitting ? t('login.loading') : t('login.submit')}
+            onPress={handleSubmit(onSubmit)}
+            disabled={submitting}
+          />
         </View>
       </View>
     </ScreenContainer>

@@ -9,6 +9,7 @@ const Input = forwardRef(({ label, error, className = '', ...props }, ref) => {
         ref={ref}
         className={`w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-base text-right ${error ? 'border-red-500' : ''}`}
         placeholderTextColor="#9CA3AF"
+        textAlign="right"
         {...props}
       />
       {error ? <Text className="mt-1 text-sm text-red-600">{error}</Text> : null}

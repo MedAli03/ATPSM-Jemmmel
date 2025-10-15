@@ -2,13 +2,13 @@ import 'react-native-gesture-handler';
 import { useEffect } from 'react';
 import { I18nManager } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { NavigationContainer } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 
 import RootNavigator from './src/navigation/RootNavigator';
-import { AuthProvider } from './src/hooks/useAuth';
+import { AuthProvider, useAuth } from './src/hooks/useAuth';
+import { NavigationContainer } from '@react-navigation/native';
 import './src/i18n';
 
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -16,6 +16,16 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 });
 
 const queryClient = new QueryClient();
+
+function AppNavigation() {
+  const { isAuthenticated } = useAuth();
+
+  return (
+    <NavigationContainer key={isAuthenticated ? 'auth' : 'guest'}>
+      <RootNavigator />
+    </NavigationContainer>
+  );
+}
 
 export default function App() {
   useEffect(() => {
@@ -51,9 +61,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <SafeAreaProvider>
-          <NavigationContainer>
-            <RootNavigator />
-          </NavigationContainer>
+          <AppNavigation />
         </SafeAreaProvider>
       </AuthProvider>
     </QueryClientProvider>

@@ -16,8 +16,14 @@ export default function RootNavigator() {
     return <Loader />;
   }
 
+  const navigatorKey = isAuthenticated ? 'auth' : 'guest';
+
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator
+      key={navigatorKey}
+      initialRouteName="Login"
+      screenOptions={{ headerShown: false }}
+    >
       {isAuthenticated ? (
         <Stack.Screen name="RoleSwitch" component={RoleSwitch} />
       ) : (
