@@ -80,7 +80,10 @@
   },
   "account": {
     "title": "Profile",
-    "name": "Full name",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "email": "Email",
+    "address": "Address",
     "phone": "Phone number",
     "updateSuccess": "Profile updated successfully"
   }

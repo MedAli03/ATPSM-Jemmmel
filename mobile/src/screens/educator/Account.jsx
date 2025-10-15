@@ -14,8 +14,21 @@ import ErrorState from '../../components/common/ErrorState';
 import { useAuth } from '../../hooks/useAuth';
 
 const schema = yup.object({
-  name: yup.string().required('مطلوب'),
-  phone: yup.string().nullable()
+  prenom: yup.string().required('مطلوب'),
+  nom: yup.string().required('مطلوب'),
+  email: yup
+    .string()
+    .transform((value) => (value === '' ? null : value))
+    .nullable()
+    .email('صيغة البريد غير صحيحة'),
+  phone: yup
+    .string()
+    .transform((value) => (value === '' ? null : value))
+    .nullable(),
+  adresse: yup
+    .string()
+    .transform((value) => (value === '' ? null : value))
+    .nullable()
 });
 
 export default function EducatorAccount() {
@@ -30,11 +43,20 @@ export default function EducatorAccount() {
     handleSubmit,
     reset,
     formState: { isDirty }
-  } = useForm({ defaultValues: { name: '', phone: '' }, resolver: yupResolver(schema) });
+  } = useForm({
+    defaultValues: { prenom: '', nom: '', email: '', phone: '', adresse: '' },
+    resolver: yupResolver(schema)
+  });
 
   useEffect(() => {
     if (data) {
-      reset({ name: data.name || '', phone: data.phone || '' });
+      reset({
+        prenom: data.prenom || '',
+        nom: data.nom || '',
+        email: data.email || '',
+        phone: data.phone || '',
+        adresse: data.adresse || ''
+      });
     }
   }, [data, reset]);
 
@@ -48,7 +70,12 @@ export default function EducatorAccount() {
   });
 
   const onSubmit = (values) => {
-    mutation.mutate(values);
+    mutation.mutate({
+      ...values,
+      email: values.email || null,
+      phone: values.phone || null,
+      adresse: values.adresse || null
+    });
   };
 
   if (isLoading && !data) {
@@ -66,12 +93,44 @@ export default function EducatorAccount() {
 
         <Controller
           control={control}
-          name="name"
+          name="prenom"
           render={({ field: { onChange, value }, fieldState: { error } }) => (
             <Input
-              label={t('account.name')}
+              label={t('account.firstName')}
               value={value}
               onChangeText={onChange}
+              error={error?.message}
+              className="mb-4"
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="nom"
+          render={({ field: { onChange, value }, fieldState: { error } }) => (
+            <Input
+              label={t('account.lastName')}
+              value={value}
+              onChangeText={onChange}
+              error={error?.message}
+              className="mb-4"
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="email"
+          render={({ field: { onChange, value }, fieldState: { error } }) => (
+            <Input
+              label={t('account.email')}
+              value={value}
+              onChangeText={onChange}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              textContentType="emailAddress"
               error={error?.message}
               className="mb-4"
             />
@@ -87,6 +146,20 @@ export default function EducatorAccount() {
               value={value}
               onChangeText={onChange}
               keyboardType="phone-pad"
+              error={error?.message}
+              className="mb-4"
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="adresse"
+          render={({ field: { onChange, value }, fieldState: { error } }) => (
+            <Input
+              label={t('account.address')}
+              value={value}
+              onChangeText={onChange}
               error={error?.message}
               className="mb-4"
             />

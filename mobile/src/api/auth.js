@@ -13,7 +13,22 @@ async function storeCredentials(data) {
 }
 
 export async function login(payload) {
-  const { data } = await api.post('/auth/login', payload);
+  const { email, password, mot_de_passe, ...rest } = payload || {};
+  const body = {
+    ...rest,
+    email,
+    mot_de_passe: mot_de_passe ?? password
+  };
+
+  if (body.mot_de_passe === undefined) {
+    delete body.mot_de_passe;
+  }
+
+  if (body.email === undefined) {
+    delete body.email;
+  }
+
+  const { data } = await api.post('/auth/login', body);
   await storeCredentials(data);
   return data;
 }
