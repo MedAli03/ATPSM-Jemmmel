@@ -1,0 +1,87 @@
+{
+  "appName": "ATPSM Platform",
+  "login": {
+    "title": "Sign in",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Login",
+    "loading": "Signing in...",
+    "error": "Login failed. Please check your details and try again."
+  },
+  "common": {
+    "loading": "Loading...",
+    "pullToRefresh": "Pull to refresh",
+    "retry": "Retry",
+    "empty": "No data available",
+    "error": "Unexpected error",
+    "logout": "Logout",
+    "save": "Save",
+    "cancel": "Cancel",
+    "send": "Send",
+    "viewAll": "View all",
+    "markRead": "Mark as read"
+  },
+  "tabs": {
+    "parent": {
+      "home": "Home",
+      "children": "Children",
+      "messages": "Messages",
+      "notifications": "Notifications",
+      "account": "Account"
+    },
+    "educator": {
+      "home": "Home",
+      "groups": "My Groups",
+      "notes": "Daily Notes",
+      "messages": "Messages",
+      "account": "Account"
+    }
+  },
+  "parent": {
+    "home": {
+      "nextEvent": "Next event",
+      "lastNote": "Last note"
+    },
+    "children": {
+      "title": "My children",
+      "notes": "Recent notes",
+      "pei": "PEI",
+      "peiStatus": "Current status",
+      "noPei": "No active PEI"
+    }
+  },
+  "educator": {
+    "home": {
+      "title": "Today's tasks",
+      "noTasks": "No tasks for today"
+    },
+    "groups": {
+      "title": "My groups",
+      "children": "Group children"
+    },
+    "notes": {
+      "title": "Daily notes",
+      "create": "Add note",
+      "behavior": "Behavior",
+      "activities": "Activities",
+      "date": "Date",
+      "time": "Time",
+      "submit": "Save note"
+    }
+  },
+  "messages": {
+    "title": "Messages",
+    "empty": "No messages yet",
+    "placeholder": "Write a polite message..."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No new notifications"
+  },
+  "account": {
+    "title": "Profile",
+    "name": "Full name",
+    "phone": "Phone number",
+    "updateSuccess": "Profile updated successfully"
+  }
+}

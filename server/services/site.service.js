@@ -10,6 +10,7 @@ const {
 } = require("../models");
 const actualitesService = require("./actualites.service");
 const evenementsRepo = require("../repos/evenements.repo");
+const ApiError = require("../utils/api-error");
 
 const FALLBACK_NAVIGATION = {
   logo: {
@@ -186,6 +187,109 @@ function absoluteUrl(url) {
   return `/${url}`;
 }
 
+function estimateReadTime(value) {
+  if (!value) return null;
+  const text = stripHtml(value);
+  if (!text) return null;
+  const words = text.split(/\s+/).filter(Boolean).length;
+  if (!words) return null;
+  return Math.max(1, Math.round(words / 180));
+}
+
+function mapNewsSummary(item) {
+  if (!item) return null;
+  const plain = item.toJSON ? item.toJSON() : item;
+  const contentSource =
+    plain.contenu_html || plain.contenu || plain.resume || "";
+
+  const summary =
+    plain.resume ||
+    stripHtml(contentSource)
+      .slice(0, 200)
+      .trim();
+
+  return {
+    id: plain.id,
+    title: plain.titre,
+    summary: summary,
+    coverUrl: absoluteUrl(plain.couverture_url),
+    publishedAt: plain.publie_le || null,
+    tags: Array.isArray(plain.tags) ? plain.tags : [],
+    pinned: !!plain.epingle,
+    readTimeMinutes: estimateReadTime(contentSource),
+    author: plain.admin
+      ? {
+          id: plain.admin.id,
+          name: [plain.admin.prenom, plain.admin.nom]
+            .filter(Boolean)
+            .join(" ")
+            .trim() || null,
+          email: plain.admin.email || null,
+        }
+      : null,
+  };
+}
+
+function mapNewsDetail(item) {
+  const summary = mapNewsSummary(item);
+  if (!summary) return null;
+
+  const plain = item.toJSON ? item.toJSON() : item;
+  const htmlContent = plain.contenu_html || plain.contenu || "";
+
+  return {
+    ...summary,
+    contentHtml: htmlContent,
+    contentText: stripHtml(htmlContent),
+    gallery: Array.isArray(plain.galerie_urls)
+      ? plain.galerie_urls.map(absoluteUrl)
+      : [],
+  };
+}
+
+function mapEventForSite(event) {
+  if (!event) return null;
+  const plain = event.toJSON ? event.toJSON() : event;
+  const startsAt = plain.debut ? new Date(plain.debut) : null;
+  const endsAt = plain.fin ? new Date(plain.fin) : null;
+
+  const durationMinutes =
+    startsAt && endsAt
+      ? Math.max(0, Math.round((endsAt.getTime() - startsAt.getTime()) / 60000))
+      : null;
+
+  return {
+    id: plain.id,
+    title: plain.titre,
+    description: plain.description || null,
+    startsAt: startsAt ? startsAt.toISOString() : null,
+    endsAt: endsAt ? endsAt.toISOString() : null,
+    location: plain.lieu || null,
+    audience: plain.audience || "tous",
+    status:
+      startsAt && startsAt.getTime() >= Date.now() ? "upcoming" : "past",
+    durationMinutes,
+    attachments: plain.document
+      ? {
+          id: plain.document.id,
+          title: plain.document.titre,
+          url: absoluteUrl(plain.document.url),
+          type: plain.document.type,
+        }
+      : null,
+    host: plain.admin
+      ? {
+          id: plain.admin.id,
+          name: [plain.admin.prenom, plain.admin.nom]
+            .filter(Boolean)
+            .join(" ")
+            .trim() || null,
+          email: plain.admin.email || null,
+        }
+      : null,
+  };
+}
+
 async function getHeroSlides() {
   const pinned = await actualitesService.list({
     status: "published",
@@ -218,13 +322,39 @@ async function getHeroSlides() {
 }
 
 async function getLatestNews(limit = 3) {
-  const result = await actualitesService.list({
-    status: "published",
-    limit,
-    page: 1,
-  });
+  try {
+    const result = await actualitesService.list({
+      status: "published",
+      limit,
+      page: 1,
+    });
 
-  if (!result.items.length) {
+    if (!result.items.length) {
+      return FALLBACK_HERO_SLIDES.slice(0, limit).map((slide) => ({
+        id: slide.id,
+        titre: slide.title,
+        resume: slide.subtitle,
+        couverture_url: slide.image,
+        publie_le: null,
+        href: slide.ctaPrimary?.href || "/news",
+      }));
+    }
+
+    return result.items.map((item) => ({
+      id: item.id,
+      titre: item.titre,
+      resume: item.resume || stripHtml(item.contenu).slice(0, 160),
+      couverture_url: absoluteUrl(item.couverture_url),
+      publie_le: item.publie_le,
+      href: `/news/${item.id}`,
+      tags: Array.isArray(item.tags) ? item.tags : [],
+      pinned: !!item.epingle,
+    }));
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.warn(`[site] Unable to fetch latest news: ${err?.message || err}`);
+    }
     return FALLBACK_HERO_SLIDES.slice(0, limit).map((slide) => ({
       id: slide.id,
       titre: slide.title,
@@ -234,22 +364,39 @@ async function getLatestNews(limit = 3) {
       href: slide.ctaPrimary?.href || "/news",
     }));
   }
-
-  return result.items.map((item) => ({
-    id: item.id,
-    titre: item.titre,
-    resume: item.resume || stripHtml(item.contenu).slice(0, 160),
-    couverture_url: absoluteUrl(item.couverture_url),
-    publie_le: item.publie_le,
-    href: `/news/${item.id}`,
-    tags: Array.isArray(item.tags) ? item.tags : [],
-    pinned: !!item.epingle,
-  }));
 }
 
 async function getUpcomingEvents(limit = 4) {
-  const rows = await evenementsRepo.listUpcoming({ limit });
-  if (!rows.length) {
+  try {
+    const rows = await evenementsRepo.listUpcoming({ limit });
+    if (!rows.length) {
+      return [
+        {
+          id: "atelier-familles",
+          titre: "ورشة دعم للأولياء",
+          debut: null,
+          fin: null,
+          lieu: "مقر الجمعية",
+          audience: "tous",
+          description: "جلسة مفتوحة لمناقشة تحديات الدمج المدرسي وتبادل الخبرات.",
+        },
+      ];
+    }
+
+    return rows.map((event) => ({
+      id: event.id,
+      titre: event.titre,
+      debut: event.debut,
+      fin: event.fin,
+      lieu: event.lieu,
+      audience: event.audience,
+      description: event.description || null,
+    }));
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.warn(`[site] Unable to fetch upcoming events: ${err?.message || err}`);
+    }
     return [
       {
         id: "atelier-familles",
@@ -262,17 +409,185 @@ async function getUpcomingEvents(limit = 4) {
       },
     ];
   }
-
-  return rows.map((event) => ({
-    id: event.id,
-    titre: event.titre,
-    debut: event.debut,
-    fin: event.fin,
-    lieu: event.lieu,
-    audience: event.audience,
-    description: event.description || null,
-  }));
 }
+
+function toActualiteLike(item, index) {
+  if (!item) return null;
+  return {
+    id: item.id ?? `fallback-news-${index}`,
+    titre: item.titre,
+    resume: item.resume,
+    contenu: item.resume,
+    contenu_html: item.resume,
+    publie_le: item.publie_le || null,
+    tags: item.tags || [],
+    couverture_url: item.couverture_url || null,
+    galerie_urls: item.galerie_urls || [],
+    epingle: item.pinned || false,
+    admin: item.admin || null,
+  };
+}
+
+function toEventLike(item, index) {
+  if (!item) return null;
+  return {
+    id: item.id ?? `fallback-event-${index}`,
+    titre: item.titre,
+    description: item.description || null,
+    debut: item.debut || null,
+    fin: item.fin || null,
+    lieu: item.lieu || null,
+    audience: item.audience || "tous",
+    document: item.document || null,
+    admin: item.admin || null,
+  };
+}
+
+exports.listNews = async ({ page = 1, limit = 9, search } = {}) => {
+  const safePage = Number.isFinite(Number(page)) && Number(page) > 0 ? Number(page) : 1;
+  const desiredLimit = Number(limit);
+  const safeLimit =
+    Number.isFinite(desiredLimit) && desiredLimit > 0
+      ? Math.min(desiredLimit, 24)
+      : 9;
+
+  try {
+    const result = await actualitesService.list({
+      page: safePage,
+      limit: safeLimit,
+      status: "published",
+      search,
+    });
+
+    const items = result.items.map(mapNewsSummary).filter(Boolean);
+
+    if (items.length) {
+      return {
+        items,
+        meta: {
+          page: result.page || safePage,
+          limit: result.limit || safeLimit,
+          total: result.total ?? items.length,
+        },
+      };
+    }
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.warn(`[site] Unable to list news: ${err?.message || err}`);
+    }
+  }
+
+  const fallback = await getLatestNews(safeLimit);
+  return {
+    items: fallback
+      .map((item, index) => toActualiteLike(item, index))
+      .map(mapNewsSummary)
+      .filter(Boolean),
+    meta: { page: 1, limit: safeLimit, total: fallback.length },
+  };
+};
+
+exports.getNewsArticle = async (id) => {
+  const article = await actualitesService.get(id);
+  const isPublished =
+    article?.statut === "published" ||
+    (article?.publie_le && new Date(article.publie_le).getTime() <= Date.now());
+
+  if (!isPublished) {
+    throw new ApiError({
+      status: 404,
+      code: "NEWS_NOT_AVAILABLE",
+      message: "الخبر غير متاح للعرض",
+    });
+  }
+
+  return mapNewsDetail(article);
+};
+
+exports.listEvents = async ({
+  page = 1,
+  limit = 6,
+  audience,
+  search,
+  from,
+  to,
+} = {}) => {
+  const safePage = Number.isFinite(Number(page)) && Number(page) > 0 ? Number(page) : 1;
+  const desiredLimit = Number(limit);
+  const safeLimit =
+    Number.isFinite(desiredLimit) && desiredLimit > 0
+      ? Math.min(desiredLimit, 24)
+      : 6;
+
+  const filters = {};
+  if (audience && ["parents", "educateurs", "tous"].includes(audience)) {
+    filters.audience = audience;
+  }
+  if (search) {
+    filters.q = search;
+  }
+  if (from) {
+    filters.date_debut = from;
+  }
+  if (to) {
+    filters.date_fin = to;
+  }
+
+  try {
+    const result = await evenementsRepo.list(filters, {
+      page: safePage,
+      limit: safeLimit,
+    });
+
+    const items = result.rows
+      .map(mapEventForSite)
+      .filter(Boolean)
+      .sort((a, b) => {
+        const aTime = a.startsAt ? new Date(a.startsAt).getTime() : Infinity;
+        const bTime = b.startsAt ? new Date(b.startsAt).getTime() : Infinity;
+        return aTime - bTime;
+      });
+
+    if (items.length) {
+      return {
+        items,
+        meta: {
+          page: result.page || safePage,
+          limit: result.limit || safeLimit,
+          total: result.count ?? items.length,
+        },
+      };
+    }
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.warn(`[site] Unable to list events: ${err?.message || err}`);
+    }
+  }
+
+  const fallback = await getUpcomingEvents(safeLimit);
+  return {
+    items: fallback
+      .map((item, index) => toEventLike(item, index))
+      .map(mapEventForSite)
+      .filter(Boolean),
+    meta: { page: 1, limit: safeLimit, total: fallback.length },
+  };
+};
+
+exports.getEvent = async (id) => {
+  const event = await evenementsRepo.findById(id);
+  if (!event) {
+    throw new ApiError({
+      status: 404,
+      code: "EVENT_NOT_FOUND",
+      message: "الفعالية غير موجودة",
+    });
+  }
+
+  return mapEventForSite(event);
+};
 
 async function getHeadlineStats() {
   const [children, educators, parents, activeGroups, totalEvents, totalNews] =

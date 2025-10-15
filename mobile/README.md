@@ -1,0 +1,77 @@
+# ATPSM Mobile App
+
+هذا المشروع عبارة عن تطبيق **Expo React Native** يوفّر تجربة للوالدين (PARENT) والمربين (EDUCATEUR) بالاعتماد على واجهات برمجة التطبيقات الموجودة في المنصّة الخلفية.
+
+## المتطلبات
+
+- [Node.js](https://nodejs.org/) ‎>= 18
+- [Expo CLI](https://docs.expo.dev/get-started/installation/) (اختياري للتشغيل عبر الأوامر المختصرة)
+- حساب Expo Go على الهاتف أو محاكي Android/iOS
+
+## الإعداد
+
+1. انتقل إلى مجلّد المشروع:
+
+   ```bash
+   cd mobile
+   ```
+
+2. انسخ ملف البيئة:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   ثم حدّث `EXPO_PUBLIC_API_BASE_URL` إذا كان الخادم يعمل على عنوان مختلف.
+
+3. ثبّت الحزم:
+
+   ```bash
+   npm install
+   ```
+
+## التشغيل
+
+ابدأ خادم Expo التطويري:
+
+```bash
+npm start
+```
+
+سيفتح Expo Dev Tools في المتصفح. استخدم تطبيق **Expo Go** لمسح رمز QR أو شغّل التطبيق على محاكي باستخدام:
+
+- `npm run android`
+- `npm run ios`
+- `npm run web`
+
+## البنية
+
+```
+mobile/
+  src/
+    api/          # دوال الاستدعاء إلى واجهات API الخلفية عبر Axios
+    components/   # عناصر الواجهة (أزرار، قوائم، حالات فارغة، ...)
+    hooks/        # خطّافات مشتركة مثل useAuth
+    navigation/   # الملاحين (RootNavigator, RoleSwitch, Tabs)
+    screens/      # شاشات كل دور
+    i18n/         # ملفات الترجمة (ar, en)
+```
+
+- يتم ضبط RTL عربي تلقائيًا عند الإطلاق الأوّل.
+- يتم حفظ بيانات الاعتماد (token, user) في **SecureStore**.
+- يستخدم التطبيق React Query للتخزين المؤقت لبيانات الواجهات الخلفية.
+- جميع ملفات الصور داخل `assets/` عبارة عن نُسخ نصيّة موضعيّة (ضع ملفات PNG الحقيقية مكانها قبل البناء).
+
+## تغيير عنوان الخادم
+
+حدّث متغيّر `EXPO_PUBLIC_API_BASE_URL` في `.env` ثم أعد تشغيل خادم Expo.
+
+## ضبط ESLint
+
+يمكن تشغيل فحص الشيفرة عبر:
+
+```bash
+npm run lint
+```
+
+تم تهيئة المشروع باستخدام `eslint-config-universe` الافتراضي من Expo.
