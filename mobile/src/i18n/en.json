@@ -19,7 +19,8 @@
     "cancel": "Cancel",
     "send": "Send",
     "viewAll": "View all",
-    "markRead": "Mark as read"
+    "markRead": "Mark as read",
+    "unknown": "Unknown"
   },
   "tabs": {
     "parent": {
@@ -40,20 +41,29 @@
   "parent": {
     "home": {
       "nextEvent": "Next event",
-      "lastNote": "Last note"
+      "lastNote": "Last note",
+      "notesUnavailable": "Notes are not available in the app right now.",
+      "childrenList": "My children"
     },
     "children": {
       "title": "My children",
       "notes": "Recent notes",
       "pei": "PEI",
       "peiStatus": "Current status",
-      "noPei": "No active PEI"
+      "noPei": "No active PEI",
+      "notesUnavailable": "No notes are available for this child at the moment."
     }
   },
   "educator": {
     "home": {
-      "title": "Today's tasks",
-      "noTasks": "No tasks for today"
+      "title": "Overview",
+      "activeYear": "Active school year",
+      "activePei": "Active PEI plans",
+      "noPei": "No active plans",
+      "upcomingEvents": "Upcoming events",
+      "noEvents": "No educator events",
+      "unread": "Unread notifications",
+      "noNotifications": "No unread notifications"
     },
     "groups": {
       "title": "My groups",
@@ -62,17 +72,22 @@
     "notes": {
       "title": "Daily notes",
       "create": "Add note",
-      "behavior": "Behavior",
-      "activities": "Activities",
+      "type": "Note type",
+      "content": "Details",
       "date": "Date",
       "time": "Time",
-      "submit": "Save note"
+      "attachment": "Attachment link (optional)",
+      "submit": "Save note",
+      "childFallback": "Child #{{id}}",
+      "noPei": "No active plan assigned yet",
+      "noteLabel": "Note"
     }
   },
   "messages": {
     "title": "Messages",
     "empty": "No messages yet",
-    "placeholder": "Write a polite message..."
+    "placeholder": "Write a polite message...",
+    "unavailable": "Messaging is not available in the mobile app yet."
   },
   "notifications": {
     "title": "Notifications",

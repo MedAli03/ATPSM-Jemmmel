@@ -9,28 +9,57 @@ import ErrorState from '../../components/common/ErrorState';
 import Empty from '../../components/common/Empty';
 import { fetchMyChildren } from '../../api/enfants';
 import { fetchUpcomingEvents } from '../../api/evenements';
+import { fetchActivePeiByChild } from '../../api/pei';
+import { fetchDailyNotesByPei } from '../../api/notes';
 
 export default function ParentHome() {
   const { t } = useTranslation();
 
   const {
-    data: children,
+    data: childrenData,
     isLoading: childrenLoading,
     isError: childrenError,
     refetch: refetchChildren
-  } = useQuery({ queryKey: ['parentChildren'], queryFn: fetchMyChildren });
+  } = useQuery({ queryKey: ['parentChildren'], queryFn: () => fetchMyChildren() });
+
+  const firstChildId = childrenData?.items?.[0]?.id;
+
+  const {
+    data: activePei,
+    refetch: refetchPei,
+    isFetching: peiFetching
+  } = useQuery({
+    queryKey: ['childActivePei', firstChildId],
+    queryFn: () => fetchActivePeiByChild(firstChildId),
+    enabled: Boolean(firstChildId)
+  });
+
+  const {
+    data: recentNotes,
+    refetch: refetchNotes,
+    isFetching: notesFetching
+  } = useQuery({
+    queryKey: ['childRecentNotes', activePei?.id],
+    queryFn: () => fetchDailyNotesByPei(activePei.id, { pageSize: 1 }),
+    enabled: Boolean(activePei?.id)
+  });
 
   const {
     data: events,
     isLoading: eventsLoading,
     isError: eventsError,
     refetch: refetchEvents
-  } = useQuery({ queryKey: ['upcomingEvents'], queryFn: () => fetchUpcomingEvents(1) });
+  } = useQuery({ queryKey: ['upcomingEvents'], queryFn: () => fetchUpcomingEvents({ limit: 1 }) });
 
-  const refreshing = childrenLoading || eventsLoading;
+  const refreshing = childrenLoading || eventsLoading || peiFetching || notesFetching;
 
   const onRefresh = async () => {
-    await Promise.all([refetchChildren(), refetchEvents()]);
+    await Promise.all([
+      refetchChildren(),
+      refetchEvents(),
+      firstChildId ? refetchPei() : Promise.resolve(),
+      activePei?.id ? refetchNotes() : Promise.resolve()
+    ]);
   };
 
   if (childrenLoading && eventsLoading) {
@@ -42,7 +71,8 @@ export default function ParentHome() {
   }
 
   const nextEvent = events?.[0];
-  const recentNote = children?.flatMap?.((child) => (child?.last_note ? [child.last_note] : []))?.[0];
+  const recentNote = recentNotes?.items?.[0] ?? null;
+  const children = childrenData?.items ?? [];
 
   return (
     <ScreenContainer
@@ -56,9 +86,9 @@ export default function ParentHome() {
           {nextEvent ? (
             <View>
               <Text className="text-base text-gray-900">{nextEvent.title || nextEvent.name}</Text>
-              {nextEvent.date ? (
+              {nextEvent.startsAt ? (
                 <Text className="mt-1 text-sm text-gray-500">
-                  {format(new Date(nextEvent.date), 'yyyy-MM-dd HH:mm')}
+                  {format(new Date(nextEvent.startsAt), 'yyyy-MM-dd HH:mm')}
                 </Text>
               ) : null}
               {nextEvent.location ? (
@@ -74,12 +104,32 @@ export default function ParentHome() {
           <Text className="mb-2 text-lg font-semibold text-gray-800">{t('parent.home.lastNote')}</Text>
           {recentNote ? (
             <View>
-              <Text className="text-base text-gray-900">{recentNote.summary || recentNote.content}</Text>
-              {recentNote.created_at ? (
+              {recentNote.type ? (
+                <Text className="text-sm font-semibold text-gray-600">{recentNote.type}</Text>
+              ) : null}
+              {recentNote.contenu ? (
+                <Text className="mt-1 text-base text-gray-900">{recentNote.contenu}</Text>
+              ) : null}
+              {recentNote.date_note ? (
                 <Text className="mt-1 text-sm text-gray-500">
-                  {format(new Date(recentNote.created_at), 'yyyy-MM-dd HH:mm')}
+                  {format(new Date(recentNote.date_note), 'yyyy-MM-dd HH:mm')}
                 </Text>
               ) : null}
+            </View>
+          ) : (
+            <Text className="text-sm text-gray-500">{t('parent.home.notesUnavailable')}</Text>
+          )}
+        </View>
+
+        <View className="rounded-2xl bg-white p-5 shadow-sm">
+          <Text className="mb-2 text-lg font-semibold text-gray-800">{t('parent.home.childrenList')}</Text>
+          {children.length ? (
+            <View className="space-y-2">
+              {children.map((child) => (
+                <Text key={child.id} className="text-base text-gray-900">
+                  • {child.fullName}
+                </Text>
+              ))}
             </View>
           ) : (
             <Empty message={t('common.empty')} />

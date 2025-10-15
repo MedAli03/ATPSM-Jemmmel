@@ -19,7 +19,7 @@ export default function ParentNotifications() {
     isError,
     refetch,
     isRefetching
-  } = useQuery({ queryKey: ['notifications', 'unread'], queryFn: fetchUnreadNotifications });
+  } = useQuery({ queryKey: ['notifications', 'unread'], queryFn: () => fetchUnreadNotifications() });
 
   const mutation = useMutation({
     mutationFn: (id) => markNotificationRead(id),
@@ -46,7 +46,7 @@ export default function ParentNotifications() {
       onPress={() => mutation.mutate(item.id)}
     >
       <Text className="text-lg font-semibold text-gray-900">{item.title}</Text>
-      <Text className="mt-1 text-base text-gray-700">{item.body}</Text>
+      {item.body ? <Text className="mt-1 text-base text-gray-700">{item.body}</Text> : null}
       {item.created_at ? (
         <Text className="mt-1 text-xs text-gray-400">{format(new Date(item.created_at), 'yyyy-MM-dd HH:mm')}</Text>
       ) : null}
@@ -57,7 +57,7 @@ export default function ParentNotifications() {
   return (
     <View className="flex-1 bg-gray-50 px-4 py-4">
       <FlatList
-        data={data || []}
+        data={data?.items || []}
         keyExtractor={(item) => item.id?.toString?.() ?? String(item.id)}
         renderItem={renderItem}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor="#2563EB" />}

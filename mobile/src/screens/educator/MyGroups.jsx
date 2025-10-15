@@ -4,7 +4,8 @@ import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
-import { fetchMyGroups } from '../../api/groups';
+import { fetchGroups } from '../../api/groups';
+import { fetchActiveSchoolYear } from '../../api/annees';
 import Loader from '../../components/common/Loader';
 import Empty from '../../components/common/Empty';
 import ErrorState from '../../components/common/ErrorState';
@@ -14,32 +15,54 @@ export default function MyGroups() {
   const navigation = useNavigation();
 
   const {
+    data: year,
+    isLoading: yearLoading,
+    isError: yearError,
+    refetch: refetchYear
+  } = useQuery({ queryKey: ['activeYear'], queryFn: fetchActiveSchoolYear });
+
+  const {
     data,
     isLoading,
     isError,
     refetch,
     isRefetching
-  } = useQuery({ queryKey: ['educatorGroups'], queryFn: fetchMyGroups });
+  } = useQuery({
+    queryKey: ['educatorGroups', year?.id],
+    queryFn: () => fetchGroups({ anneeId: year?.id, limit: 50 }),
+    enabled: Boolean(year?.id)
+  });
 
   const onRefresh = useCallback(() => {
-    refetch();
-  }, [refetch]);
+    if (yearError) {
+      refetchYear();
+    }
+    if (year?.id) {
+      refetch();
+    }
+  }, [refetch, refetchYear, year?.id, yearError]);
 
-  if (isLoading && !data) {
+  if ((isLoading || yearLoading) && !data) {
     return <Loader />;
   }
 
-  if (isError) {
-    return <ErrorState message={t('common.error')} onRetry={refetch} />;
+  if (isError || yearError) {
+    return <ErrorState message={t('common.error')} onRetry={onRefresh} />;
   }
 
   const renderItem = ({ item }) => (
     <Pressable
       className="mb-3 rounded-2xl bg-white p-4 shadow-sm"
-      onPress={() => navigation.navigate('GroupChildren', { groupId: item.id, groupName: item.name })}
+      onPress={() =>
+        navigation.navigate('GroupChildren', {
+          groupId: item.id,
+          groupName: item.nom || item.name,
+          anneeId: year?.id
+        })
+      }
     >
-      <Text className="text-lg font-semibold text-gray-900">{item.name}</Text>
-      {item.level ? <Text className="mt-1 text-sm text-gray-500">{item.level}</Text> : null}
+      <Text className="text-lg font-semibold text-gray-900">{item.nom || item.name}</Text>
+      {item.description ? <Text className="mt-1 text-sm text-gray-500">{item.description}</Text> : null}
     </Pressable>
   );
 

@@ -5,9 +5,10 @@ import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
 
 import Loader from '../../components/common/Loader';
-import Empty from '../../components/common/Empty';
 import ErrorState from '../../components/common/ErrorState';
-import { fetchChildActivePei, fetchChildDetails, fetchChildNotes } from '../../api/enfants';
+import { fetchChildDetails } from '../../api/enfants';
+import { fetchActivePeiByChild } from '../../api/pei';
+import { fetchDailyNotesByPei } from '../../api/notes';
 
 export default function ChildDetailsScreen() {
   const route = useRoute();
@@ -20,16 +21,16 @@ export default function ChildDetailsScreen() {
     enabled: Boolean(childId)
   });
 
-  const notesQuery = useQuery({
-    queryKey: ['childNotes', childId],
-    queryFn: () => fetchChildNotes(childId, 10),
+  const peiQuery = useQuery({
+    queryKey: ['childPei', childId],
+    queryFn: () => fetchActivePeiByChild(childId),
     enabled: Boolean(childId)
   });
 
-  const peiQuery = useQuery({
-    queryKey: ['childPei', childId],
-    queryFn: () => fetchChildActivePei(childId),
-    enabled: Boolean(childId)
+  const notesQuery = useQuery({
+    queryKey: ['childNotes', childId, peiQuery.data?.id],
+    queryFn: () => fetchDailyNotesByPei(peiQuery.data.id, { pageSize: 10 }),
+    enabled: Boolean(peiQuery.data?.id)
   });
 
   const refreshing = childQuery.isRefetching || notesQuery.isRefetching || peiQuery.isRefetching;
@@ -47,7 +48,7 @@ export default function ChildDetailsScreen() {
   }
 
   const child = childQuery.data;
-  const notes = notesQuery.data || [];
+  const notes = notesQuery.data?.items || [];
   const pei = peiQuery.data;
 
   return (
@@ -57,41 +58,45 @@ export default function ChildDetailsScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563EB" />}
     >
       <View className="mb-6 rounded-2xl bg-white p-5 shadow-sm">
-        <Text className="text-xl font-semibold text-gray-900">{child?.name}</Text>
+        <Text className="text-xl font-semibold text-gray-900">{child?.fullName}</Text>
         {child?.birthdate ? (
           <Text className="mt-1 text-sm text-gray-500">{format(new Date(child.birthdate), 'yyyy-MM-dd')}</Text>
         ) : null}
-        {child?.group ? <Text className="mt-1 text-sm text-gray-500">{child.group}</Text> : null}
       </View>
 
       <View className="mb-6 rounded-2xl bg-white p-5 shadow-sm">
         <Text className="mb-3 text-lg font-semibold text-gray-900">{t('parent.children.notes')}</Text>
-        {notes.length ? (
+        {notesQuery.isPending && !notes.length ? (
+          <Text className="text-sm text-gray-500">{t('common.loading')}</Text>
+        ) : notes.length ? (
           <View className="space-y-3">
             {notes.map((note) => (
               <View key={note.id} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
-                <Text className="text-base text-gray-900">{note.summary || note.content}</Text>
-                {note.created_at ? (
-                  <Text className="mt-1 text-xs text-gray-500">{format(new Date(note.created_at), 'yyyy-MM-dd HH:mm')}</Text>
+                {note.type ? (
+                  <Text className="text-sm font-semibold text-gray-600">{note.type}</Text>
+                ) : null}
+                {note.contenu ? <Text className="mt-1 text-base text-gray-900">{note.contenu}</Text> : null}
+                {note.date_note ? (
+                  <Text className="mt-1 text-xs text-gray-500">{format(new Date(note.date_note), 'yyyy-MM-dd HH:mm')}</Text>
                 ) : null}
               </View>
             ))}
           </View>
         ) : (
-          <Empty message={t('common.empty')} />
+          <Text className="text-sm text-gray-500">{t('parent.children.notesUnavailable')}</Text>
         )}
       </View>
 
       <View className="rounded-2xl bg-white p-5 shadow-sm">
         <Text className="mb-3 text-lg font-semibold text-gray-900">{t('parent.children.pei')}</Text>
-        {pei?.status ? (
+        {pei ? (
           <View>
             <Text className="text-base text-gray-900">{t('parent.children.peiStatus')}</Text>
-            <Text className="mt-1 text-sm text-gray-600">{pei.status}</Text>
-            {pei.summary ? <Text className="mt-2 text-sm text-gray-600">{pei.summary}</Text> : null}
+            <Text className="mt-1 text-sm text-gray-600">{pei.statut || '—'}</Text>
+            {pei.objectifs ? <Text className="mt-2 text-sm text-gray-600">{pei.objectifs}</Text> : null}
           </View>
         ) : (
-          <Empty message={t('parent.children.noPei')} />
+          <Text className="text-sm text-gray-500">{t('parent.children.noPei')}</Text>
         )}
       </View>
     </ScrollView>
