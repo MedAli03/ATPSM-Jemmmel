@@ -1,178 +1,298 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Image,
+  Alert,
+  I18nManager,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
+  Pressable,
   ScrollView,
-  StatusBar,
   Text,
-  TextInput,
-  TouchableOpacity,
   View
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
+import { useMutation } from '@tanstack/react-query';
+import * as SecureStore from 'expo-secure-store';
 import { useTranslation } from 'react-i18next';
 
+import { login } from '../../api/auth';
+import { setAuthToken } from '../../api/client';
+import TextField from '../../components/ui/TextField';
+import PasswordField from '../../components/ui/PasswordField';
 import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
-import { useAuth } from '../../hooks/useAuth';
 
-const schema = yup.object({
-  email: yup.string().email('صيغة البريد غير صحيحة').required('مطلوب'),
-  password: yup.string().required('مطلوب')
+const LOGIN_SCHEMA = yup.object({
+  identifier: yup
+    .string()
+    .trim()
+    .required('validation.identifierRequired')
+    .min(3, 'validation.identifierMin')
+    .max(120, 'validation.identifierMax'),
+  password: yup
+    .string()
+    .trim()
+    .required('validation.passwordRequired')
+    .min(6, 'validation.passwordMin')
+    .max(100, 'validation.passwordMax')
 });
 
-export default function LoginScreen() {
+export default function LoginScreen({ onLoggedIn }) {
   const { t } = useTranslation();
-  const { login } = useAuth();
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const identifierRef = useRef(null);
+  const passwordRef = useRef(null);
+  const [rememberMe, setRememberMe] = useState(true);
+  const [alertMessage, setAlertMessage] = useState(null);
+
+  useEffect(() => {
+    I18nManager.allowRTL(true);
+    if (!I18nManager.isRTL) {
+      try {
+        I18nManager.forceRTL(true);
+      } catch (error) {
+        console.warn('Unable to enforce RTL layout', error);
+      }
+    }
+  }, []);
+
+  const resolver = useMemo(
+    () =>
+      yupResolver(
+        LOGIN_SCHEMA.transform((value) => ({
+          ...value,
+          identifier: value.identifier?.trim() ?? '',
+          password: value.password ?? ''
+        }))
+      ),
+    []
+  );
+
   const {
     control,
     handleSubmit,
-    formState: { errors }
+    setError,
+    formState: { errors },
+    reset
   } = useForm({
-    defaultValues: { email: '', password: '' },
-    resolver: yupResolver(schema)
+    resolver,
+    mode: 'onBlur',
+    defaultValues: {
+      identifier: '',
+      password: ''
+    }
   });
 
-  const passwordToggleLabel = useMemo(
-    () => (showPassword ? t('login.hidePassword') : t('login.showPassword')),
-    [showPassword, t]
-  );
+  const loginMutation = useMutation({
+    mutationFn: login
+  });
 
-  const onSubmit = async (values) => {
-    setSubmitting(true);
-    setError('');
-    try {
-      await login({
-        email: values.email.trim(),
-        mot_de_passe: values.password
-      });
-    } catch (err) {
-      const apiMessage =
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        err?.response?.data?.errors?.[0]?.message ||
-        err?.response?.data?.errors?.[0]?.msg;
-      setError(apiMessage || t('login.error'));
-    } finally {
-      setSubmitting(false);
+  const focusFirstError = (formErrors) => {
+    if (formErrors?.identifier) {
+      identifierRef.current?.focus();
+      return;
+    }
+    if (formErrors?.password) {
+      passwordRef.current?.focus();
     }
   };
 
+  const onSubmit = handleSubmit(
+    async (formData) => {
+      setAlertMessage(null);
+      try {
+        const payload = await loginMutation.mutateAsync({
+          identifier: formData.identifier.trim(),
+          password: formData.password
+        });
+
+        if (!payload?.token || !payload?.user) {
+          throw new Error('Incomplete authentication payload');
+        }
+
+        const authPayload = {
+          token: payload.token,
+          user: payload.user
+        };
+
+        await SecureStore.setItemAsync('auth', JSON.stringify(authPayload));
+        setAuthToken(payload.token);
+
+        if (typeof onLoggedIn === 'function') {
+          onLoggedIn(authPayload);
+        }
+
+        reset({ identifier: '', password: '' });
+      } catch (error) {
+        if (error?.status === 422) {
+          const validationErrors = error.data?.errors ?? {};
+          const serverErrors = {};
+
+          if (validationErrors.identifier) {
+            serverErrors.identifier = {
+              type: 'server',
+              message: validationErrors.identifier
+            };
+          }
+
+          if (validationErrors.password) {
+            serverErrors.password = {
+              type: 'server',
+              message: validationErrors.password
+            };
+          }
+
+          if (serverErrors.identifier) {
+            setError('identifier', serverErrors.identifier);
+          }
+          if (serverErrors.password) {
+            setError('password', serverErrors.password);
+          }
+
+          focusFirstError(serverErrors);
+          return;
+        }
+
+        if (error?.status === 401) {
+          setAlertMessage(t('login.invalidCredentials'));
+          return;
+        }
+
+        console.error('Login request failed', error);
+        Alert.alert('خطأ', t('login.unexpectedError'));
+      }
+    },
+    (formErrors) => {
+      focusFirstError(formErrors);
+    }
+  );
+
   return (
-    <SafeAreaView className="relative flex-1 bg-indigo-950">
-      <StatusBar barStyle="light-content" />
-      <View className="pointer-events-none absolute -left-32 -top-32 h-64 w-64 rounded-full bg-indigo-500/30" />
-      <View className="pointer-events-none absolute -right-24 top-24 h-72 w-72 rounded-full bg-blue-400/20" />
+    <LinearGradient
+      colors={['#0f172a', '#1d4ed8']}
+      className="flex-1"
+      style={{ flex: 1 }}
+    >
       <KeyboardAvoidingView
         className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
-          bounces={false}
+          contentContainerStyle={{ flexGrow: 1 }}
           keyboardShouldPersistTaps="handled"
-          contentContainerClassName="flex-grow"
         >
-          <View className="flex-1 justify-between px-6 pb-10 pt-16">
-            <View className="items-center">
-              <View className="h-20 w-20 items-center justify-center rounded-3xl bg-white/10">
-                <Image
-                  source={require('../../../assets/logo.png')}
-                  className="h-12 w-12"
-                  resizeMode="contain"
-                />
-              </View>
-              <Text className="mt-8 text-3xl font-bold text-white">{t('login.heroTitle')}</Text>
-              <Text className="mt-3 text-center text-base leading-6 text-indigo-100">
-                {t('login.heroSubtitle')}
+          <View className="flex-1 items-center justify-center px-5 py-12">
+            <View className="w-full max-w-md rounded-2xl bg-white/95 p-6 shadow-lg">
+              <Text className="text-right text-3xl font-extrabold text-neutral-900">
+                {t('login.title')}
               </Text>
-            </View>
-
-            <View className="mt-12 w-full self-center rounded-3xl bg-white/95 p-6 shadow-2xl">
-              <Text className="text-right text-2xl font-bold text-gray-900">{t('login.title')}</Text>
-              <Text className="mt-2 text-right text-sm text-gray-500">
-                {t('login.heroSubtitle')}
+              <Text className="mb-6 mt-2 text-right text-base text-neutral-500">
+                {t('login.subtitle')}
               </Text>
 
-              <View className="mt-8 space-y-6">
-                <Controller
-                  control={control}
-                  name="email"
-                  render={({ field: { onChange, value } }) => (
-                    <Input
-                      label={t('login.email')}
-                      value={value}
-                      onChangeText={onChange}
-                      placeholder={t('login.emailPlaceholder')}
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      autoComplete="email"
-                      textContentType="emailAddress"
-                      error={errors.email?.message}
-                    />
-                  )}
-                />
+              {alertMessage ? (
+                <View className="mb-4 rounded-xl bg-red-500/90 px-4 py-3">
+                  <Text className="text-right text-sm font-semibold text-white">
+                    {alertMessage}
+                  </Text>
+                </View>
+              ) : null}
 
-                <Controller
-                  control={control}
-                  name="password"
-                  render={({ field: { onChange, value } }) => (
-                    <View className="w-full">
-                      <View className="mb-2 flex-row items-center justify-between">
-                        <Text className="text-base font-semibold text-gray-800">{t('login.password')}</Text>
-                        <TouchableOpacity
-                          accessibilityRole="button"
-                          onPress={() => setShowPassword((prev) => !prev)}
-                        >
-                          <Text className="text-sm font-semibold text-indigo-600">{passwordToggleLabel}</Text>
-                        </TouchableOpacity>
-                      </View>
-                      <TextInput
-                        value={value}
-                        onChangeText={onChange}
-                        secureTextEntry={!showPassword}
-                        textContentType="password"
-                        placeholder={t('login.passwordPlaceholder')}
-                        placeholderTextColor="#9CA3AF"
-                        className={`w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-base text-right ${
-                          errors.password ? 'border-red-500' : ''
-                        }`}
-                      />
-                      {errors.password?.message ? (
-                        <Text className="mt-1 text-sm text-red-600">{errors.password.message}</Text>
-                      ) : null}
-                    </View>
-                  )}
-                />
+              <Controller
+                control={control}
+                name="identifier"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextField
+                    ref={identifierRef}
+                    label={t('login.identifier')}
+                    placeholder={t('login.identifierPlaceholder')}
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoComplete="username"
+                    returnKeyType="next"
+                    textContentType="username"
+                    onSubmitEditing={() => passwordRef.current?.focus()}
+                    error={errors.identifier ? t(errors.identifier.message) : undefined}
+                    accessibilityLabel={t('login.identifier')}
+                  />
+                )}
+              />
 
-                {error ? (
-                  <View className="rounded-xl border border-red-100 bg-red-50 px-4 py-3">
-                    <Text className="text-center text-sm font-semibold text-red-600">{error}</Text>
+              <Controller
+                control={control}
+                name="password"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <PasswordField
+                    ref={passwordRef}
+                    label={t('login.password')}
+                    placeholder={t('login.passwordPlaceholder')}
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    returnKeyType="done"
+                    textContentType="password"
+                    onSubmitEditing={onSubmit}
+                    error={errors.password ? t(errors.password.message) : undefined}
+                    accessibilityLabel={t('login.password')}
+                    toggleLabel={t('login.togglePassword')}
+                    showText={t('login.showPassword')}
+                    hideText={t('login.hidePassword')}
+                  />
+                )}
+              />
+
+              <View className="mt-4 flex-row-reverse items-center justify-between">
+                <Pressable
+                  onPress={() => setRememberMe((prev) => !prev)}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: rememberMe }}
+                  hitSlop={12}
+                  className="flex-row-reverse items-center"
+                >
+                  <View
+                    className={`ml-3 h-5 w-5 items-center justify-center rounded border ${
+                      rememberMe
+                        ? 'border-sky-600 bg-sky-600'
+                        : 'border-neutral-300 bg-white'
+                    }`}
+                  >
+                    {rememberMe ? (
+                      <View className="h-2.5 w-2.5 rounded bg-white" />
+                    ) : null}
                   </View>
-                ) : null}
+                  <Text className="text-sm text-neutral-700 dark:text-neutral-100">
+                    {t('login.rememberMe')}
+                  </Text>
+                </Pressable>
 
+                <Pressable
+                  onPress={() => {}}
+                  accessibilityRole="button"
+                  hitSlop={12}
+                >
+                  <Text className="text-sm font-semibold text-sky-600 dark:text-sky-400">
+                    {t('login.forgotPassword')}
+                  </Text>
+                </Pressable>
+              </View>
+
+              <View className="mt-8">
                 <Button
-                  title={submitting ? t('login.loading') : t('login.submit')}
-                  onPress={handleSubmit(onSubmit)}
-                  disabled={submitting}
-                  className="bg-indigo-600"
-                />
-
-                <Text className="text-center text-xs leading-5 text-gray-400">
-                  {t('login.disclaimer')}
-                </Text>
+                  onPress={onSubmit}
+                  loading={loginMutation.isPending}
+                  disabled={loginMutation.isPending}
+                  accessibilityLabel={t('login.submit')}
+                >
+                  {t('login.submit')}
+                </Button>
               </View>
             </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </LinearGradient>
   );
 }

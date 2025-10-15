@@ -1,112 +1,27 @@
 {
-  "appName": "منصّة ATPSM",
   "login": {
     "title": "تسجيل الدخول",
-    "heroTitle": "مرحباً بعودتك",
-    "heroSubtitle": "متابعة مستجدات طفلك تبدأ من هنا.",
-    "email": "البريد الإلكتروني",
-    "emailPlaceholder": "name@example.com",
+    "subtitle": "مرحبًا بعودتك!",
+    "identifier": "البريد الإلكتروني أو اسم المستخدم",
+    "identifierPlaceholder": "أدخل البريد الإلكتروني أو اسم المستخدم",
     "password": "كلمة السر",
-    "passwordPlaceholder": "••••••••",
+    "passwordPlaceholder": "أدخل كلمة السر",
+    "rememberMe": "تذكرني",
+    "forgotPassword": "نسيت كلمة السر؟",
+    "submit": "دخول",
+    "togglePassword": "تبديل إظهار كلمة السر",
     "showPassword": "إظهار",
     "hidePassword": "إخفاء",
-    "submit": "دخول",
-    "loading": "جاري تسجيل الدخول...",
-    "error": "فشل تسجيل الدخول. تأكد من البيانات وحاول مجدداً.",
-    "disclaimer": "بتسجيل دخولك، فإنك توافق على شروط الاستخدام وسياسة الخصوصية الخاصة بنا."
+    "invalidCredentials": "بيانات الدخول غير صحيحة",
+    "unexpectedError": "حدث خطأ غير متوقع",
+    "rememberMeHint": "تذكر بيانات الدخول على هذا الجهاز"
   },
-  "common": {
-    "loading": "جاري التحميل...",
-    "pullToRefresh": "اسحب للتحديث",
-    "retry": "إعادة المحاولة",
-    "empty": "لا توجد بيانات متاحة",
-    "error": "حدث خطأ غير متوقع",
-    "logout": "تسجيل الخروج",
-    "save": "حفظ",
-    "cancel": "إلغاء",
-    "send": "إرسال",
-    "viewAll": "عرض الكل",
-    "markRead": "تمييز كمقروء",
-    "unknown": "غير متوفر"
-  },
-  "tabs": {
-    "parent": {
-      "home": "الرئيسية",
-      "children": "أطفالي",
-      "messages": "الرسائل",
-      "notifications": "الإشعارات",
-      "account": "الحساب"
-    },
-    "educator": {
-      "home": "الرئيسية",
-      "groups": "مجموعاتي",
-      "notes": "الملاحظات اليومية",
-      "messages": "الرسائل",
-      "account": "الحساب"
-    }
-  },
-  "parent": {
-    "home": {
-      "nextEvent": "الفعالية القادمة",
-      "lastNote": "آخر ملاحظة",
-      "notesUnavailable": "لا تتوفر ملاحظات للعرض عبر التطبيق حالياً.",
-      "childrenList": "أطفالي"
-    },
-    "children": {
-      "title": "أطفالي",
-      "notes": "آخر الملاحظات",
-      "pei": "خطة التدخّل الفردي",
-      "peiStatus": "الحالة الحالية",
-      "noPei": "لا توجد خطة مفعّلة",
-      "notesUnavailable": "لا تتوفر ملاحظات حالياً لهذا الطفل."
-    }
-  },
-  "educator": {
-    "home": {
-      "title": "نظرة عامة",
-      "activeYear": "السنة الدراسية النشطة",
-      "activePei": "خطط PEI النشطة",
-      "noPei": "لا توجد خطط نشطة",
-      "upcomingEvents": "فعاليات قادمة",
-      "noEvents": "لا توجد فعاليات خاصة بالمربين",
-      "unread": "إشعارات غير مقروءة",
-      "noNotifications": "لا توجد إشعارات جديدة"
-    },
-    "groups": {
-      "title": "مجموعاتي",
-      "children": "أطفال المجموعة"
-    },
-    "notes": {
-      "title": "الملاحظات اليومية",
-      "create": "إضافة ملاحظة",
-      "type": "نوع الملاحظة",
-      "content": "تفاصيل الملاحظة",
-      "date": "التاريخ",
-      "time": "الوقت",
-      "attachment": "مرفقات (رابط اختياري)",
-      "submit": "حفظ الملاحظة",
-      "childFallback": "طفل رقم {{id}}",
-      "noPei": "لم يتم تعيين خطة نشطة لهذا المربي",
-      "noteLabel": "ملاحظة"
-    }
-  },
-  "messages": {
-    "title": "الرسائل",
-    "empty": "لا توجد رسائل بعد",
-    "placeholder": "اكتب رسالة مهذبة...",
-    "unavailable": "ميزة الرسائل غير متاحة حالياً عبر التطبيق."
-  },
-  "notifications": {
-    "title": "الإشعارات",
-    "empty": "لا توجد إشعارات جديدة"
-  },
-  "account": {
-    "title": "الملف الشخصي",
-    "firstName": "الاسم الأول",
-    "lastName": "اللقب",
-    "email": "البريد الإلكتروني",
-    "address": "العنوان",
-    "phone": "رقم الهاتف",
-    "updateSuccess": "تم تحديث البيانات بنجاح"
+  "validation": {
+    "identifierRequired": "الرجاء إدخال البريد الإلكتروني أو اسم المستخدم",
+    "identifierMin": "يجب أن يكون الحقل 3 أحرف على الأقل",
+    "identifierMax": "يجب ألا يتجاوز الحقل 120 حرفًا",
+    "passwordRequired": "الرجاء إدخال كلمة السر",
+    "passwordMin": "كلمة السر قصيرة جدًا",
+    "passwordMax": "كلمة السر طويلة جدًا"
   }
 }
