@@ -2,11 +2,18 @@
   "appName": "ATPSM Platform",
   "login": {
     "title": "Sign in",
+    "heroTitle": "Welcome back",
+    "heroSubtitle": "Stay close to every moment that matters.",
     "email": "Email",
+    "emailPlaceholder": "name@example.com",
     "password": "Password",
+    "passwordPlaceholder": "••••••••",
+    "showPassword": "Show",
+    "hidePassword": "Hide",
     "submit": "Login",
     "loading": "Signing in...",
-    "error": "Login failed. Please check your details and try again."
+    "error": "Login failed. Please check your details and try again.",
+    "disclaimer": "By continuing you agree to our Terms of Use and Privacy Policy."
   },
   "common": {
     "loading": "Loading...",

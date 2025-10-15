@@ -2,11 +2,18 @@
   "appName": "منصّة ATPSM",
   "login": {
     "title": "تسجيل الدخول",
+    "heroTitle": "مرحباً بعودتك",
+    "heroSubtitle": "متابعة مستجدات طفلك تبدأ من هنا.",
     "email": "البريد الإلكتروني",
+    "emailPlaceholder": "name@example.com",
     "password": "كلمة السر",
+    "passwordPlaceholder": "••••••••",
+    "showPassword": "إظهار",
+    "hidePassword": "إخفاء",
     "submit": "دخول",
     "loading": "جاري تسجيل الدخول...",
-    "error": "فشل تسجيل الدخول. تأكد من البيانات وحاول مجدداً."
+    "error": "فشل تسجيل الدخول. تأكد من البيانات وحاول مجدداً.",
+    "disclaimer": "بتسجيل دخولك، فإنك توافق على شروط الاستخدام وسياسة الخصوصية الخاصة بنا."
   },
   "common": {
     "loading": "جاري التحميل...",
