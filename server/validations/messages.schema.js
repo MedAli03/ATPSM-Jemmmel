@@ -24,7 +24,7 @@ const sendMessageBody = Joi.object({
       Joi.object({
         name: Joi.string().max(255).optional(),
         mimeType: Joi.string().max(100).optional(),
-        size: Joi.number().integer().min(0).optional(),
+        size: Joi.number().integer().min(0).max(5 * 1024 * 1024).optional(),
         data: Joi.string().required(),
       })
     )

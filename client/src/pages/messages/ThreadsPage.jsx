@@ -31,12 +31,11 @@ const ThreadsPage = () => {
     keepPreviousData: true,
   });
 
-  const { threads, meta } = useMemo(() => {
+  const { threads, pagination } = useMemo(() => {
     const data = threadsQuery.data || {};
-    const list = data.threads || data.data || [];
     return {
-      threads: Array.isArray(list) ? list : [],
-      meta: data.meta || data.pagination || {},
+      threads: Array.isArray(data.threads) ? data.threads : [],
+      pagination: data.pagination || {},
     };
   }, [threadsQuery.data]);
 
@@ -53,7 +52,7 @@ const ThreadsPage = () => {
     navigate(`${basePath}/${threadId}`);
   };
 
-  const totalPages = Number(meta?.totalPages || meta?.pageCount || 1);
+  const totalPages = Number(pagination?.totalPages || pagination?.pageCount || 1);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-primary-50/30" dir="rtl">
@@ -78,7 +77,9 @@ const ThreadsPage = () => {
               className="w-full rounded-full border border-slate-200 bg-white px-5 py-3 text-sm text-right shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
             />
             <span className="text-xs text-slate-500">
-              {threadsQuery.isFetching ? "جاري التحميل..." : `${meta?.total || threads.length} محادثة`}
+              {threadsQuery.isFetching
+                ? "جاري التحميل..."
+                : `${pagination?.total ?? threads.length} محادثة`}
             </span>
           </div>
 

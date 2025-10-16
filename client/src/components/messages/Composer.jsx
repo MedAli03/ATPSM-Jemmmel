@@ -43,7 +43,9 @@ const Composer = ({ onSend, isSending = false, onTypingChange }) => {
   }, [bodyValue, onTypingChange]);
 
   const onSubmit = (values) => {
-    const attachments = values.attachments ? Array.from(values.attachments) : [];
+    const attachments = values.attachments
+      ? Array.from(values.attachments).slice(0, 5)
+      : [];
     onSend({ body: values.body.trim(), attachments });
     reset({ body: "", attachments: undefined });
   };
@@ -70,7 +72,10 @@ const Composer = ({ onSend, isSending = false, onTypingChange }) => {
           <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary-100 text-primary-600">
             📎
           </span>
-          <span>إضافة مرفقات</span>
+          <span className="flex flex-col text-right leading-tight">
+            <span>إضافة مرفقات</span>
+            <span className="text-[11px] text-slate-400">حتى 5 ملفات</span>
+          </span>
           <input
             type="file"
             multiple

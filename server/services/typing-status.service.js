@@ -23,16 +23,18 @@ function pruneExpired(threadId) {
   }
 }
 
-exports.setTyping = (threadId, userId, isTyping, label) => {
+exports.setTyping = (threadId, userId, details = {}) => {
   const key = getThreadKey(threadId);
   pruneExpired(threadId);
   if (!store.has(key)) {
     store.set(key, { status: new Map() });
   }
   const entry = store.get(key);
-  if (isTyping) {
+  if (details.isTyping) {
     entry.status.set(String(userId), {
-      label,
+      userId: String(userId),
+      label: details.label,
+      name: details.name,
       expiresAt: Date.now() + TTL_MS,
     });
   } else {
@@ -46,13 +48,25 @@ exports.setTyping = (threadId, userId, isTyping, label) => {
 exports.getTyping = (threadId, currentUserId) => {
   pruneExpired(threadId);
   const entry = store.get(getThreadKey(threadId));
-  if (!entry) return { isTyping: false };
-  const others = Array.from(entry.status.entries()).filter(
-    ([userId]) => userId !== String(currentUserId)
+  if (!entry) {
+    return { isTyping: false, users: [] };
+  }
+  const others = Array.from(entry.status.values()).filter(
+    (status) => status.userId !== String(currentUserId)
   );
-  if (!others.length) return { isTyping: false };
-  const [, status] = others[0];
-  return { isTyping: true, label: status.label };
+  if (!others.length) {
+    return { isTyping: false, users: [] };
+  }
+  const [first] = others;
+  return {
+    isTyping: true,
+    label: first.label,
+    users: others.map((status) => ({
+      userId: status.userId,
+      label: status.label,
+      name: status.name,
+    })),
+  };
 };
 
 exports.flushAll = () => {

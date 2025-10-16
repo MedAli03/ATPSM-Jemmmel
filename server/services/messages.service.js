@@ -16,7 +16,7 @@ const MAX_ATTACHMENTS = 5;
 
 function sanitizeFileName(name) {
   if (!name || typeof name !== "string") return null;
-  const base = name.replace(/[^a-zA-Z0-9_.\-\s]/g, "").trim();
+  const base = name.replace(/[^\p{L}\p{N}_.\-\s]/gu, "").trim();
   return base || null;
 }
 
@@ -30,7 +30,7 @@ function extractBase64Payload(raw) {
   return { mime: null, base64: trimmed.replace(/\s+/g, "") };
 }
 
-async function saveAttachments(threadId, attachments = []) {
+async function writeAttachments(threadId, attachments = []) {
   if (!Array.isArray(attachments) || attachments.length === 0) {
     return { files: [], cleanup: async () => {} };
   }
@@ -78,13 +78,12 @@ async function saveAttachments(threadId, attachments = []) {
       const absolutePath = path.join(ATTACHMENTS_DIR, fileName);
       await fs.writeFile(absolutePath, buffer);
       saved.push({
-        meta: {
-          id: fileName,
-          name,
-          url: `${ATTACHMENTS_PREFIX}${fileName}`,
-          size: buffer.length,
-          mimeType: attachment.mimeType || mime || null,
-        },
+        id: fileName,
+        name,
+        mimeType: attachment.mimeType || mime || null,
+        size: buffer.length,
+        publicUrl: `${ATTACHMENTS_PREFIX}${fileName}`,
+        storagePath: path.posix.join("messages", fileName),
         absolutePath,
       });
     }
@@ -96,7 +95,7 @@ async function saveAttachments(threadId, attachments = []) {
   }
 
   return {
-    files: saved.map((file) => file.meta),
+    files: saved,
     cleanup: async () => {
       await Promise.all(
         saved.map((file) => fs.unlink(file.absolutePath).catch(() => {}))
@@ -105,57 +104,80 @@ async function saveAttachments(threadId, attachments = []) {
   };
 }
 
-function mapThread(thread, currentUserId, fallbackUnread = 0) {
-  if (!thread) return null;
-  const plain = thread.get ? thread.get({ plain: true }) : thread;
-  const allParticipants = (plain.participants || []).map((participant) => {
-    const user = participant.utilisateur || participant;
-    return {
-      id: user.id,
-      role: user.role,
-      name:
-        [user.prenom, user.nom].filter(Boolean).join(" ") ||
-        user.email ||
-        participant.name ||
-        null,
-    };
-  });
-  const participants = allParticipants.filter(
-    (participant) =>
-      participant.id != null &&
-      String(participant.id) !== String(currentUserId)
-  );
-  const displayParticipants = participants.length ? participants : allParticipants;
-  const lastMessage = plain.lastMessage || plain.messages?.[0] || null;
-  const unreadCount =
-    typeof plain.unreadCount === "number" ? plain.unreadCount : fallbackUnread;
+function mapParticipant(participant, currentUserId) {
+  if (!participant) return null;
+  const user = participant.utilisateur || participant;
+  if (!user) return null;
+  const name =
+    [user.prenom, user.nom].filter(Boolean).join(" ") ||
+    user.email ||
+    participant.name ||
+    null;
   return {
-    id: plain.id,
-    title: plain.sujet || plain.title,
-    createdAt: plain.created_at || plain.createdAt,
-    updatedAt: plain.updated_at || plain.updatedAt,
-    participants: displayParticipants,
-    unreadCount,
-    lastMessage: lastMessage
-      ? {
-        id: lastMessage.id,
-          body: lastMessage.body || lastMessage.texte,
-          createdAt: lastMessage.createdAt || lastMessage.created_at,
-          senderId: lastMessage.senderId || lastMessage.expediteur_id,
-          senderName:
-            lastMessage.senderName ||
-            [lastMessage.expediteur?.prenom, lastMessage.expediteur?.nom]
-              .filter(Boolean)
-              .join(" ") ||
-            lastMessage.expediteur?.email ||
-            null,
-        }
-      : null,
-    currentUserId,
+    id: user.id,
+    role: user.role,
+    name,
+    isCurrentUser: String(user.id) === String(currentUserId),
   };
 }
 
-function mapMessage(message) {
+function mapAttachmentRecord(record) {
+  if (!record) return null;
+  const plain = record.get ? record.get({ plain: true }) : record;
+  const name = plain.original_name || plain.name || null;
+  const url = plain.public_url || plain.url || null;
+  if (!name && !url) return null;
+  return {
+    id: plain.id || plain.storage_path || plain.fileName || url,
+    name,
+    url,
+    mimeType: plain.mime_type || plain.mimeType || null,
+    size:
+      typeof plain.size === "number"
+        ? plain.size
+        : typeof plain.fileSize === "number"
+          ? plain.fileSize
+          : null,
+    createdAt: plain.created_at || plain.createdAt || null,
+  };
+}
+
+function mapLegacyAttachment(legacy) {
+  if (!legacy) return null;
+  const name = legacy.name || legacy.original_name || null;
+  const url = legacy.url || legacy.public_url || null;
+  if (!name && !url) return null;
+  return {
+    id: legacy.id || legacy.storage_path || url,
+    name,
+    url,
+    mimeType: legacy.mimeType || legacy.mime_type || null,
+    size:
+      typeof legacy.size === "number"
+        ? legacy.size
+        : typeof legacy.fileSize === "number"
+          ? legacy.fileSize
+          : null,
+    createdAt: legacy.createdAt || legacy.created_at || null,
+  };
+}
+
+function combineAttachments(relational = [], legacy = []) {
+  const collected = [];
+  const seen = new Set();
+  const push = (attachment) => {
+    if (!attachment) return;
+    const key = attachment.id || attachment.url || `${attachment.name}-${attachment.size}`;
+    if (key && seen.has(key)) return;
+    if (key) seen.add(key);
+    collected.push(attachment);
+  };
+  relational.forEach((item) => push(mapAttachmentRecord(item)));
+  legacy.forEach((item) => push(mapLegacyAttachment(item)));
+  return collected;
+}
+
+function mapMessageRecord(message) {
   const plain = message.get ? message.get({ plain: true }) : message;
   return {
     id: plain.id,
@@ -167,9 +189,49 @@ function mapMessage(message) {
       [plain.expediteur?.prenom, plain.expediteur?.nom]
         .filter(Boolean)
         .join(" ") || plain.expediteur?.email || null,
-    attachments: Array.isArray(plain.pieces_jointes)
-      ? plain.pieces_jointes
-      : [],
+    attachments: combineAttachments(plain.attachments, plain.pieces_jointes),
+  };
+}
+
+function mapThreadRecord(thread, currentUserId, fallbackUnread = 0) {
+  if (!thread) return null;
+  const plain = thread.get ? thread.get({ plain: true }) : thread;
+  const participantList = (plain.participants || [])
+    .map((participant) => mapParticipant(participant, currentUserId))
+    .filter(Boolean);
+  const otherParticipants = participantList.filter(
+    (participant) => !participant.isCurrentUser
+  );
+  const displayParticipants = otherParticipants.length
+    ? otherParticipants
+    : participantList;
+  const lastMessageRaw = plain.lastMessage || plain.messages?.[0] || null;
+  const unreadCount =
+    typeof plain.unreadCount === "number" ? plain.unreadCount : fallbackUnread;
+  return {
+    id: plain.id,
+    subject: plain.sujet || plain.title,
+    createdAt: plain.created_at || plain.createdAt,
+    updatedAt: plain.updated_at || plain.updatedAt,
+    participants: displayParticipants.map(({ isCurrentUser, ...rest }) => rest),
+    unreadCount,
+    lastMessage: lastMessageRaw ? mapMessageRecord(lastMessageRaw) : null,
+    enfant: plain.enfant
+      ? {
+          id: plain.enfant.id,
+          name: [plain.enfant.prenom, plain.enfant.nom].filter(Boolean).join(" "),
+        }
+      : null,
+    createdBy: plain.creator
+      ? {
+          id: plain.creator.id,
+          name:
+            [plain.creator.prenom, plain.creator.nom]
+              .filter(Boolean)
+              .join(" ") || plain.creator.email,
+        }
+      : null,
+    currentUserId,
   };
 }
 
@@ -178,15 +240,17 @@ exports.listThreads = async (currentUser, query) => {
     currentUser.id,
     query
   );
-  const threads = rows.map((row) => mapThread(row, currentUser.id, row.unreadCount));
-  const totalPages = Math.max(1, Math.ceil(total / (limit || 1)));
+  const threads = rows.map((row) => mapThreadRecord(row, currentUser.id, row.unreadCount));
+  const perPage = limit || rows.length || 1;
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
   return {
     threads,
-    meta: {
+    pagination: {
       total,
       page,
-      limit,
+      perPage,
       totalPages,
+      hasNextPage: page < totalPages,
     },
   };
 };
@@ -209,7 +273,7 @@ exports.getThread = async (currentUser, threadId) => {
     });
   }
   const unread = await repo.countUnreadForThread(threadId, currentUser.id);
-  return mapThread(thread, currentUser.id, unread);
+  return mapThreadRecord(thread, currentUser.id, unread);
 };
 
 exports.listMessages = async (currentUser, threadId, params = {}) => {
@@ -233,14 +297,17 @@ exports.listMessages = async (currentUser, threadId, params = {}) => {
     cursor: cursorDate,
     limit,
   });
-  const mapped = messages.map(mapMessage);
+  const mapped = messages.map(mapMessageRecord);
   const nextCursor =
     messages.length === limit
       ? messages[messages.length - 1].created_at
       : null;
   return {
     messages: mapped,
-    nextCursor: nextCursor ? new Date(nextCursor).toISOString() : null,
+    pageInfo: {
+      nextCursor: nextCursor ? new Date(nextCursor).toISOString() : null,
+      hasMore: Boolean(nextCursor),
+    },
   };
 };
 
@@ -262,7 +329,7 @@ exports.sendMessage = async (currentUser, threadId, payload = {}) => {
     });
   }
 
-  const { files, cleanup } = await saveAttachments(threadId, payload.attachments);
+  const { files, cleanup } = await writeAttachments(threadId, payload.attachments);
 
   let message;
   try {
@@ -272,10 +339,31 @@ exports.sendMessage = async (currentUser, threadId, payload = {}) => {
           thread_id: threadId,
           expediteur_id: currentUser.id,
           texte: body,
-          pieces_jointes: files,
+          pieces_jointes: files.map((file) => ({
+            id: file.id,
+            name: file.name,
+            url: file.publicUrl,
+            mimeType: file.mimeType,
+            size: file.size,
+          })),
         },
         t
       );
+
+      if (files.length) {
+        await repo.createMessageAttachments(
+          files.map((file) => ({
+            message_id: message.id,
+            original_name: file.name,
+            mime_type: file.mimeType,
+            size: file.size,
+            storage_path: file.storagePath,
+            public_url: file.publicUrl,
+          })),
+          t
+        );
+      }
+
       await repo.touchThread(threadId, message.created_at, t);
       await repo.updateLastRead(threadId, currentUser.id, message.created_at, t);
     });
@@ -284,7 +372,8 @@ exports.sendMessage = async (currentUser, threadId, payload = {}) => {
     throw error;
   }
 
-  const mapped = mapMessage(message);
+  const freshMessage = await repo.findMessageById(message.id);
+  const mapped = mapMessageRecord(freshMessage || message);
 
   notifier
     .notifyOnNewMessage({
@@ -294,7 +383,7 @@ exports.sendMessage = async (currentUser, threadId, payload = {}) => {
     })
     .catch(() => {});
 
-  typingStatus.setTyping(threadId, currentUser.id, false);
+  typingStatus.setTyping(threadId, currentUser.id, { isTyping: false });
 
   return mapped;
 };
@@ -311,7 +400,7 @@ exports.markAsRead = async (currentUser, threadId) => {
   const now = new Date();
   await repo.updateLastRead(threadId, currentUser.id, now);
   const unread = await repo.countUnreadForThread(threadId, currentUser.id);
-  return { unread };
+  return { unread, lastReadAt: now.toISOString() };
 };
 
 exports.getTypingStatus = async (currentUser, threadId) => {
@@ -336,9 +425,14 @@ exports.setTypingStatus = async (currentUser, threadId, isTyping) => {
     });
   }
   const user = await repo.findUserById(currentUser.id);
-  const label = user
-    ? `${[user.prenom, user.nom].filter(Boolean).join(" ") || "مستخدم"} يكتب الآن...`
-    : "يكتب الآن...";
-  typingStatus.setTyping(threadId, currentUser.id, Boolean(isTyping), label);
+  const displayName = user
+    ? [user.prenom, user.nom].filter(Boolean).join(" ") || user.email || "مستخدم"
+    : "مستخدم";
+  const label = `${displayName} يكتب الآن...`;
+  typingStatus.setTyping(threadId, currentUser.id, {
+    isTyping: Boolean(isTyping),
+    name: displayName,
+    label,
+  });
   return typingStatus.getTyping(threadId, currentUser.id);
 };

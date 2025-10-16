@@ -6,6 +6,7 @@ const {
   Thread,
   ThreadParticipant,
   Message,
+  MessageAttachment,
   Utilisateur,
 } = require("../models");
 
@@ -97,11 +98,27 @@ exports.listThreadsForUser = async (
         association: "messages",
         separate: true,
         limit: 1,
-        order: [["created_at", "DESC"]],
+        order: [
+          ["created_at", "DESC"],
+          ["id", "DESC"],
+        ],
         include: [
           {
             association: "expediteur",
             attributes: ["id", "nom", "prenom", "email", "role"],
+          },
+          {
+            association: "attachments",
+            attributes: [
+              "id",
+              "original_name",
+              "mime_type",
+              "size",
+              "public_url",
+            ],
+            required: false,
+            separate: false,
+            order: [["id", "ASC"]],
           },
         ],
       },
@@ -228,12 +245,28 @@ exports.listMessages = async (
   }
   const messages = await Message.findAll({
     where,
-    order: [["created_at", "DESC"], ["id", "DESC"]],
+    order: [
+      ["created_at", "DESC"],
+      ["id", "DESC"],
+      [{ model: MessageAttachment, as: "attachments" }, "id", "ASC"],
+    ],
     limit: perPage,
     include: [
       {
         association: "expediteur",
         attributes: ["id", "nom", "prenom", "email", "role"],
+      },
+      {
+        association: "attachments",
+        attributes: [
+          "id",
+          "original_name",
+          "mime_type",
+          "size",
+          "public_url",
+          "created_at",
+        ],
+        required: false,
       },
     ],
   });
@@ -257,6 +290,9 @@ exports.countUnreadForThread = async (threadId, userId) => {
 };
 
 exports.createMessage = (payload, t = null) => Message.create(payload, { transaction: t });
+
+exports.createMessageAttachments = (records, t = null) =>
+  MessageAttachment.bulkCreate(records, { transaction: t });
 
 exports.touchThread = (threadId, date = new Date(), t = null) =>
   Thread.update(
@@ -284,4 +320,28 @@ exports.findParticipantUsers = (threadId) =>
 exports.findUserById = (id) =>
   Utilisateur.findByPk(id, {
     attributes: ["id", "nom", "prenom", "email", "role"],
+  });
+
+exports.findMessageById = (id) =>
+  Message.findByPk(id, {
+    include: [
+      {
+        association: "expediteur",
+        attributes: ["id", "nom", "prenom", "email", "role"],
+      },
+      {
+        association: "attachments",
+        attributes: [
+          "id",
+          "original_name",
+          "mime_type",
+          "size",
+          "public_url",
+          "created_at",
+        ],
+        required: false,
+        order: [["id", "ASC"]],
+      },
+    ],
+    order: [[{ model: MessageAttachment, as: "attachments" }, "id", "ASC"]],
   });

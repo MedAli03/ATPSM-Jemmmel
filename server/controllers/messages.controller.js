@@ -5,7 +5,13 @@ const service = require("../services/messages.service");
 exports.listThreads = async (req, res, next) => {
   try {
     const result = await service.listThreads(req.user, req.query);
-    res.json({ ok: true, data: result.threads, meta: result.meta });
+    res.json({
+      ok: true,
+      data: {
+        threads: result.threads,
+        pagination: result.pagination,
+      },
+    });
   } catch (error) {
     next(error);
   }
@@ -14,7 +20,7 @@ exports.listThreads = async (req, res, next) => {
 exports.getThread = async (req, res, next) => {
   try {
     const thread = await service.getThread(req.user, Number(req.params.threadId));
-    res.json({ ok: true, data: thread });
+    res.json({ ok: true, data: { thread } });
   } catch (error) {
     next(error);
   }
@@ -22,12 +28,18 @@ exports.getThread = async (req, res, next) => {
 
 exports.listMessages = async (req, res, next) => {
   try {
-    const { messages, nextCursor } = await service.listMessages(
+    const { messages, pageInfo } = await service.listMessages(
       req.user,
       Number(req.params.threadId),
       req.query
     );
-    res.json({ ok: true, data: messages, meta: { nextCursor } });
+    res.json({
+      ok: true,
+      data: {
+        messages,
+        pageInfo,
+      },
+    });
   } catch (error) {
     next(error);
   }
@@ -40,7 +52,7 @@ exports.sendMessage = async (req, res, next) => {
       Number(req.params.threadId),
       req.body
     );
-    res.status(201).json({ ok: true, data: message });
+    res.status(201).json({ ok: true, data: { message } });
   } catch (error) {
     next(error);
   }
@@ -52,7 +64,7 @@ exports.markAsRead = async (req, res, next) => {
       req.user,
       Number(req.params.threadId)
     );
-    res.json({ ok: true, data: { unread: result.unread } });
+    res.json({ ok: true, data: result });
   } catch (error) {
     next(error);
   }

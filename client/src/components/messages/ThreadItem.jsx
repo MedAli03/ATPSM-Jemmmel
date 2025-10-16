@@ -22,11 +22,20 @@ const ThreadItem = ({ thread, isActive = false, onClick }) => {
         .filter(Boolean)
     : [];
   const title =
-    thread?.title || participantNames.join("، ") || "محادثة";
+    thread?.subject || thread?.title || participantNames.join("، ") || "محادثة";
   const lastMessageAuthor = thread?.lastMessage?.senderName
     ? `${thread.lastMessage.senderName}: `
     : "";
-  const preview = thread?.lastMessage?.body || "لا توجد رسائل";
+  const attachmentCount = Array.isArray(thread?.lastMessage?.attachments)
+    ? thread.lastMessage.attachments.length
+    : 0;
+  const preview = thread?.lastMessage
+    ? thread.lastMessage.body?.trim()
+        ? thread.lastMessage.body
+        : attachmentCount > 0
+          ? `📎 ${attachmentCount} ${attachmentCount === 1 ? "مرفق" : "مرفقات"}`
+          : "لا توجد رسائل"
+    : "لا توجد رسائل";
   const unreadCount = thread?.unreadCount ?? 0;
 
   const baseClasses =
@@ -77,6 +86,7 @@ ThreadItem.propTypes = {
   thread: PropTypes.shape({
     id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     title: PropTypes.string,
+    subject: PropTypes.string,
     participants: PropTypes.arrayOf(
       PropTypes.oneOfType([
         PropTypes.string,
@@ -94,6 +104,7 @@ ThreadItem.propTypes = {
       body: PropTypes.string,
       senderName: PropTypes.string,
       createdAt: PropTypes.string,
+      attachments: PropTypes.array,
     }),
   }),
   isActive: PropTypes.bool,

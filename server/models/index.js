@@ -83,6 +83,7 @@ const Actualite = require("./actualite")(sequelize, DataTypes);
 const Thread = require("./thread")(sequelize, DataTypes);
 const ThreadParticipant = require("./thread_participant")(sequelize, DataTypes);
 const Message = require("./message")(sequelize, DataTypes);
+const MessageAttachment = require("./message_attachment")(sequelize, DataTypes);
 const Notification = require("./notification")(sequelize, DataTypes);
 
 /* -------------------------------------------------------------------------- */
@@ -318,6 +319,16 @@ Utilisateur.hasMany(Message, {
   foreignKey: "expediteur_id",
 });
 
+Message.hasMany(MessageAttachment, {
+  as: "attachments",
+  foreignKey: "message_id",
+  onDelete: "CASCADE",
+});
+MessageAttachment.belongsTo(Message, {
+  as: "message",
+  foreignKey: "message_id",
+});
+
 // Notifications
 Notification.belongsTo(Utilisateur, {
   as: "utilisateur",
@@ -359,6 +370,7 @@ const db = {
   Thread,
   ThreadParticipant,
   Message,
+  MessageAttachment,
   Notification,
   UtilisateurSession,
 };

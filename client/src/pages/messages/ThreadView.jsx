@@ -18,15 +18,32 @@ import MessageBubble from "../../components/messages/MessageBubble";
 import Composer from "../../components/messages/Composer";
 import EmptyState from "../../components/messages/EmptyState";
 
-const mergePages = (pages) =>
-  pages
-    .flatMap((page) => page?.messages || page?.data || [])
-    .filter(Boolean)
-    .sort((a, b) => {
-      const aDate = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const bDate = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return aDate - bDate;
-    });
+const mergePages = (pages) => {
+  const map = new Map();
+  pages.forEach((page) => {
+    const collection = Array.isArray(page?.messages)
+      ? page.messages
+      : Array.isArray(page?.data)
+        ? page.data
+        : [];
+    collection
+      .filter(Boolean)
+      .forEach((message) => {
+        const key = message.id || message.createdAt;
+        if (!key) {
+          map.set(Symbol("message"), message);
+          return;
+        }
+        const existing = map.get(key);
+        map.set(key, existing ? { ...existing, ...message } : message);
+      });
+  });
+  return Array.from(map.values()).sort((a, b) => {
+    const aDate = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const bDate = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return aDate - bDate;
+  });
+};
 
 const fileToDataUrl = (file) =>
   new Promise((resolve, reject) => {
@@ -61,7 +78,7 @@ const ThreadView = () => {
     queryFn: ({ pageParam }) =>
       getThreadMessages({ threadId, cursor: pageParam ?? undefined }),
     getNextPageParam: (lastPage) =>
-      lastPage?.meta?.nextCursor ?? lastPage?.nextCursor ?? null,
+      lastPage?.pageInfo?.nextCursor ?? lastPage?.nextCursor ?? null,
     enabled: Boolean(threadId),
     initialPageParam: null,
     staleTime: 5000,
@@ -95,21 +112,54 @@ const ThreadView = () => {
               ...(updatedPages[0]?.messages || []),
               newMessage,
             ],
+            pageInfo: {
+              ...(updatedPages[0]?.pageInfo || {}),
+            },
           };
           return { ...previousData, pages: updatedPages };
         },
       );
+      queryClient.setQueryData(["thread", threadId], (previousThread) => {
+        if (!previousThread) return previousThread;
+        return {
+          ...previousThread,
+          lastMessage: newMessage,
+          unreadCount: 0,
+          updatedAt: newMessage.createdAt || previousThread.updatedAt,
+        };
+      });
       queryClient.invalidateQueries({ queryKey: ["threads"] });
     },
   });
 
   const typingMutation = useMutation({
     mutationFn: (isTyping) => setTypingStatus({ threadId, isTyping }),
+    onMutate: (isTyping) => {
+      queryClient.setQueryData([
+        "thread",
+        threadId,
+        "typing",
+      ], (previous) => ({
+        ...(previous || {}),
+        isTyping,
+        users: isTyping ? previous?.users || [] : [],
+      }));
+    },
+    onSuccess: (status) => {
+      queryClient.setQueryData(["thread", threadId, "typing"], status);
+    },
   });
 
   const markAsReadMutation = useMutation({
     mutationFn: () => markThreadAsRead(threadId),
-    onSuccess: () => {
+    onSuccess: (result) => {
+      queryClient.setQueryData(["thread", threadId], (previousThread) => {
+        if (!previousThread) return previousThread;
+        return {
+          ...previousThread,
+          unreadCount: result?.unread ?? 0,
+        };
+      });
       queryClient.invalidateQueries({ queryKey: ["threads"] });
     },
   });
@@ -120,10 +170,30 @@ const ThreadView = () => {
     messagesQuery.data?.pages,
   ]);
 
+  const typingUsers = typingQuery.data?.users ?? [];
+  const typingLabel = typingUsers.length
+    ? `${typingUsers
+        .map((user) => user.name || user.label || "مستخدم")
+        .join("، ")} يكتب الآن...`
+    : typingQuery.data?.label || "الطرف الآخر يكتب الآن...";
+  const currentUserId = threadQuery.data?.currentUserId;
+
   useEffect(() => {
-    if (!threadId || !hasLoadedMessages) return;
+    if (!threadId || !hasLoadedMessages || markAsReadMutation.isPending) return;
     markAsReadMutation.mutate();
-  }, [threadId, hasLoadedMessages, markAsReadMutation]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threadId, hasLoadedMessages, markAsReadMutation.isPending]);
+
+  useEffect(() => {
+    if (!threadId || messages.length === 0 || markAsReadMutation.isPending || !currentUserId) {
+      return;
+    }
+    const latest = messages[messages.length - 1];
+    if (latest && String(latest.senderId) !== String(currentUserId)) {
+      markAsReadMutation.mutate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, threadId, markAsReadMutation.isPending, currentUserId]);
 
   useEffect(() => {
     if (!topSentinelRef.current) return;
@@ -151,10 +221,19 @@ const ThreadView = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-primary-50/40" dir="rtl">
       <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-6">
         <header className="flex flex-col gap-1 text-right">
-          <h1 className="text-2xl font-bold text-slate-900">{threadQuery.data?.title || "المحادثة"}</h1>
+          <h1 className="text-2xl font-bold text-slate-900">
+            {threadQuery.data?.subject || threadQuery.data?.title ||
+              threadQuery.data?.participants?.map((person) => person.name).join("، ") ||
+              "المحادثة"}
+          </h1>
           {threadQuery.data?.participants && (
             <p className="text-sm text-slate-600">
               {threadQuery.data.participants.map((person) => person.name || person).join("، ")}
+            </p>
+          )}
+          {threadQuery.data?.enfant?.name && (
+            <p className="text-xs text-slate-500">
+              مرتبط بالطفل: {threadQuery.data.enfant.name}
             </p>
           )}
         </header>
@@ -182,13 +261,13 @@ const ThreadView = () => {
               <Fragment key={message.id || message.createdAt}>
                 <MessageBubble
                   message={message}
-                  isOwn={String(message?.senderId) === String(threadQuery.data?.currentUserId)}
+                  isOwn={String(message?.senderId) === String(currentUserId)}
                 />
               </Fragment>
             ))}
             {typingQuery.data?.isTyping && (
               <div className="self-center rounded-full bg-primary-100 px-4 py-2 text-xs text-primary-600">
-                {typingQuery.data?.label || "الطرف الآخر يكتب الآن..."}
+                {typingLabel}
               </div>
             )}
             <span ref={endOfMessagesRef} />
