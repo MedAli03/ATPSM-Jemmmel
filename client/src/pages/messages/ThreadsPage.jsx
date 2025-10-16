@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import ThreadListVirtualized from "../../modules/messaging/components/ThreadListVirtualized";
 import SearchInputDebounced from "../../modules/messaging/components/SearchInputDebounced";
 import ErrorState from "../../modules/messaging/components/ErrorState";
@@ -177,18 +177,27 @@ const ThreadsPage = () => {
         </div>
       </header>
 
-      {error ? (
-        <ErrorState onRetry={() => actions.listThreads({ search: debouncedSearch, filter, reset: true })} />
-      ) : (
-        <ThreadListVirtualized
-          threads={filteredThreads}
-          isLoading={isLoading}
-          activeThreadId={activeThreadId}
-          onSelect={handleSelectThread}
-          density={density}
-          onToggleArchive={toggleArchiveFilter}
-        />
-      )}
+      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(320px,380px)_1fr] lg:gap-8">
+        <aside className="flex flex-col gap-4">
+          {error ? (
+            <div className="min-h-[340px]">
+              <ErrorState onRetry={() => actions.listThreads({ search: debouncedSearch, filter, reset: true })} />
+            </div>
+          ) : (
+            <ThreadListVirtualized
+              threads={filteredThreads}
+              isLoading={isLoading}
+              activeThreadId={activeThreadId}
+              onSelect={handleSelectThread}
+              density={density}
+              onToggleArchive={toggleArchiveFilter}
+            />
+          )}
+        </aside>
+        <section className="relative flex min-h-[60vh] w-full flex-1 overflow-hidden rounded-3xl border border-slate-200 bg-white/80 shadow-sm dark:border-slate-700 dark:bg-slate-900/60">
+          <Outlet />
+        </section>
+      </div>
 
       <NewThreadModal
         open={showModal}

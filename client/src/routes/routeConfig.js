@@ -42,6 +42,7 @@ const AddChildWizard = lazy(() =>
 const MessagesLayout = lazy(() => import("../pages/messages/MessagesLayout"));
 const ThreadsPage = lazy(() => import("../pages/messages/ThreadsPage"));
 const ThreadView = lazy(() => import("../pages/messages/ThreadView"));
+const NoThreadSelected = lazy(() => import("../pages/messages/NoThreadSelected"));
 // const DashboardHome = lazy(() => import("../pages/dashboard/DashboardHome"));
 // const DashboardUsers = lazy(() => import("../pages/dashboard/DashboardUsers"));
 // const DashboardReports = lazy(() => import("../pages/dashboard/DashboardReports"));
@@ -104,8 +105,15 @@ const protectedRoutes = [
         path: "messages",
         element: MessagesLayout,
         children: [
-          { index: true, element: ThreadsPage, title: "الرسائل" },
-          { path: ":threadId", element: ThreadView, title: "عرض المحادثة" },
+          {
+            path: "",
+            element: ThreadsPage,
+            title: "الرسائل",
+            children: [
+              { index: true, element: NoThreadSelected, title: "قائمة الرسائل" },
+              { path: ":threadId", element: ThreadView, title: "عرض المحادثة" },
+            ],
+          },
         ],
       },
     ],
@@ -134,8 +142,15 @@ const protectedRoutes = [
         path: "messages",
         element: MessagesLayout,
         children: [
-          { index: true, element: ThreadsPage, title: "الرسائل" },
-          { path: ":threadId", element: ThreadView, title: "عرض المحادثة" },
+          {
+            path: "",
+            element: ThreadsPage,
+            title: "الرسائل",
+            children: [
+              { index: true, element: NoThreadSelected, title: "قائمة الرسائل" },
+              { path: ":threadId", element: ThreadView, title: "عرض المحادثة" },
+            ],
+          },
         ],
       },
     ],
@@ -149,8 +164,15 @@ const protectedRoutes = [
         path: "",
         element: MessagesLayout,
         children: [
-          { index: true, element: ThreadsPage, title: "قائمة الرسائل" },
-          { path: ":threadId", element: ThreadView, title: "عرض المحادثة" },
+          {
+            path: "",
+            element: ThreadsPage,
+            title: "قائمة الرسائل",
+            children: [
+              { index: true, element: NoThreadSelected, title: "قائمة الرسائل" },
+              { path: ":threadId", element: ThreadView, title: "عرض المحادثة" },
+            ],
+          },
         ],
       },
     ],

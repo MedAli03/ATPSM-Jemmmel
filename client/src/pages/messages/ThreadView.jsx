@@ -93,8 +93,8 @@ const ThreadView = () => {
 
   useEffect(() => {
     if (!decoratedMessages.length) return;
-    const lastMessageIndex = decoratedMessages.reduce((acc, item, index) =>
-      item.type === "message" ? index : acc,
+    const lastMessageIndex = decoratedMessages.reduce(
+      (acc, item, index) => (item.type === "message" ? index : acc),
       decoratedMessages.length - 1
     );
     rowVirtualizer.scrollToIndex(lastMessageIndex, { align: "end" });
@@ -143,102 +143,104 @@ const ThreadView = () => {
 
   if (error) {
     return (
-      <div className="mx-auto flex max-w-5xl flex-1 items-center justify-center px-4 py-10">
+      <div className="flex h-full w-full items-center justify-center p-6">
         <ErrorState onRetry={() => actions.listMessages(threadId)} />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 pb-32" dir="rtl">
-      <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white/90 py-4 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => navigate(basePath)}
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:bg-primary-50 hover:text-primary-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-            aria-label="العودة للقائمة"
-          >
-            ←
-          </button>
-          <div>
-            <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
-              {thread?.title || (thread?.participants || []).map((p) => p.name).join("، ") || "محادثة"}
-            </h2>
-            <ParticipantsPill participants={thread?.participants || []} />
+    <div className="flex h-full w-full flex-col" dir="rtl">
+      <header className="border-b border-slate-200 bg-white/80 px-6 py-4 backdrop-blur dark:border-slate-700 dark:bg-slate-900/60">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => navigate(basePath)}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:bg-primary-50 hover:text-primary-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              aria-label="العودة للقائمة"
+            >
+              ←
+            </button>
+            <div>
+              <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
+                {thread?.title || (thread?.participants || []).map((p) => p.name).join("، ") || "محادثة"}
+              </h2>
+              <ParticipantsPill participants={thread?.participants || []} />
+            </div>
           </div>
+          <Menu as="div" className="relative text-left">
+            <Menu.Button className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200">
+              ⋮
+            </Menu.Button>
+            <Transition
+              as={Fragment}
+              enter="transition ease-out duration-100"
+              enterFrom="transform opacity-0 scale-95"
+              enterTo="transform opacity-100 scale-100"
+              leave="transition ease-in duration-75"
+              leaveFrom="transform opacity-100 scale-100"
+              leaveTo="transform opacity-0 scale-95"
+            >
+              <Menu.Items className="absolute left-0 mt-2 w-40 origin-top-left rounded-2xl border border-slate-200 bg-white p-2 shadow-lg focus:outline-none dark:border-slate-700 dark:bg-slate-800">
+                <Menu.Item>
+                  {({ active }) => (
+                    <button
+                      type="button"
+                      onClick={() => actions.archiveThread(threadId, !(thread?.archived ?? false))}
+                      className={`w-full rounded-xl px-3 py-2 text-right text-sm ${
+                        active ? "bg-primary-50 text-primary-600" : "text-slate-600 dark:text-slate-200"
+                      }`}
+                    >
+                      {thread?.archived ? "إلغاء الأرشفة" : "أرشفة"}
+                    </button>
+                  )}
+                </Menu.Item>
+                <Menu.Item>
+                  {({ active }) => (
+                    <button
+                      type="button"
+                      className={`w-full rounded-xl px-3 py-2 text-right text-sm ${
+                        active ? "bg-primary-50 text-primary-600" : "text-slate-600 dark:text-slate-200"
+                      }`}
+                    >
+                      كتم الإشعارات
+                    </button>
+                  )}
+                </Menu.Item>
+                <Menu.Item>
+                  {({ active }) => (
+                    <button
+                      type="button"
+                      className={`w-full rounded-xl px-3 py-2 text-right text-sm ${
+                        active ? "bg-rose-50 text-rose-600" : "text-rose-500"
+                      }`}
+                    >
+                      حذف المحادثة
+                    </button>
+                  )}
+                </Menu.Item>
+                <Menu.Item>
+                  {({ active }) => (
+                    <button
+                      type="button"
+                      className={`w-full rounded-xl px-3 py-2 text-right text-sm ${
+                        active ? "bg-primary-50 text-primary-600" : "text-slate-600 dark:text-slate-200"
+                      }`}
+                    >
+                      إضافة مشارك
+                    </button>
+                  )}
+                </Menu.Item>
+              </Menu.Items>
+            </Transition>
+          </Menu>
         </div>
-        <Menu as="div" className="relative text-left">
-          <Menu.Button className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200">
-            ⋮
-          </Menu.Button>
-          <Transition
-            as={Fragment}
-            enter="transition ease-out duration-100"
-            enterFrom="transform opacity-0 scale-95"
-            enterTo="transform opacity-100 scale-100"
-            leave="transition ease-in duration-75"
-            leaveFrom="transform opacity-100 scale-100"
-            leaveTo="transform opacity-0 scale-95"
-          >
-            <Menu.Items className="absolute left-0 mt-2 w-40 origin-top-left rounded-2xl border border-slate-200 bg-white p-2 shadow-lg focus:outline-none dark:border-slate-700 dark:bg-slate-800">
-              <Menu.Item>
-                {({ active }) => (
-                  <button
-                    type="button"
-                    onClick={() => actions.archiveThread(threadId, !(thread?.archived ?? false))}
-                    className={`w-full rounded-xl px-3 py-2 text-right text-sm ${
-                      active ? "bg-primary-50 text-primary-600" : "text-slate-600 dark:text-slate-200"
-                    }`}
-                  >
-                    {thread?.archived ? "إلغاء الأرشفة" : "أرشفة"}
-                  </button>
-                )}
-              </Menu.Item>
-              <Menu.Item>
-                {({ active }) => (
-                  <button
-                    type="button"
-                    className={`w-full rounded-xl px-3 py-2 text-right text-sm ${
-                      active ? "bg-primary-50 text-primary-600" : "text-slate-600 dark:text-slate-200"
-                    }`}
-                  >
-                    كتم الإشعارات
-                  </button>
-                )}
-              </Menu.Item>
-              <Menu.Item>
-                {({ active }) => (
-                  <button
-                    type="button"
-                    className={`w-full rounded-xl px-3 py-2 text-right text-sm ${
-                      active ? "bg-rose-50 text-rose-600" : "text-rose-500"
-                    }`}
-                  >
-                    حذف المحادثة
-                  </button>
-                )}
-              </Menu.Item>
-              <Menu.Item>
-                {({ active }) => (
-                  <button
-                    type="button"
-                    className={`w-full rounded-xl px-3 py-2 text-right text-sm ${
-                      active ? "bg-primary-50 text-primary-600" : "text-slate-600 dark:text-slate-200"
-                    }`}
-                  >
-                    إضافة مشارك
-                  </button>
-                )}
-              </Menu.Item>
-            </Menu.Items>
-          </Transition>
-        </Menu>
-      </div>
+      </header>
 
       <div
         ref={timelineRef}
-        className="flex-1 overflow-y-auto rounded-3xl border border-slate-200 bg-gradient-to-b from-white via-white to-slate-50 p-4 shadow-inner dark:border-slate-700 dark:from-slate-900 dark:via-slate-900/80 dark:to-slate-900"
+        className="flex-1 overflow-y-auto bg-gradient-to-b from-white via-white to-slate-50 px-4 py-6 dark:from-slate-900 dark:via-slate-900/80 dark:to-slate-900"
         aria-live="polite"
       >
         {isLoading && !decoratedMessages.length ? (
@@ -279,7 +281,7 @@ const ThreadView = () => {
         )}
       </div>
 
-      <div className="flex flex-col gap-3">
+      <div className="space-y-3 border-t border-slate-200 bg-white/80 px-4 py-4 backdrop-blur dark:border-slate-700 dark:bg-slate-900/60">
         {typingNames.filter(Boolean).length ? <TypingIndicator users={typingNames.filter(Boolean)} /> : null}
         <Composer
           onSend={async (payload) => {

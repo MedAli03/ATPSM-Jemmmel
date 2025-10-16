@@ -68,7 +68,7 @@ const ThreadListVirtualized = ({
   return (
     <div
       ref={parentRef}
-      className="h-[60vh] min-h-[340px] overflow-y-auto rounded-3xl border border-slate-200 bg-white/70 p-2 shadow-inner focus:outline-none dark:border-slate-800 dark:bg-slate-900/70"
+      className="min-h-[340px] h-[60vh] lg:h-[calc(100vh-18rem)] overflow-y-auto rounded-3xl border border-slate-200 bg-white/70 p-2 shadow-inner focus:outline-none dark:border-slate-800 dark:bg-slate-900/70"
       role="listbox"
       aria-activedescendant={items[focusedIndex] ? `thread-${items[focusedIndex].id}` : undefined}
       tabIndex={0}
