@@ -1,0 +1,27 @@
+{
+  "login": {
+    "title": "تسجيل الدخول",
+    "subtitle": "مرحبًا بعودتك!",
+    "identifier": "البريد الإلكتروني أو اسم المستخدم",
+    "identifierPlaceholder": "أدخل البريد الإلكتروني أو اسم المستخدم",
+    "password": "كلمة السر",
+    "passwordPlaceholder": "أدخل كلمة السر",
+    "rememberMe": "تذكرني",
+    "forgotPassword": "نسيت كلمة السر؟",
+    "submit": "دخول",
+    "togglePassword": "تبديل إظهار كلمة السر",
+    "showPassword": "إظهار",
+    "hidePassword": "إخفاء",
+    "invalidCredentials": "بيانات الدخول غير صحيحة",
+    "unexpectedError": "حدث خطأ غير متوقع",
+    "rememberMeHint": "تذكر بيانات الدخول على هذا الجهاز"
+  },
+  "validation": {
+    "identifierRequired": "الرجاء إدخال البريد الإلكتروني أو اسم المستخدم",
+    "identifierMin": "يجب أن يكون الحقل 3 أحرف على الأقل",
+    "identifierMax": "يجب ألا يتجاوز الحقل 120 حرفًا",
+    "passwordRequired": "الرجاء إدخال كلمة السر",
+    "passwordMin": "كلمة السر قصيرة جدًا",
+    "passwordMax": "كلمة السر طويلة جدًا"
+  }
+}

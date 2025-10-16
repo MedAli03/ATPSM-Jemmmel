@@ -42,3 +42,25 @@ export async function fetchSiteAbout() {
   const res = await client.get("/site/about");
   return unwrap(res);
 }
+
+export async function fetchSiteNews(params = {}) {
+  const res = await client.get("/site/news", { params });
+  return unwrap(res);
+}
+
+export async function fetchSiteNewsArticle(id) {
+  if (!id) return null;
+  const res = await client.get(`/site/news/${id}`);
+  return unwrap(res);
+}
+
+export async function fetchSiteEvents(params = {}) {
+  const res = await client.get("/site/events", { params });
+  return unwrap(res);
+}
+
+export async function fetchSiteEvent(id) {
+  if (!id) return null;
+  const res = await client.get(`/site/events/${id}`);
+  return unwrap(res);
+}
