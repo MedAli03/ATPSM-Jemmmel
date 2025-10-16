@@ -1,288 +1,298 @@
-import { Fragment, useEffect, useMemo, useRef } from "react";
-import { useParams } from "react-router-dom";
-import {
-  useInfiniteQuery,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
-import {
-  getThreadDetails,
-  getThreadMessages,
-  markThreadAsRead,
-  sendThreadMessage,
-  getTypingStatus,
-  setTypingStatus,
-} from "../../api/messages";
-import MessageBubble from "../../components/messages/MessageBubble";
-import Composer from "../../components/messages/Composer";
-import EmptyState from "../../components/messages/EmptyState";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Menu, Transition } from "@headlessui/react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { useMessagingContext } from "../../modules/messaging/context/MessagingProvider";
+import MessageBubble from "../../modules/messaging/components/MessageBubble";
+import TypingIndicator from "../../modules/messaging/components/TypingIndicator";
+import Composer from "../../modules/messaging/components/Composer";
+import DateSeparator from "../../modules/messaging/components/DateSeparator";
+import ParticipantsPill from "../../modules/messaging/components/ParticipantsPill";
+import ErrorState from "../../modules/messaging/components/ErrorState";
+import { useAuth } from "../../context/AuthContext";
 
-const mergePages = (pages) => {
-  const map = new Map();
-  pages.forEach((page) => {
-    const collection = Array.isArray(page?.messages)
-      ? page.messages
-      : Array.isArray(page?.data)
-        ? page.data
-        : [];
-    collection
-      .filter(Boolean)
-      .forEach((message) => {
-        const key = message.id || message.createdAt;
-        if (!key) {
-          map.set(Symbol("message"), message);
-          return;
-        }
-        const existing = map.get(key);
-        map.set(key, existing ? { ...existing, ...message } : message);
-      });
-  });
-  return Array.from(map.values()).sort((a, b) => {
-    const aDate = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
-    const bDate = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
-    return aDate - bDate;
-  });
-};
-
-const fileToDataUrl = (file) =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
+const formatDate = (iso) =>
+  new Date(iso).toLocaleDateString("ar", { weekday: "long", day: "numeric", month: "long" });
 
 const ThreadView = () => {
   const { threadId } = useParams();
-  const queryClient = useQueryClient();
-  const endOfMessagesRef = useRef(null);
-  const topSentinelRef = useRef(null);
-  const lastTypingValueRef = useRef(false);
+  const { currentUser } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { state, actions, selectors, service, dispatch } = useMessagingContext();
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const timelineRef = useRef(null);
+  const currentUserId = currentUser?.id || "u-directeur";
 
-  const threadQuery = useQuery({
-    queryKey: ["thread", threadId],
-    queryFn: () => getThreadDetails(threadId),
-    enabled: Boolean(threadId),
-  });
-
-  const typingQuery = useQuery({
-    queryKey: ["thread", threadId, "typing"],
-    queryFn: () => getTypingStatus(threadId),
-    enabled: Boolean(threadId),
-    refetchInterval: 4000,
-  });
-
-  const messagesQuery = useInfiniteQuery({
-    queryKey: ["thread", threadId, "messages"],
-    queryFn: ({ pageParam }) =>
-      getThreadMessages({ threadId, cursor: pageParam ?? undefined }),
-    getNextPageParam: (lastPage) =>
-      lastPage?.pageInfo?.nextCursor ?? lastPage?.nextCursor ?? null,
-    enabled: Boolean(threadId),
-    initialPageParam: null,
-    staleTime: 5000,
-  });
-
-  const sendMutation = useMutation({
-    mutationFn: async ({ body, attachments }) => {
-      const files = Array.isArray(attachments) ? attachments : [];
-      const serializedAttachments = await Promise.all(
-        files.map(async (file) => ({
-          name: file.name,
-          mimeType: file.type,
-          size: file.size,
-          data: await fileToDataUrl(file),
-        })),
-      );
-      return sendThreadMessage({
-        threadId,
-        payload: { body, attachments: serializedAttachments },
-      });
-    },
-    onSuccess: (newMessage) => {
-      queryClient.setQueryData(
-        ["thread", threadId, "messages"],
-        (previousData) => {
-          if (!previousData) return previousData;
-          const updatedPages = previousData.pages.slice();
-          updatedPages[0] = {
-            ...(updatedPages[0] || {}),
-            messages: [
-              ...(updatedPages[0]?.messages || []),
-              newMessage,
-            ],
-            pageInfo: {
-              ...(updatedPages[0]?.pageInfo || {}),
-            },
-          };
-          return { ...previousData, pages: updatedPages };
-        },
-      );
-      queryClient.setQueryData(["thread", threadId], (previousThread) => {
-        if (!previousThread) return previousThread;
-        return {
-          ...previousThread,
-          lastMessage: newMessage,
-          unreadCount: 0,
-          updatedAt: newMessage.createdAt || previousThread.updatedAt,
-        };
-      });
-      queryClient.invalidateQueries({ queryKey: ["threads"] });
-    },
-  });
-
-  const typingMutation = useMutation({
-    mutationFn: (isTyping) => setTypingStatus({ threadId, isTyping }),
-    onMutate: (isTyping) => {
-      queryClient.setQueryData([
-        "thread",
-        threadId,
-        "typing",
-      ], (previous) => ({
-        ...(previous || {}),
-        isTyping,
-        users: isTyping ? previous?.users || [] : [],
-      }));
-    },
-    onSuccess: (status) => {
-      queryClient.setQueryData(["thread", threadId, "typing"], status);
-    },
-  });
-
-  const markAsReadMutation = useMutation({
-    mutationFn: () => markThreadAsRead(threadId),
-    onSuccess: (result) => {
-      queryClient.setQueryData(["thread", threadId], (previousThread) => {
-        if (!previousThread) return previousThread;
-        return {
-          ...previousThread,
-          unreadCount: result?.unread ?? 0,
-        };
-      });
-      queryClient.invalidateQueries({ queryKey: ["threads"] });
-    },
-  });
-
-  const hasLoadedMessages = Boolean(messagesQuery.data?.pages?.length);
-
-  const messages = useMemo(() => mergePages(messagesQuery.data?.pages || []), [
-    messagesQuery.data?.pages,
-  ]);
-
-  const typingUsers = typingQuery.data?.users ?? [];
-  const typingLabel = typingUsers.length
-    ? `${typingUsers
-        .map((user) => user.name || user.label || "مستخدم")
-        .join("، ")} يكتب الآن...`
-    : typingQuery.data?.label || "الطرف الآخر يكتب الآن...";
-  const currentUserId = threadQuery.data?.currentUserId;
+  const thread = useMemo(() => selectors.threadById(state, threadId), [selectors, state, threadId]);
+  const messages = useMemo(() => selectors.messagesForThread(state, threadId), [selectors, state, threadId]);
+  const draft = useMemo(() => selectors.draftForThread(state, threadId), [selectors, state, threadId]);
+  const typingUsers = useMemo(() => selectors.typingForThread(state, threadId), [selectors, state, threadId]);
+  const nextCursor = state.messageCursors[threadId];
 
   useEffect(() => {
-    if (!threadId || !hasLoadedMessages || markAsReadMutation.isPending) return;
-    markAsReadMutation.mutate();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [threadId, hasLoadedMessages, markAsReadMutation.isPending]);
+    if (!threadId) return;
+    let cancelled = false;
+    setIsLoading(true);
+    setError(null);
+    Promise.all([actions.getThread(threadId), actions.listMessages(threadId)])
+      .catch((err) => {
+        if (!cancelled) setError(err);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [actions, threadId]);
 
   useEffect(() => {
-    if (!threadId || messages.length === 0 || markAsReadMutation.isPending || !currentUserId) {
-      return;
-    }
+    if (!threadId || !messages.length) return;
     const latest = messages[messages.length - 1];
-    if (latest && String(latest.senderId) !== String(currentUserId)) {
-      markAsReadMutation.mutate();
+    if (String(latest?.senderId) !== String(currentUserId)) {
+      actions.markRead(threadId, latest?.id);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, threadId, markAsReadMutation.isPending, currentUserId]);
+  }, [messages, actions, threadId, currentUserId]);
+
+  const participantMap = useMemo(() => {
+    const entries = (thread?.participants || []).map((participant) => [participant.id, participant]);
+    return new Map(entries);
+  }, [thread?.participants]);
+
+  const basePath = useMemo(() => {
+    const segments = location.pathname.split("/").filter(Boolean);
+    const index = segments.indexOf("messages");
+    if (index === -1) return "/dashboard/messages";
+    return `/${segments.slice(0, index + 1).join("/")}`;
+  }, [location.pathname]);
+
+  const decoratedMessages = useMemo(() => {
+    const result = [];
+    let previousDate = null;
+    messages.forEach((message, index) => {
+      const messageDate = formatDate(message.createdAt);
+      const showDate = messageDate !== previousDate;
+      if (showDate) {
+        result.push({ type: "date", id: `date-${messageDate}-${index}`, date: messageDate });
+        previousDate = messageDate;
+      }
+      result.push({ type: "message", id: message.id, message });
+    });
+    return result;
+  }, [messages]);
+
+  const rowVirtualizer = useVirtualizer({
+    count: decoratedMessages.length,
+    getScrollElement: () => timelineRef.current,
+    estimateSize: () => 132,
+    overscan: 6,
+  });
 
   useEffect(() => {
-    if (!topSentinelRef.current) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const [entry] = entries;
-        if (entry.isIntersecting && messagesQuery.hasNextPage && !messagesQuery.isFetchingNextPage) {
-          messagesQuery.fetchNextPage();
-        }
-      },
-      { threshold: 1 },
+    if (!decoratedMessages.length) return;
+    const lastMessageIndex = decoratedMessages.reduce((acc, item, index) =>
+      item.type === "message" ? index : acc,
+      decoratedMessages.length - 1
     );
+    rowVirtualizer.scrollToIndex(lastMessageIndex, { align: "end" });
+  }, [decoratedMessages, rowVirtualizer]);
 
-    observer.observe(topSentinelRef.current);
-    return () => observer.disconnect();
-  }, [messagesQuery]);
+  const virtualItems = rowVirtualizer.getVirtualItems();
 
   useEffect(() => {
-    if (endOfMessagesRef.current) {
-      endOfMessagesRef.current.scrollIntoView({ behavior: "smooth" });
+    const first = virtualItems[0];
+    if (
+      first &&
+      first.index === 0 &&
+      nextCursor &&
+      !loadingMore &&
+      !isLoading &&
+      threadId
+    ) {
+      setLoadingMore(true);
+      actions
+        .listMessages(threadId, nextCursor)
+        .finally(() => setLoadingMore(false));
     }
-  }, [messages, sendMutation.isSuccess]);
+  }, [virtualItems, nextCursor, loadingMore, isLoading, actions, threadId]);
+
+  const typingNames = useMemo(() => {
+    return (typingUsers || [])
+      .map((userId) => participantMap.get(userId)?.name)
+      .filter(Boolean);
+  }, [typingUsers, participantMap]);
+
+  const handleRetry = async (failedMessage) => {
+    try {
+      dispatch({
+        type: "message/status",
+        payload: { messageId: failedMessage.id, patch: { status: "sending" } },
+      });
+      await actions.sendMessage(threadId, {
+        text: failedMessage.text,
+        attachments: failedMessage.attachments,
+        senderId: currentUserId,
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  if (error) {
+    return (
+      <div className="mx-auto flex max-w-5xl flex-1 items-center justify-center px-4 py-10">
+        <ErrorState onRetry={() => actions.listMessages(threadId)} />
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-primary-50/40" dir="rtl">
-      <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-6">
-        <header className="flex flex-col gap-1 text-right">
-          <h1 className="text-2xl font-bold text-slate-900">
-            {threadQuery.data?.subject || threadQuery.data?.title ||
-              threadQuery.data?.participants?.map((person) => person.name).join("، ") ||
-              "المحادثة"}
-          </h1>
-          {threadQuery.data?.participants && (
-            <p className="text-sm text-slate-600">
-              {threadQuery.data.participants.map((person) => person.name || person).join("، ")}
-            </p>
-          )}
-          {threadQuery.data?.enfant?.name && (
-            <p className="text-xs text-slate-500">
-              مرتبط بالطفل: {threadQuery.data.enfant.name}
-            </p>
-          )}
-        </header>
-
-        <section className="flex flex-1 flex-col gap-4">
-          <div className="relative flex h-[60vh] flex-col gap-4 overflow-y-auto rounded-3xl bg-white/70 p-6 shadow-sm backdrop-blur">
-            <span ref={topSentinelRef} />
-            {messagesQuery.isLoading && (
-              <EmptyState title="جاري تحميل الرسائل" icon="⏳" />
-            )}
-            {messagesQuery.isError && (
-              <EmptyState
-                icon="⚠️"
-                title="تعذّر تحميل الرسائل"
-                description="حاول تحديث الصفحة أو تحقق من الاتصال."
-              />
-            )}
-            {!messagesQuery.isLoading && messages.length === 0 && (
-              <EmptyState
-                title="ابدأ المحادثة"
-                description="لم يتم إرسال أي رسائل بعد في هذه المحادثة."
-              />
-            )}
-            {messages.map((message) => (
-              <Fragment key={message.id || message.createdAt}>
-                <MessageBubble
-                  message={message}
-                  isOwn={String(message?.senderId) === String(currentUserId)}
-                />
-              </Fragment>
-            ))}
-            {typingQuery.data?.isTyping && (
-              <div className="self-center rounded-full bg-primary-100 px-4 py-2 text-xs text-primary-600">
-                {typingLabel}
-              </div>
-            )}
-            <span ref={endOfMessagesRef} />
+    <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 pb-32" dir="rtl">
+      <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white/90 py-4 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigate(basePath)}
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:bg-primary-50 hover:text-primary-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            aria-label="العودة للقائمة"
+          >
+            ←
+          </button>
+          <div>
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
+              {thread?.title || (thread?.participants || []).map((p) => p.name).join("، ") || "محادثة"}
+            </h2>
+            <ParticipantsPill participants={thread?.participants || []} />
           </div>
+        </div>
+        <Menu as="div" className="relative text-left">
+          <Menu.Button className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200">
+            ⋮
+          </Menu.Button>
+          <Transition
+            as={Fragment}
+            enter="transition ease-out duration-100"
+            enterFrom="transform opacity-0 scale-95"
+            enterTo="transform opacity-100 scale-100"
+            leave="transition ease-in duration-75"
+            leaveFrom="transform opacity-100 scale-100"
+            leaveTo="transform opacity-0 scale-95"
+          >
+            <Menu.Items className="absolute left-0 mt-2 w-40 origin-top-left rounded-2xl border border-slate-200 bg-white p-2 shadow-lg focus:outline-none dark:border-slate-700 dark:bg-slate-800">
+              <Menu.Item>
+                {({ active }) => (
+                  <button
+                    type="button"
+                    onClick={() => actions.archiveThread(threadId, !(thread?.archived ?? false))}
+                    className={`w-full rounded-xl px-3 py-2 text-right text-sm ${
+                      active ? "bg-primary-50 text-primary-600" : "text-slate-600 dark:text-slate-200"
+                    }`}
+                  >
+                    {thread?.archived ? "إلغاء الأرشفة" : "أرشفة"}
+                  </button>
+                )}
+              </Menu.Item>
+              <Menu.Item>
+                {({ active }) => (
+                  <button
+                    type="button"
+                    className={`w-full rounded-xl px-3 py-2 text-right text-sm ${
+                      active ? "bg-primary-50 text-primary-600" : "text-slate-600 dark:text-slate-200"
+                    }`}
+                  >
+                    كتم الإشعارات
+                  </button>
+                )}
+              </Menu.Item>
+              <Menu.Item>
+                {({ active }) => (
+                  <button
+                    type="button"
+                    className={`w-full rounded-xl px-3 py-2 text-right text-sm ${
+                      active ? "bg-rose-50 text-rose-600" : "text-rose-500"
+                    }`}
+                  >
+                    حذف المحادثة
+                  </button>
+                )}
+              </Menu.Item>
+              <Menu.Item>
+                {({ active }) => (
+                  <button
+                    type="button"
+                    className={`w-full rounded-xl px-3 py-2 text-right text-sm ${
+                      active ? "bg-primary-50 text-primary-600" : "text-slate-600 dark:text-slate-200"
+                    }`}
+                  >
+                    إضافة مشارك
+                  </button>
+                )}
+              </Menu.Item>
+            </Menu.Items>
+          </Transition>
+        </Menu>
+      </div>
 
-          <Composer
-            onSend={(values) => sendMutation.mutate(values)}
-            isSending={sendMutation.isPending}
-            onTypingChange={(isTyping) => {
-              if (lastTypingValueRef.current === isTyping) return;
-              lastTypingValueRef.current = isTyping;
-              typingMutation.mutate(isTyping);
-            }}
-          />
-        </section>
+      <div
+        ref={timelineRef}
+        className="flex-1 overflow-y-auto rounded-3xl border border-slate-200 bg-gradient-to-b from-white via-white to-slate-50 p-4 shadow-inner dark:border-slate-700 dark:from-slate-900 dark:via-slate-900/80 dark:to-slate-900"
+        aria-live="polite"
+      >
+        {isLoading && !decoratedMessages.length ? (
+          <div className="flex h-64 items-center justify-center text-sm text-slate-400">
+            جاري تحميل الرسائل…
+          </div>
+        ) : (
+          <>
+            <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: "relative" }}>
+              {virtualItems.map((virtualItem) => {
+                const item = decoratedMessages[virtualItem.index];
+                if (!item) return null;
+                const top = virtualItem.start;
+                return (
+                  <div
+                    key={item.id}
+                    style={{ position: "absolute", top, width: "100%" }}
+                    className="flex justify-end py-2"
+                  >
+                    {item.type === "date" ? (
+                      <DateSeparator date={item.date} />
+                    ) : (
+                      <MessageBubble
+                        message={item.message}
+                        isOwn={String(item.message.senderId) === String(currentUserId)}
+                        sender={participantMap.get(item.message.senderId) || null}
+                        onRetry={handleRetry}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {loadingMore ? (
+              <div className="mt-4 text-center text-xs text-slate-400">جاري تحميل رسائل أقدم…</div>
+            ) : null}
+          </>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-3">
+        {typingNames.filter(Boolean).length ? <TypingIndicator users={typingNames.filter(Boolean)} /> : null}
+        <Composer
+          onSend={async (payload) => {
+            await actions.sendMessage(threadId, { ...payload, senderId: currentUserId });
+            const lastIndex = decoratedMessages.length - 1;
+            rowVirtualizer.scrollToIndex(lastIndex, { align: "end" });
+          }}
+          onDraftChange={(value) => actions.saveDraft(threadId, value)}
+          onTyping={() => service?.simulateTyping?.(threadId, currentUserId)}
+          initialDraft={draft}
+          focusSearch={() => document.querySelector("input[type=search]")?.focus()}
+          disabled={isLoading}
+        />
       </div>
     </div>
   );

@@ -1,139 +1,210 @@
-import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import ThreadItem from "../../components/messages/ThreadItem";
-import EmptyState from "../../components/messages/EmptyState";
-import { listThreads } from "../../api/messages";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import ThreadListVirtualized from "../../modules/messaging/components/ThreadListVirtualized";
+import SearchInputDebounced from "../../modules/messaging/components/SearchInputDebounced";
+import ErrorState from "../../modules/messaging/components/ErrorState";
+import NewThreadModal from "../../modules/messaging/components/NewThreadModal";
+import { useMessagingContext } from "../../modules/messaging/context/MessagingProvider";
+import { useAuth } from "../../context/AuthContext";
+
+const filters = [
+  { id: "all", label: "الكل" },
+  { id: "unread", label: "غير مقروء" },
+  { id: "read", label: "مقروء" },
+  { id: "archived", label: "مؤرشفة" },
+];
+
+const densityOptions = [
+  { id: "comfortable", label: "مريح" },
+  { id: "compact", label: "مضغوط" },
+];
 
 const ThreadsPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [search, setSearch] = useState(searchParams.get("q") ?? "");
-  const [page, setPage] = useState(Number(searchParams.get("page")) || 1);
-  const [debouncedSearch, setDebouncedSearch] = useState(search);
+  const searchRef = useRef(null);
+  const { currentUser } = useAuth();
+  const { state, actions, selectors } = useMessagingContext();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [density, setDensity] = useState("comfortable");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+
+  const currentUserId = currentUser?.id || "u-directeur";
+  const threads = useMemo(() => selectors.threads(state), [selectors, state]);
 
   useEffect(() => {
-    const id = setTimeout(() => setDebouncedSearch(search), 400);
-    return () => clearTimeout(id);
-  }, [search]);
-
-  useEffect(() => {
-    const params = new URLSearchParams();
-    if (debouncedSearch) params.set("q", debouncedSearch);
-    if (page > 1) params.set("page", page.toString());
-    setSearchParams(params, { replace: true });
-  }, [debouncedSearch, page, setSearchParams]);
-
-  const threadsQuery = useQuery({
-    queryKey: ["threads", { page, search: debouncedSearch }],
-    queryFn: () => listThreads({ page, search: debouncedSearch }),
-    keepPreviousData: true,
-  });
-
-  const { threads, pagination } = useMemo(() => {
-    const data = threadsQuery.data || {};
-    return {
-      threads: Array.isArray(data.threads) ? data.threads : [],
-      pagination: data.pagination || {},
+    let isCancelled = false;
+    setIsLoading(true);
+    setError(null);
+    actions
+      .listThreads({ search: debouncedSearch, filter, reset: true })
+      .catch((err) => {
+        if (!isCancelled) setError(err);
+      })
+      .finally(() => {
+        if (!isCancelled) setIsLoading(false);
+      });
+    return () => {
+      isCancelled = true;
     };
-  }, [threadsQuery.data]);
+  }, [actions, debouncedSearch, filter]);
 
-  const activeThreadId = location.pathname.includes("/messages/")
-    ? location.pathname.split("/").pop()
-    : null;
+  useEffect(() => {
+    const handler = (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key?.toLowerCase() === "k") {
+        event.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
-  const handleThreadClick = (threadId) => {
-    const basePath = location.pathname.includes("/dashboard/manager")
-      ? "/dashboard/manager/messages"
-      : location.pathname.includes("/dashboard/president")
-        ? "/dashboard/president/messages"
-        : "/dashboard/messages";
-    navigate(`${basePath}/${threadId}`);
+  const activeThreadId = useMemo(() => {
+    const segments = location.pathname.split("/").filter(Boolean);
+    const index = segments.indexOf("messages");
+    if (index === -1) return null;
+    return segments[index + 1] || null;
+  }, [location.pathname]);
+
+  const basePath = useMemo(() => {
+    const segments = location.pathname.split("/").filter(Boolean);
+    const index = segments.indexOf("messages");
+    if (index === -1) return "/dashboard/messages";
+    return `/${segments.slice(0, index + 1).join("/")}`;
+  }, [location.pathname]);
+
+  const filteredThreads = useMemo(() => {
+    if (filter === "archived") {
+      return threads.filter((thread) => thread.archived);
+    }
+    if (filter === "unread") {
+      return threads.filter((thread) => (thread.unreadCount || 0) > 0);
+    }
+    if (filter === "read") {
+      return threads.filter((thread) => (thread.unreadCount || 0) === 0 && !thread.archived);
+    }
+    return threads;
+  }, [threads, filter]);
+
+  const handleSelectThread = (thread) => {
+    if (!thread) return;
+    navigate(`${basePath}/${thread.id}`);
   };
 
-  const totalPages = Number(pagination?.totalPages || pagination?.pageCount || 1);
+  const toggleArchiveFilter = () => {
+    setFilter((prev) => (prev === "archived" ? "all" : "archived"));
+  };
+
+  const total = filteredThreads.length;
+
+  const participantDirectory = useMemo(() => {
+    const map = new Map();
+    threads.forEach((thread) => {
+      (thread.participants || []).forEach((participant) => {
+        if (!map.has(participant.id)) {
+          map.set(participant.id, participant);
+        }
+      });
+    });
+    return Array.from(map.values());
+  }, [threads]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-primary-50/30" dir="rtl">
-      <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6">
-        <header className="flex flex-col gap-2 text-right">
-          <h1 className="text-2xl font-bold text-slate-900">الرسائل</h1>
-          <p className="text-sm text-slate-600">
-            تابع كل محادثاتك مع الأولياء والمربين من مكان واحد.
-          </p>
-        </header>
-
-        <div className="flex flex-col gap-4 rounded-3xl bg-white/80 p-4 shadow-sm backdrop-blur">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <input
-              type="search"
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value);
-                setPage(1);
-              }}
-              placeholder="ابحث عن محادثة أو مشارك"
-              className="w-full rounded-full border border-slate-200 bg-white px-5 py-3 text-sm text-right shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
-            />
-            <span className="text-xs text-slate-500">
-              {threadsQuery.isFetching
-                ? "جاري التحميل..."
-                : `${pagination?.total ?? threads.length} محادثة`}
-            </span>
+    <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 pb-10" dir="rtl">
+      <header className="sticky top-0 z-10 flex flex-col gap-4 border-b border-slate-200 bg-gradient-to-b from-white/95 to-white/70 pb-4 pt-6 backdrop-blur dark:border-slate-700 dark:from-slate-900/90 dark:to-slate-900/60">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">الرسائل</h1>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              مساحة واحدة لكل محادثاتك. استخدم البحث السريع (Ctrl+K) أو الأسهم للتنقل.
+            </p>
           </div>
-
-          {threadsQuery.isError && (
-            <EmptyState
-              icon="⚠️"
-              title="تعذّر تحميل الرسائل"
-              description="الرجاء التحقق من الاتصال بالمصدر ثم المحاولة مجدداً."
+          <button
+            type="button"
+            onClick={() => setShowModal(true)}
+            className="rounded-full bg-primary-500 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-600"
+          >
+            + محادثة جديدة
+          </button>
+        </div>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+            <SearchInputDebounced
+              ref={searchRef}
+              value={searchTerm}
+              onImmediateChange={setSearchTerm}
+              onChange={setDebouncedSearch}
+              placeholder="ابحث عن محادثة أو مشارك"
+              label="البحث"
             />
-          )}
-
-          {threadsQuery.isSuccess && threads.length === 0 && !threadsQuery.isFetching ? (
-            <EmptyState
-              title="لا توجد محادثات"
-              description="ابدأ محادثة جديدة من لوحة الإدارة لتظهر هنا."
-            />
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {threads.map((thread) => (
-                <ThreadItem
-                  key={thread.id}
-                  thread={thread}
-                  isActive={String(thread.id) === activeThreadId}
-                  onClick={() => handleThreadClick(thread.id)}
-                />
+            <span className="text-xs text-slate-500">{isLoading ? "جاري التحديث…" : `${total} محادثة`}</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {filters.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setFilter(item.id)}
+                className={`rounded-full px-4 py-2 text-xs font-semibold transition ${
+                  filter === item.id
+                    ? "bg-primary-500 text-white"
+                    : "bg-white text-slate-600 shadow-sm hover:bg-primary-50 dark:bg-slate-800 dark:text-slate-200"
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+            <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-800">
+              {densityOptions.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setDensity(option.id)}
+                  className={`rounded-full px-3 py-1 ${
+                    density === option.id ? "bg-primary-500 text-white" : "text-slate-600 hover:bg-primary-50 dark:text-slate-200"
+                  }`}
+                >
+                  {option.label}
+                </button>
               ))}
             </div>
-          )}
-
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between text-sm text-slate-600">
-              <button
-                type="button"
-                onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-                disabled={page === 1 || threadsQuery.isFetching}
-                className="rounded-full border border-slate-200 px-4 py-2 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                السابق
-              </button>
-              <span>
-                الصفحة {page} من {totalPages}
-              </span>
-              <button
-                type="button"
-                onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
-                disabled={page >= totalPages || threadsQuery.isFetching}
-                className="rounded-full border border-slate-200 px-4 py-2 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                التالي
-              </button>
-            </div>
-          )}
+          </div>
         </div>
-      </div>
+      </header>
+
+      {error ? (
+        <ErrorState onRetry={() => actions.listThreads({ search: debouncedSearch, filter, reset: true })} />
+      ) : (
+        <ThreadListVirtualized
+          threads={filteredThreads}
+          isLoading={isLoading}
+          activeThreadId={activeThreadId}
+          onSelect={handleSelectThread}
+          density={density}
+          onToggleArchive={toggleArchiveFilter}
+        />
+      )}
+
+      <NewThreadModal
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        onCreate={async (payload) => {
+          const thread = await actions.createThread({
+            ...payload,
+            participantIds: Array.from(new Set([currentUserId, ...(payload.participantIds || [])])),
+            initialMessage: { ...payload.initialMessage, senderId: currentUserId },
+          });
+          setShowModal(false);
+          navigate(`${basePath}/${thread.id}`);
+        }}
+        currentUserId={currentUserId}
+        directory={participantDirectory}
+      />
     </div>
   );
 };
