@@ -18,46 +18,34 @@ const ensureMessagingRole = requireRole(...ROLES);
 
 router.use(auth, ensureMessagingRole);
 
-router.get(
-  "/messages/threads",
-  validate(listThreadsQuery, "query"),
-  ctrl.listThreads
-);
+router.get("/threads", validate(listThreadsQuery, "query"), ctrl.listThreads);
+
+router.get("/threads/:threadId", validate(threadIdParam, "params"), ctrl.getThread);
 
 router.get(
-  "/messages/threads/:threadId",
-  validate(threadIdParam, "params"),
-  ctrl.getThread
-);
-
-router.get(
-  "/messages/threads/:threadId/messages",
+  "/threads/:threadId/messages",
   validate(threadIdParam, "params"),
   validate(listMessagesQuery, "query"),
   ctrl.listMessages
 );
 
 router.post(
-  "/messages/threads/:threadId/messages",
+  "/threads/:threadId/messages",
   validate(threadIdParam, "params"),
   validate(sendMessageBody, "body"),
   ctrl.sendMessage
 );
 
 router.post(
-  "/messages/threads/:threadId/read",
+  "/threads/:threadId/read",
   validate(threadIdParam, "params"),
   ctrl.markAsRead
 );
 
-router.get(
-  "/messages/threads/:threadId/typing",
-  validate(threadIdParam, "params"),
-  ctrl.getTypingStatus
-);
+router.get("/threads/:threadId/typing", validate(threadIdParam, "params"), ctrl.getTypingStatus);
 
 router.post(
-  "/messages/threads/:threadId/typing",
+  "/threads/:threadId/typing",
   validate(threadIdParam, "params"),
   validate(typingBody, "body"),
   ctrl.setTypingStatus
