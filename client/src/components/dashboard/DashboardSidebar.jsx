@@ -416,7 +416,7 @@ const NAV_CONFIG = {
           { to: "/dashboard/president/news", label: "الأخبار", icon: "news" },
           { to: "/dashboard/president/events", label: "الفعاليات", icon: "events" },
           { to: "/dashboard/resources", label: "الموارد", icon: "resources" },
-          { to: "/dashboard/messaging", label: "الرسائل", icon: "chat" },
+          { to: "/dashboard/messages", label: "الرسائل", icon: "chat" },
           { to: "/dashboard/notifications", label: "الإشعارات", icon: "notif" },
         ],
       },
