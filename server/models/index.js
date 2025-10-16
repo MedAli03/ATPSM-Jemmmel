@@ -81,6 +81,7 @@ const Reglement = require("./reglement")(sequelize, DataTypes);
 const Evenement = require("./evenement")(sequelize, DataTypes);
 const Actualite = require("./actualite")(sequelize, DataTypes);
 const Thread = require("./thread")(sequelize, DataTypes);
+const ThreadParticipant = require("./thread_participant")(sequelize, DataTypes);
 const Message = require("./message")(sequelize, DataTypes);
 const Notification = require("./notification")(sequelize, DataTypes);
 
@@ -286,6 +287,25 @@ Utilisateur.hasMany(Thread, { as: "threads_crees", foreignKey: "created_by" });
 Thread.belongsTo(Enfant, { as: "enfant", foreignKey: "enfant_id" });
 Enfant.hasMany(Thread, { as: "threads", foreignKey: "enfant_id" });
 
+Thread.hasMany(ThreadParticipant, {
+  as: "participants",
+  foreignKey: "thread_id",
+  onDelete: "CASCADE",
+});
+ThreadParticipant.belongsTo(Thread, {
+  as: "thread",
+  foreignKey: "thread_id",
+});
+
+ThreadParticipant.belongsTo(Utilisateur, {
+  as: "utilisateur",
+  foreignKey: "utilisateur_id",
+});
+Utilisateur.hasMany(ThreadParticipant, {
+  as: "thread_participations",
+  foreignKey: "utilisateur_id",
+});
+
 Message.belongsTo(Thread, { as: "thread", foreignKey: "thread_id" });
 Thread.hasMany(Message, { as: "messages", foreignKey: "thread_id" });
 
@@ -337,6 +357,7 @@ const db = {
   Evenement,
   Actualite,
   Thread,
+  ThreadParticipant,
   Message,
   Notification,
   UtilisateurSession,

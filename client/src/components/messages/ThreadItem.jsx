@@ -14,7 +14,15 @@ const formatTime = (value) => {
 };
 
 const ThreadItem = ({ thread, isActive = false, onClick }) => {
-  const title = thread?.title || thread?.participants?.join("، ") || "محادثة";
+  const participantNames = Array.isArray(thread?.participants)
+    ? thread.participants
+        .map((participant) =>
+          typeof participant === "string" ? participant : participant?.name,
+        )
+        .filter(Boolean)
+    : [];
+  const title =
+    thread?.title || participantNames.join("، ") || "محادثة";
   const lastMessageAuthor = thread?.lastMessage?.senderName
     ? `${thread.lastMessage.senderName}: `
     : "";
@@ -69,7 +77,16 @@ ThreadItem.propTypes = {
   thread: PropTypes.shape({
     id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     title: PropTypes.string,
-    participants: PropTypes.arrayOf(PropTypes.string),
+    participants: PropTypes.arrayOf(
+      PropTypes.oneOfType([
+        PropTypes.string,
+        PropTypes.shape({
+          id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+          name: PropTypes.string,
+          role: PropTypes.string,
+        }),
+      ]),
+    ),
     avatarUrl: PropTypes.string,
     unreadCount: PropTypes.number,
     updatedAt: PropTypes.string,

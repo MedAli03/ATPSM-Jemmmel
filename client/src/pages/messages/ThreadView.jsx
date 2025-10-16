@@ -28,6 +28,14 @@ const mergePages = (pages) =>
       return aDate - bDate;
     });
 
+const fileToDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+
 const ThreadView = () => {
   const { threadId } = useParams();
   const queryClient = useQueryClient();
@@ -53,18 +61,27 @@ const ThreadView = () => {
     queryFn: ({ pageParam }) =>
       getThreadMessages({ threadId, cursor: pageParam ?? undefined }),
     getNextPageParam: (lastPage) =>
-      lastPage?.nextCursor ?? lastPage?.meta?.nextCursor ?? null,
+      lastPage?.meta?.nextCursor ?? lastPage?.nextCursor ?? null,
     enabled: Boolean(threadId),
     initialPageParam: null,
     staleTime: 5000,
   });
 
   const sendMutation = useMutation({
-    mutationFn: ({ body, attachments }) => {
-      const formData = new FormData();
-      formData.append("body", body);
-      attachments.forEach((file) => formData.append("attachments", file));
-      return sendThreadMessage({ threadId, payload: formData });
+    mutationFn: async ({ body, attachments }) => {
+      const files = Array.isArray(attachments) ? attachments : [];
+      const serializedAttachments = await Promise.all(
+        files.map(async (file) => ({
+          name: file.name,
+          mimeType: file.type,
+          size: file.size,
+          data: await fileToDataUrl(file),
+        })),
+      );
+      return sendThreadMessage({
+        threadId,
+        payload: { body, attachments: serializedAttachments },
+      });
     },
     onSuccess: (newMessage) => {
       queryClient.setQueryData(
@@ -76,7 +93,7 @@ const ThreadView = () => {
             ...(updatedPages[0] || {}),
             messages: [
               ...(updatedPages[0]?.messages || []),
-              newMessage?.message || newMessage,
+              newMessage,
             ],
           };
           return { ...previousData, pages: updatedPages };

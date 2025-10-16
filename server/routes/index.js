@@ -25,6 +25,7 @@ router.use("/inscriptions", require("./inscriptions.routes"));
 
 router.use(require("./notifications.broadcast.routes"));
 router.use(require("./notifications.user.routes"));
+router.use(require("./messages.routes"));
 
 router.use("/enfants", require("./enfants.routes"));
 router.use(require("./fiche_enfant.routes"));
