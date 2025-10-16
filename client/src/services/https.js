@@ -16,13 +16,13 @@ const resolveBaseURL = () => {
     // being reverse-proxied under /api in production builds.
     const devPorts = new Set(["5173", "5174", "4173", "4174", "3000"]);
     if (devPorts.has(port)) {
-      return `${protocol}//${hostname}:4000/api`;
+      return `${protocol}//${hostname}:5000/api`;
     }
 
     return `${normalize(window.location.origin)}/api`;
   }
 
-  return "http://localhost:4000/api";
+  return "http://localhost:5000/api";
 };
 
 const http = axios.create({
