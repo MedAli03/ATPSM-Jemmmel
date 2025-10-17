@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import ThreadListVirtualized from "../../modules/messaging/components/ThreadListVirtualized";
-import SearchInputDebounced from "../../modules/messaging/components/SearchInputDebounced";
-import ErrorState from "../../modules/messaging/components/ErrorState";
-import NewThreadModal from "../../modules/messaging/components/NewThreadModal";
-import { useMessagingContext } from "../../modules/messaging/context/MessagingProvider";
-import { useAuth } from "../../context/AuthContext";
+import { Outlet, useLocation, useNavigate, useOutletContext } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { messagingApi } from "../../services/messagingApi";
+import ThreadItem from "../../components/messages/ThreadItem";
 
 const filters = [
   { id: "all", label: "الكل" },
@@ -14,208 +12,227 @@ const filters = [
   { id: "archived", label: "مؤرشفة" },
 ];
 
-const densityOptions = [
+const densities = [
   { id: "comfortable", label: "مريح" },
   { id: "compact", label: "مضغوط" },
 ];
 
-const ThreadsPage = () => {
+export default function ThreadsPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const realtime = useOutletContext();
   const searchRef = useRef(null);
-  const { currentUser } = useAuth();
-  const { state, actions, selectors } = useMessagingContext();
-  const [searchTerm, setSearchTerm] = useState("");
+  const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [density, setDensity] = useState("comfortable");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-
-  const currentUserId = currentUser?.id || "u-directeur";
-  const threads = useMemo(() => selectors.threads(state), [selectors, state]);
+  const [focusedIndex, setFocusedIndex] = useState(null);
 
   useEffect(() => {
-    let isCancelled = false;
-    setIsLoading(true);
-    setError(null);
-    actions
-      .listThreads({ search: debouncedSearch, filter, reset: true })
-      .catch((err) => {
-        if (!isCancelled) setError(err);
-      })
-      .finally(() => {
-        if (!isCancelled) setIsLoading(false);
-      });
-    return () => {
-      isCancelled = true;
-    };
-  }, [actions, debouncedSearch, filter]);
+    const id = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(id);
+  }, [search]);
+
+  const statusParam = useMemo(() => {
+    if (filter === "archived") return "archived";
+    if (filter === "unread") return "unread";
+    if (filter === "read") return "active";
+    return undefined;
+  }, [filter]);
+
+  const threadsQuery = useQuery({
+    queryKey: ["threads", { q: debouncedSearch, status: statusParam }],
+    queryFn: () =>
+      messagingApi.listThreads({
+        q: debouncedSearch || undefined,
+        status: statusParam,
+      }),
+    keepPreviousData: true,
+    staleTime: 5000,
+  });
+
+  const threads = useMemo(() => {
+    const list = threadsQuery.data?.data || [];
+    if (filter === "read") {
+      return list.filter((thread) => thread.unreadCount === 0 && !thread.archived);
+    }
+    return list;
+  }, [threadsQuery.data, filter]);
+
+  const activeThreadId = useMemo(() => {
+    const match = location.pathname.match(/messages\/(\d+)/);
+    return match ? Number(match[1]) : null;
+  }, [location.pathname]);
+
+  const parentRef = useRef(null);
+  const rowVirtualizer = useVirtualizer({
+    count: threads.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => (density === "compact" ? 88 : 112),
+    overscan: 8,
+  });
 
   useEffect(() => {
     const handler = (event) => {
-      if ((event.ctrlKey || event.metaKey) && event.key?.toLowerCase() === "k") {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         searchRef.current?.focus();
+      }
+      if (event.key.toLowerCase() === "a" && document.activeElement !== searchRef.current) {
+        event.preventDefault();
+        setFilter((prev) => (prev === "archived" ? "all" : "archived"));
+      }
+      if (event.key === "ArrowDown" && threads.length > 0) {
+        event.preventDefault();
+        setFocusedIndex((prev) => {
+          const next = prev === null ? 0 : Math.min(prev + 1, threads.length - 1);
+          rowVirtualizer.scrollToIndex(next);
+          return next;
+        });
+      }
+      if (event.key === "ArrowUp" && threads.length > 0) {
+        event.preventDefault();
+        setFocusedIndex((prev) => {
+          const next = prev === null ? threads.length - 1 : Math.max(prev - 1, 0);
+          rowVirtualizer.scrollToIndex(next);
+          return next;
+        });
+      }
+      if (event.key === "Enter" && focusedIndex !== null && threads.length > 0) {
+        event.preventDefault();
+        const thread = threads[focusedIndex];
+        if (thread) handleSelectThread(thread);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
-
-  const activeThreadId = useMemo(() => {
-    const segments = location.pathname.split("/").filter(Boolean);
-    const index = segments.indexOf("messages");
-    if (index === -1) return null;
-    return segments[index + 1] || null;
-  }, [location.pathname]);
-
-  const basePath = useMemo(() => {
-    const segments = location.pathname.split("/").filter(Boolean);
-    const index = segments.indexOf("messages");
-    if (index === -1) return "/dashboard/messages";
-    return `/${segments.slice(0, index + 1).join("/")}`;
-  }, [location.pathname]);
-
-  const filteredThreads = useMemo(() => {
-    if (filter === "archived") {
-      return threads.filter((thread) => thread.archived);
-    }
-    if (filter === "unread") {
-      return threads.filter((thread) => (thread.unreadCount || 0) > 0);
-    }
-    if (filter === "read") {
-      return threads.filter((thread) => (thread.unreadCount || 0) === 0 && !thread.archived);
-    }
-    return threads;
-  }, [threads, filter]);
+  }, [threads, focusedIndex, rowVirtualizer]);
 
   const handleSelectThread = (thread) => {
     if (!thread) return;
-    navigate(`${basePath}/${thread.id}`);
+    setFocusedIndex(null);
+    navigate(`${thread.id}`);
   };
 
-  const toggleArchiveFilter = () => {
-    setFilter((prev) => (prev === "archived" ? "all" : "archived"));
-  };
+  const isLoading = threadsQuery.isLoading;
+  const isFetching = threadsQuery.isFetching;
 
-  const total = filteredThreads.length;
-
-  const participantDirectory = useMemo(() => {
-    const map = new Map();
-    threads.forEach((thread) => {
-      (thread.participants || []).forEach((participant) => {
-        if (!map.has(participant.id)) {
-          map.set(participant.id, participant);
-        }
-      });
-    });
-    return Array.from(map.values());
-  }, [threads]);
+  const total = threads.length;
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 pb-10" dir="rtl">
-      <header className="sticky top-0 z-10 flex flex-col gap-4 border-b border-slate-200 bg-gradient-to-b from-white/95 to-white/70 pb-4 pt-6 backdrop-blur dark:border-slate-700 dark:from-slate-900/90 dark:to-slate-900/60">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">الرسائل</h1>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              مساحة واحدة لكل محادثاتك. استخدم البحث السريع (Ctrl+K) أو الأسهم للتنقل.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowModal(true)}
-            className="rounded-full bg-primary-500 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-600"
-          >
-            + محادثة جديدة
-          </button>
-        </div>
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
-            <SearchInputDebounced
-              ref={searchRef}
-              value={searchTerm}
-              onImmediateChange={setSearchTerm}
-              onChange={setDebouncedSearch}
-              placeholder="ابحث عن محادثة أو مشارك"
-              label="البحث"
-            />
-            <span className="text-xs text-slate-500">{isLoading ? "جاري التحديث…" : `${total} محادثة`}</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {filters.map((item) => (
+    <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-6 px-4 py-8" dir="rtl">
+      <div className="flex flex-col gap-6 rounded-3xl bg-white p-4 shadow-lg dark:bg-slate-900 lg:flex-row">
+        <section className="flex w-full flex-col lg:w-[360px]">
+          <header className="sticky top-0 z-10 flex flex-col gap-4 border-b border-slate-100 pb-4 dark:border-slate-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-xl font-bold text-slate-900 dark:text-white">الرسائل</h1>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">
+                  {realtime?.connected ? "متصل بزمن حقيقي" : "وضع التحديث التلقائي كل ١٥ ثانية"}
+                </p>
+              </div>
               <button
-                key={item.id}
                 type="button"
-                onClick={() => setFilter(item.id)}
-                className={`rounded-full px-4 py-2 text-xs font-semibold transition ${
-                  filter === item.id
-                    ? "bg-primary-500 text-white"
-                    : "bg-white text-slate-600 shadow-sm hover:bg-primary-50 dark:bg-slate-800 dark:text-slate-200"
-                }`}
+                onClick={() => alert("TODO: إنشاء محادثة جديدة")}
+                className="rounded-full bg-primary-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-primary-700"
               >
-                {item.label}
+                + محادثة جديدة
               </button>
-            ))}
-            <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-800">
-              {densityOptions.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => setDensity(option.id)}
-                  className={`rounded-full px-3 py-1 ${
-                    density === option.id ? "bg-primary-500 text-white" : "text-slate-600 hover:bg-primary-50 dark:text-slate-200"
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
+            </div>
+            <div className="flex flex-col gap-3">
+              <input
+                ref={searchRef}
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="ابحث عن محادثة أو مشارك"
+                className="w-full rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              />
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                {filters.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setFilter(item.id)}
+                    className={`rounded-full px-3 py-1 transition ${
+                      filter === item.id
+                        ? "bg-primary-600 text-white"
+                        : "bg-slate-100 text-slate-600 hover:bg-primary-50 dark:bg-slate-800 dark:text-slate-200"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                {densities.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setDensity(option.id)}
+                    className={`rounded-full px-3 py-1 ${
+                      density === option.id
+                        ? "bg-primary-100 text-primary-700 dark:bg-primary-800 dark:text-white"
+                        : "bg-slate-100 text-slate-600 hover:bg-primary-50 dark:bg-slate-800 dark:text-slate-200"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+                <span className="ml-auto text-slate-400">
+                  {isFetching ? "جاري التحديث…" : `${total} محادثة`}
+                </span>
+              </div>
+            </div>
+          </header>
+          <div ref={parentRef} className="mt-4 flex-1 overflow-y-auto pr-2" aria-label="قائمة المحادثات">
+            <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: "relative" }}>
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const thread = threads[virtualRow.index];
+                return (
+                  <div
+                    key={thread?.id ?? virtualRow.index}
+                    ref={virtualRow.measureRef}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                  >
+                    <ThreadItem
+                      thread={thread}
+                      active={thread?.id === activeThreadId}
+                      density={density}
+                      onSelect={handleSelectThread}
+                    />
+                  </div>
+                );
+              })}
+              {threads.length === 0 && !isLoading && (
+                <div className="flex h-40 items-center justify-center text-sm text-slate-500">
+                  لا توجد نتائج مطابقة للبحث.
+                </div>
+              )}
+              {isLoading && (
+                <div className="flex flex-col gap-3">
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <div key={index} className="h-20 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800" />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-        </div>
-      </header>
-
-      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(320px,380px)_1fr] lg:gap-8">
-        <aside className="flex flex-col gap-4">
-          {error ? (
-            <div className="min-h-[340px]">
-              <ErrorState onRetry={() => actions.listThreads({ search: debouncedSearch, filter, reset: true })} />
-            </div>
-          ) : (
-            <ThreadListVirtualized
-              threads={filteredThreads}
-              isLoading={isLoading}
-              activeThreadId={activeThreadId}
-              onSelect={handleSelectThread}
-              density={density}
-              onToggleArchive={toggleArchiveFilter}
-            />
-          )}
-        </aside>
-        <section className="relative flex min-h-[60vh] w-full flex-1 overflow-hidden rounded-3xl border border-slate-200 bg-white/80 shadow-sm dark:border-slate-700 dark:bg-slate-900/60">
-          <Outlet />
+        </section>
+        <section className="hidden flex-1 rounded-3xl bg-slate-50 p-2 dark:bg-slate-950 lg:flex">
+          <div className="flex-1 overflow-hidden rounded-3xl bg-white shadow-inner dark:bg-slate-900">
+            <Outlet context={realtime} />
+          </div>
         </section>
       </div>
-
-      <NewThreadModal
-        open={showModal}
-        onClose={() => setShowModal(false)}
-        onCreate={async (payload) => {
-          const thread = await actions.createThread({
-            ...payload,
-            participantIds: Array.from(new Set([currentUserId, ...(payload.participantIds || [])])),
-            initialMessage: { ...payload.initialMessage, senderId: currentUserId },
-          });
-          setShowModal(false);
-          navigate(`${basePath}/${thread.id}`);
-        }}
-        currentUserId={currentUserId}
-        directory={participantDirectory}
-      />
+      <section className="lg:hidden">
+        <Outlet context={realtime} />
+      </section>
     </div>
   );
-};
-
-export default ThreadsPage;
+}

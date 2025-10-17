@@ -2,34 +2,36 @@ const { DataTypes } = require("sequelize");
 
 module.exports = (sequelize) =>
   sequelize.define(
-    "Thread",
+    "Attachment",
     {
       id: {
         type: DataTypes.INTEGER.UNSIGNED,
         autoIncrement: true,
         primaryKey: true,
       },
-      title: {
+      uploader_id: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        allowNull: false,
+      },
+      name: {
+        type: DataTypes.STRING,
+        allowNull: false,
+      },
+      mime: {
         type: DataTypes.STRING,
         allowNull: true,
       },
-      is_group: {
-        type: DataTypes.BOOLEAN,
+      size: {
+        type: DataTypes.INTEGER.UNSIGNED,
         allowNull: false,
-        defaultValue: false,
       },
-      archived: {
-        type: DataTypes.BOOLEAN,
+      storage_key: {
+        type: DataTypes.STRING,
         allowNull: false,
-        defaultValue: false,
-      },
-      last_message_id: {
-        type: DataTypes.BIGINT.UNSIGNED,
-        allowNull: true,
       },
     },
     {
-      tableName: "threads",
+      tableName: "attachments",
       underscored: true,
       timestamps: true,
     }

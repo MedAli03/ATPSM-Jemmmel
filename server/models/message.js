@@ -1,17 +1,35 @@
 const { DataTypes } = require("sequelize");
+
 module.exports = (sequelize) =>
   sequelize.define(
     "Message",
     {
       id: {
-        type: DataTypes.INTEGER.UNSIGNED,
+        type: DataTypes.BIGINT.UNSIGNED,
         autoIncrement: true,
         primaryKey: true,
       },
-      thread_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
-      expediteur_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
-      texte: { type: DataTypes.TEXT, allowNull: false },
-      pieces_jointes: DataTypes.JSON,
+      thread_id: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        allowNull: false,
+      },
+      sender_id: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        allowNull: false,
+      },
+      kind: {
+        type: DataTypes.ENUM("text", "system", "attachment"),
+        allowNull: false,
+        defaultValue: "text",
+      },
+      text: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
     },
-    { tableName: "messages", underscored: true, timestamps: true }
+    {
+      tableName: "messages",
+      underscored: true,
+      timestamps: true,
+    }
   );

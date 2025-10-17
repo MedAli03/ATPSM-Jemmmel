@@ -84,6 +84,8 @@ const Thread = require("./thread")(sequelize, DataTypes);
 const ThreadParticipant = require("./thread_participant")(sequelize, DataTypes);
 const Message = require("./message")(sequelize, DataTypes);
 const MessageAttachment = require("./message_attachment")(sequelize, DataTypes);
+const MessageReadReceipt = require("./message_read_receipt")(sequelize, DataTypes);
+const Attachment = require("./attachment")(sequelize, DataTypes);
 const Notification = require("./notification")(sequelize, DataTypes);
 
 /* -------------------------------------------------------------------------- */
@@ -282,12 +284,6 @@ Actualite.belongsTo(Utilisateur, { as: "admin", foreignKey: "admin_id" });
 Utilisateur.hasMany(Actualite, { as: "actualites", foreignKey: "admin_id" });
 
 // Messagerie
-Thread.belongsTo(Utilisateur, { as: "creator", foreignKey: "created_by" });
-Utilisateur.hasMany(Thread, { as: "threads_crees", foreignKey: "created_by" });
-
-Thread.belongsTo(Enfant, { as: "enfant", foreignKey: "enfant_id" });
-Enfant.hasMany(Thread, { as: "threads", foreignKey: "enfant_id" });
-
 Thread.hasMany(ThreadParticipant, {
   as: "participants",
   foreignKey: "thread_id",
@@ -299,36 +295,54 @@ ThreadParticipant.belongsTo(Thread, {
 });
 
 ThreadParticipant.belongsTo(Utilisateur, {
-  as: "utilisateur",
-  foreignKey: "utilisateur_id",
+  as: "user",
+  foreignKey: "user_id",
 });
 Utilisateur.hasMany(ThreadParticipant, {
   as: "thread_participations",
-  foreignKey: "utilisateur_id",
+  foreignKey: "user_id",
 });
 
-Message.belongsTo(Thread, { as: "thread", foreignKey: "thread_id" });
 Thread.hasMany(Message, { as: "messages", foreignKey: "thread_id" });
+Message.belongsTo(Thread, { as: "thread", foreignKey: "thread_id" });
 
-Message.belongsTo(Utilisateur, {
-  as: "expediteur",
-  foreignKey: "expediteur_id",
-});
-Utilisateur.hasMany(Message, {
-  as: "messages_envoyes",
-  foreignKey: "expediteur_id",
-});
+Thread.belongsTo(Message, { as: "lastMessage", foreignKey: "last_message_id" });
 
-Message.hasMany(MessageAttachment, {
-  as: "attachments",
+Message.belongsTo(Utilisateur, { as: "sender", foreignKey: "sender_id" });
+Utilisateur.hasMany(Message, { as: "messages_envoyes", foreignKey: "sender_id" });
+
+Message.hasMany(MessageReadReceipt, {
+  as: "readReceipts",
   foreignKey: "message_id",
   onDelete: "CASCADE",
 });
-MessageAttachment.belongsTo(Message, {
+MessageReadReceipt.belongsTo(Message, {
   as: "message",
   foreignKey: "message_id",
 });
+MessageReadReceipt.belongsTo(Utilisateur, {
+  as: "user",
+  foreignKey: "user_id",
+});
 
+Attachment.belongsTo(Utilisateur, {
+  as: "uploader",
+  foreignKey: "uploader_id",
+});
+Utilisateur.hasMany(Attachment, { as: "attachments", foreignKey: "uploader_id" });
+
+Message.belongsToMany(Attachment, {
+  through: MessageAttachment,
+  as: "attachments",
+  foreignKey: "message_id",
+  otherKey: "attachment_id",
+});
+Attachment.belongsToMany(Message, {
+  through: MessageAttachment,
+  as: "messages",
+  foreignKey: "attachment_id",
+  otherKey: "message_id",
+});
 // Notifications
 Notification.belongsTo(Utilisateur, {
   as: "utilisateur",
@@ -371,6 +385,8 @@ const db = {
   ThreadParticipant,
   Message,
   MessageAttachment,
+  MessageReadReceipt,
+  Attachment,
   Notification,
   UtilisateurSession,
 };

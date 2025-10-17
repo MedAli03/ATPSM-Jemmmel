@@ -1,438 +1,561 @@
 "use strict";
 
-const path = require("path");
-const fs = require("fs/promises");
+const { Op, QueryTypes } = require("sequelize");
 const { randomUUID } = require("crypto");
-const { sequelize } = require("../models");
+const {
+  sequelize,
+  Thread,
+  ThreadParticipant,
+  Message,
+  MessageReadReceipt,
+  Attachment,
+  MessageAttachment,
+  Utilisateur,
+} = require("../models");
 const ApiError = require("../utils/api-error");
-const repo = require("../repos/messages.repo");
-const typingStatus = require("./typing-status.service");
-const notifier = require("./notifier.service");
 
-const ATTACHMENTS_DIR = path.join(__dirname, "..", "uploads", "messages");
-const ATTACHMENTS_PREFIX = "/uploads/messages/";
-const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024; // 5MB
-const MAX_ATTACHMENTS = 5;
+const MAX_TEXT_LENGTH = 2000;
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 50;
+const MESSAGE_PAGE_SIZE = 25;
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_MAX = 45;
 
-function sanitizeFileName(name) {
-  if (!name || typeof name !== "string") return null;
-  const base = name.replace(/[^\p{L}\p{N}_.\-\s]/gu, "").trim();
-  return base || null;
+const rateLimiter = new Map(); // userId -> timestamps[]
+const typingState = new Map(); // threadId -> Map(userId, expiresAt)
+const TYPING_TTL_MS = 6 * 1000;
+
+function normalizeLimit(limit, fallback, cap = MAX_PAGE_SIZE) {
+  const parsed = Number.parseInt(limit, 10);
+  if (Number.isNaN(parsed) || parsed <= 0) return fallback;
+  return Math.min(parsed, cap);
 }
 
-function extractBase64Payload(raw) {
-  if (typeof raw !== "string" || !raw) return { mime: null, base64: null };
-  const trimmed = raw.trim();
-  const match = trimmed.match(/^data:([^;]+);base64,(.*)$/);
-  if (match) {
-    return { mime: match[1], base64: match[2].replace(/\s+/g, "") };
-  }
-  return { mime: null, base64: trimmed.replace(/\s+/g, "") };
-}
-
-async function writeAttachments(threadId, attachments = []) {
-  if (!Array.isArray(attachments) || attachments.length === 0) {
-    return { files: [], cleanup: async () => {} };
-  }
-
-  const limited = attachments.slice(0, MAX_ATTACHMENTS);
-  const saved = [];
-
-  await fs.mkdir(ATTACHMENTS_DIR, { recursive: true });
-
-  try {
-    for (const attachment of limited) {
-      if (!attachment || typeof attachment !== "object") {
-        throw new ApiError({
-          status: 400,
-          code: "INVALID_ATTACHMENT",
-          message: "المرفق المرسل غير صالح",
-        });
-      }
-      const name = sanitizeFileName(attachment.name) || `attachment-${Date.now()}`;
-      const { mime, base64 } = extractBase64Payload(attachment.data || attachment.base64);
-      if (!base64) {
-        throw new ApiError({
-          status: 400,
-          code: "INVALID_ATTACHMENT",
-          message: "صيغة المرفق غير مدعومة",
-        });
-      }
-      const buffer = Buffer.from(base64, "base64");
-      if (!buffer || buffer.length === 0) {
-        throw new ApiError({
-          status: 400,
-          code: "INVALID_ATTACHMENT",
-          message: "صيغة المرفق غير مدعومة",
-        });
-      }
-      if (buffer.length > MAX_ATTACHMENT_SIZE) {
-        throw new ApiError({
-          status: 413,
-          code: "ATTACHMENT_TOO_LARGE",
-          message: "حجم المرفق يتجاوز الحد المسموح به (5MB)",
-        });
-      }
-      const ext = path.extname(name).slice(0, 12);
-      const fileName = `thread-${threadId}-${randomUUID()}${ext}`;
-      const absolutePath = path.join(ATTACHMENTS_DIR, fileName);
-      await fs.writeFile(absolutePath, buffer);
-      saved.push({
-        id: fileName,
-        name,
-        mimeType: attachment.mimeType || mime || null,
-        size: buffer.length,
-        publicUrl: `${ATTACHMENTS_PREFIX}${fileName}`,
-        storagePath: path.posix.join("messages", fileName),
-        absolutePath,
-      });
-    }
-  } catch (error) {
-    await Promise.all(
-      saved.map((file) => fs.unlink(file.absolutePath).catch(() => {}))
-    );
-    throw error;
-  }
-
-  return {
-    files: saved,
-    cleanup: async () => {
-      await Promise.all(
-        saved.map((file) => fs.unlink(file.absolutePath).catch(() => {}))
-      );
-    },
-  };
-}
-
-function mapParticipant(participant, currentUserId) {
+function buildParticipantPayload(participant, currentUserId) {
   if (!participant) return null;
-  const user = participant.utilisateur || participant;
+  const user = participant.user || participant.utilisateur || participant;
   if (!user) return null;
-  const name =
-    [user.prenom, user.nom].filter(Boolean).join(" ") ||
-    user.email ||
-    participant.name ||
-    null;
+  const fullName = [user.prenom, user.nom].filter(Boolean).join(" ") || user.email;
   return {
-    id: user.id,
+    id: Number(user.id),
     role: user.role,
-    name,
-    isCurrentUser: String(user.id) === String(currentUserId),
+    name: fullName || "-",
+    avatarUrl: user.avatar_url || user.avatarUrl || null,
+    joinedAt: participant.joined_at || participant.joinedAt || null,
+    leftAt: participant.left_at || participant.leftAt || null,
+    isCurrentUser: Number(user.id) === Number(currentUserId),
   };
 }
 
-function mapAttachmentRecord(record) {
-  if (!record) return null;
-  const plain = record.get ? record.get({ plain: true }) : record;
-  const name = plain.original_name || plain.name || null;
-  const url = plain.public_url || plain.url || null;
-  if (!name && !url) return null;
+function sanitizeMessageForRole(message, role) {
+  if (!message) return null;
+  if (role === "PARENT" && message.kind === "system") {
+    return null;
+  }
+  return message;
+}
+
+function buildMessagePayload(message) {
+  const sender = message.sender || message.expediteur;
+  const attachments = Array.isArray(message.attachments)
+    ? message.attachments.map((attachment) => ({
+        id: Number(attachment.id),
+        name: attachment.name,
+        mime: attachment.mime,
+        size: attachment.size,
+        storageKey: attachment.storage_key,
+        url: attachment.url || null,
+      }))
+    : [];
   return {
-    id: plain.id || plain.storage_path || plain.fileName || url,
-    name,
-    url,
-    mimeType: plain.mime_type || plain.mimeType || null,
-    size:
-      typeof plain.size === "number"
-        ? plain.size
-        : typeof plain.fileSize === "number"
-          ? plain.fileSize
-          : null,
-    createdAt: plain.created_at || plain.createdAt || null,
-  };
-}
-
-function mapLegacyAttachment(legacy) {
-  if (!legacy) return null;
-  const name = legacy.name || legacy.original_name || null;
-  const url = legacy.url || legacy.public_url || null;
-  if (!name && !url) return null;
-  return {
-    id: legacy.id || legacy.storage_path || url,
-    name,
-    url,
-    mimeType: legacy.mimeType || legacy.mime_type || null,
-    size:
-      typeof legacy.size === "number"
-        ? legacy.size
-        : typeof legacy.fileSize === "number"
-          ? legacy.fileSize
-          : null,
-    createdAt: legacy.createdAt || legacy.created_at || null,
-  };
-}
-
-function combineAttachments(relational = [], legacy = []) {
-  const collected = [];
-  const seen = new Set();
-  const push = (attachment) => {
-    if (!attachment) return;
-    const key = attachment.id || attachment.url || `${attachment.name}-${attachment.size}`;
-    if (key && seen.has(key)) return;
-    if (key) seen.add(key);
-    collected.push(attachment);
-  };
-  relational.forEach((item) => push(mapAttachmentRecord(item)));
-  legacy.forEach((item) => push(mapLegacyAttachment(item)));
-  return collected;
-}
-
-function mapMessageRecord(message) {
-  const plain = message.get ? message.get({ plain: true }) : message;
-  return {
-    id: plain.id,
-    body: plain.texte,
-    createdAt: plain.created_at,
-    updatedAt: plain.updated_at,
-    senderId: plain.expediteur_id,
-    senderName:
-      [plain.expediteur?.prenom, plain.expediteur?.nom]
-        .filter(Boolean)
-        .join(" ") || plain.expediteur?.email || null,
-    attachments: combineAttachments(plain.attachments, plain.pieces_jointes),
-  };
-}
-
-function mapThreadRecord(thread, currentUserId, fallbackUnread = 0) {
-  if (!thread) return null;
-  const plain = thread.get ? thread.get({ plain: true }) : thread;
-  const participantList = (plain.participants || [])
-    .map((participant) => mapParticipant(participant, currentUserId))
-    .filter(Boolean);
-  const otherParticipants = participantList.filter(
-    (participant) => !participant.isCurrentUser
-  );
-  const displayParticipants = otherParticipants.length
-    ? otherParticipants
-    : participantList;
-  const lastMessageRaw = plain.lastMessage || plain.messages?.[0] || null;
-  const unreadCount =
-    typeof plain.unreadCount === "number" ? plain.unreadCount : fallbackUnread;
-  return {
-    id: plain.id,
-    subject: plain.sujet || plain.title,
-    createdAt: plain.created_at || plain.createdAt,
-    updatedAt: plain.updated_at || plain.updatedAt,
-    participants: displayParticipants.map(({ isCurrentUser, ...rest }) => rest),
-    unreadCount,
-    lastMessage: lastMessageRaw ? mapMessageRecord(lastMessageRaw) : null,
-    enfant: plain.enfant
+    id: Number(message.id),
+    threadId: Number(message.thread_id || message.threadId),
+    kind: message.kind,
+    text: message.text,
+    createdAt: message.created_at || message.createdAt,
+    status: message.status || "sent",
+    sender: sender
       ? {
-          id: plain.enfant.id,
-          name: [plain.enfant.prenom, plain.enfant.nom].filter(Boolean).join(" "),
+          id: Number(sender.id),
+          role: sender.role,
+          name: [sender.prenom, sender.nom].filter(Boolean).join(" ") || sender.email,
         }
       : null,
-    createdBy: plain.creator
-      ? {
-          id: plain.creator.id,
-          name:
-            [plain.creator.prenom, plain.creator.nom]
-              .filter(Boolean)
-              .join(" ") || plain.creator.email,
-        }
-      : null,
-    currentUserId,
+    attachments,
+    readBy: Array.isArray(message.readReceipts)
+      ? message.readReceipts.map((receipt) => Number(receipt.user_id || receipt.userId))
+      : [],
   };
 }
 
-exports.listThreads = async (currentUser, query) => {
-  const { rows, total, page, limit } = await repo.listThreadsForUser(
-    currentUser.id,
-    query
-  );
-  const threads = rows.map((row) => mapThreadRecord(row, currentUser.id, row.unreadCount));
-  const perPage = limit || rows.length || 1;
-  const totalPages = Math.max(1, Math.ceil(total / perPage));
-  return {
-    threads,
-    pagination: {
-      total,
-      page,
-      perPage,
-      totalPages,
-      hasNextPage: page < totalPages,
+async function ensureThreadParticipant(userId, threadId, options = {}) {
+  const participant = await ThreadParticipant.findOne({
+    where: {
+      thread_id: threadId,
+      user_id: userId,
+      [Op.or]: [{ left_at: null }, { left_at: { [Op.gt]: new Date() } }],
     },
+    transaction: options.transaction,
+  });
+  if (!participant) {
+    throw new ApiError({
+      status: 403,
+      code: "THREAD_FORBIDDEN",
+      message: "ليس لديك صلاحية لعرض هذه المحادثة",
+    });
+  }
+  return participant;
+}
+
+async function fetchUnreadCounts(userId, threadIds) {
+  if (!threadIds.length) return new Map();
+  const rows = await sequelize.query(
+    `SELECT m.thread_id AS threadId, COUNT(*) AS unread
+     FROM messages m
+     LEFT JOIN message_read_receipts r
+       ON r.message_id = m.id AND r.user_id = :userId
+     WHERE m.thread_id IN (:threadIds)
+       AND m.sender_id <> :userId
+       AND r.id IS NULL
+     GROUP BY m.thread_id`,
+    {
+      replacements: { userId, threadIds },
+      type: QueryTypes.SELECT,
+    }
+  );
+  const map = new Map();
+  const records = Array.isArray(rows) ? rows : [];
+  for (const row of records) {
+    map.set(Number(row.threadId), Number(row.unread));
+  }
+  return map;
+}
+
+async function listThreads(userId, params = {}) {
+  const { q, status, page = 1, limit = DEFAULT_PAGE_SIZE, sort = "recent" } = params;
+  const safeLimit = normalizeLimit(limit, DEFAULT_PAGE_SIZE);
+  const safePage = Math.max(1, Number.parseInt(page, 10) || 1);
+
+  const membership = await ThreadParticipant.findAll({
+    where: { user_id: userId, [Op.or]: [{ left_at: null }, { left_at: { [Op.gt]: new Date() } }] },
+    attributes: ["thread_id"],
+  });
+  if (!membership.length) {
+    return { data: [], page: safePage, limit: safeLimit, total: 0 };
+  }
+  const threadIds = membership.map((item) => Number(item.thread_id));
+
+  const where = { id: threadIds };
+  if (status === "archived") {
+    where.archived = true;
+  } else if (status === "active") {
+    where.archived = false;
+  }
+
+  const order = sort === "oldest" ? [["updated_at", "ASC"]] : [["updated_at", "DESC"]];
+
+  const include = [
+    {
+      model: ThreadParticipant,
+      as: "participants",
+      include: [
+        {
+          model: Utilisateur,
+          as: "user",
+          attributes: ["id", "prenom", "nom", "email", "role", "avatar_url"],
+        },
+      ],
+    },
+    {
+      model: Message,
+      as: "lastMessage",
+      include: [
+        {
+          model: Utilisateur,
+          as: "sender",
+          attributes: ["id", "prenom", "nom", "email", "role"],
+        },
+      ],
+    },
+  ];
+
+  if (q) {
+    const like = `%${q.trim()}%`;
+    where[Op.or] = [{ title: { [Op.like]: like } }];
+  }
+
+  const { rows, count } = await Thread.findAndCountAll({
+    where,
+    include,
+    distinct: true,
+    order,
+    limit: safeLimit,
+    offset: (safePage - 1) * safeLimit,
+  });
+
+  const unreadMap = await fetchUnreadCounts(userId, rows.map((row) => row.id));
+  const payload = rows
+    .map((thread) => {
+      const last = sanitizeMessageForRole(thread.lastMessage, params.role);
+      return {
+        id: Number(thread.id),
+        title: thread.title,
+        isGroup: Boolean(thread.is_group),
+        archived: Boolean(thread.archived),
+        updatedAt: thread.updated_at,
+        unreadCount: unreadMap.get(Number(thread.id)) || 0,
+        lastMessage: last ? buildMessagePayload(last) : null,
+        participants: thread.participants
+          .map((participant) => buildParticipantPayload(participant, userId))
+          .filter(Boolean),
+      };
+    })
+    .filter(Boolean);
+
+  let filtered = payload;
+  if (status === "unread") {
+    filtered = payload.filter((thread) => (thread.unreadCount || 0) > 0);
+  }
+
+  const totalCount = status === "unread" || status === "read" ? filtered.length : count;
+  return {
+    data: filtered,
+    page: safePage,
+    limit: safeLimit,
+    total: totalCount,
   };
-};
+}
 
-exports.getThread = async (currentUser, threadId) => {
-  const membership = await repo.ensureParticipant(threadId, currentUser.id);
-  if (!membership) {
-    throw new ApiError({
-      status: 404,
-      code: "THREAD_NOT_FOUND",
-      message: "المحادثة غير متاحة",
-    });
-  }
-  const thread = await repo.getThreadDetails(threadId);
+async function getThread(userId, threadId, role) {
+  await ensureThreadParticipant(userId, threadId);
+  const thread = await Thread.findByPk(threadId, {
+    include: [
+      {
+        model: ThreadParticipant,
+        as: "participants",
+        include: [
+          {
+            model: Utilisateur,
+            as: "user",
+            attributes: ["id", "prenom", "nom", "email", "role", "avatar_url"],
+          },
+        ],
+      },
+      {
+        model: Message,
+        as: "lastMessage",
+        include: [
+          {
+            model: Utilisateur,
+            as: "sender",
+            attributes: ["id", "prenom", "nom", "email", "role"],
+          },
+        ],
+      },
+    ],
+  });
   if (!thread) {
-    throw new ApiError({
-      status: 404,
-      code: "THREAD_NOT_FOUND",
-      message: "المحادثة غير متاحة",
-    });
+    throw new ApiError({ status: 404, code: "THREAD_NOT_FOUND", message: "المحادثة غير موجودة" });
   }
-  const unread = await repo.countUnreadForThread(threadId, currentUser.id);
-  return mapThreadRecord(thread, currentUser.id, unread);
-};
+  const unreadMap = await fetchUnreadCounts(userId, [thread.id]);
+  const last = sanitizeMessageForRole(thread.lastMessage, role);
+  return {
+    id: Number(thread.id),
+    title: thread.title,
+    isGroup: Boolean(thread.is_group),
+    archived: Boolean(thread.archived),
+    updatedAt: thread.updated_at,
+    unreadCount: unreadMap.get(Number(thread.id)) || 0,
+    lastMessage: last ? buildMessagePayload(last) : null,
+    participants: thread.participants
+      .map((participant) => buildParticipantPayload(participant, userId))
+      .filter(Boolean),
+  };
+}
 
-exports.listMessages = async (currentUser, threadId, params = {}) => {
-  const membership = await repo.ensureParticipant(threadId, currentUser.id);
-  if (!membership) {
-    throw new ApiError({
-      status: 404,
-      code: "THREAD_NOT_FOUND",
-      message: "المحادثة غير متاحة",
-    });
-  }
-  let cursorDate = null;
-  if (params.cursor) {
-    const parsed = new Date(params.cursor);
-    if (!Number.isNaN(parsed.getTime())) {
-      cursorDate = parsed;
+async function listMessages(userId, threadId, params = {}) {
+  const participant = await ensureThreadParticipant(userId, threadId);
+  const limit = normalizeLimit(params.limit, MESSAGE_PAGE_SIZE, MESSAGE_PAGE_SIZE);
+  const where = { thread_id: threadId };
+
+  if (params.cursor && params.cursor.createdAt && params.cursor.id) {
+    const createdAt = new Date(params.cursor.createdAt);
+    const id = Number(params.cursor.id);
+    if (!Number.isNaN(id)) {
+      where[Op.or] = [
+        { created_at: { [Op.lt]: createdAt } },
+        { created_at: createdAt, id: { [Op.lt]: id } },
+      ];
     }
   }
-  const limit = Math.min(Number(params.limit) || 20, 50);
-  const messages = await repo.listMessages(threadId, {
-    cursor: cursorDate,
-    limit,
-  });
-  const mapped = messages.map(mapMessageRecord);
-  const nextCursor =
-    messages.length === limit
-      ? messages[messages.length - 1].created_at
-      : null;
-  return {
-    messages: mapped,
-    pageInfo: {
-      nextCursor: nextCursor ? new Date(nextCursor).toISOString() : null,
-      hasMore: Boolean(nextCursor),
-    },
-  };
-};
 
-exports.sendMessage = async (currentUser, threadId, payload = {}) => {
-  const membership = await repo.ensureParticipant(threadId, currentUser.id);
-  if (!membership) {
-    throw new ApiError({
-      status: 404,
-      code: "THREAD_NOT_FOUND",
-      message: "المحادثة غير متاحة",
-    });
-  }
-  const body = String(payload.body || "").trim();
-  if (!body) {
+  const messages = await Message.findAll({
+    where,
+    include: [
+      {
+        model: Utilisateur,
+        as: "sender",
+        attributes: ["id", "prenom", "nom", "email", "role"],
+      },
+      {
+        model: Attachment,
+        as: "attachments",
+        through: { attributes: [] },
+      },
+      {
+        model: MessageReadReceipt,
+        as: "readReceipts",
+        attributes: ["user_id"],
+      },
+    ],
+    order: [
+      ["created_at", "DESC"],
+      ["id", "DESC"],
+    ],
+    limit: limit + 1,
+  });
+
+  const hasMore = messages.length > limit;
+  const sliced = hasMore ? messages.slice(0, limit) : messages;
+  const role = participant.role;
+  const sanitized = sliced
+    .filter((message) => sanitizeMessageForRole(message, role))
+    .map(buildMessagePayload)
+    .reverse();
+
+  const nextCursor = hasMore
+    ? {
+        id: String(sliced[sliced.length - 1].id),
+        createdAt: sliced[sliced.length - 1].created_at,
+      }
+    : null;
+
+  return { data: sanitized, nextCursor };
+}
+
+async function createThread({ actorId, participantIds = [], title = null, isGroup = false }) {
+  const uniqueIds = Array.from(new Set([actorId, ...participantIds.map(Number)])).filter(Boolean);
+  if (uniqueIds.length < 2) {
     throw new ApiError({
       status: 400,
-      code: "MESSAGE_BODY_REQUIRED",
-      message: "نص الرسالة مطلوب",
+      code: "THREAD_PARTICIPANTS_MIN",
+      message: "يلزم اختيار مشاركين للمحادثة",
     });
   }
 
-  const { files, cleanup } = await writeAttachments(threadId, payload.attachments);
+  const users = await Utilisateur.findAll({
+    where: { id: uniqueIds },
+    attributes: ["id", "role", "prenom", "nom", "email", "avatar_url"],
+  });
+  if (users.length !== uniqueIds.length) {
+    throw new ApiError({ status: 400, code: "THREAD_USER_INVALID", message: "مشارك غير صالح" });
+  }
 
-  let message;
+  const transaction = await sequelize.transaction();
   try {
-    await sequelize.transaction(async (t) => {
-      message = await repo.createMessage(
-        {
-          thread_id: threadId,
-          expediteur_id: currentUser.id,
-          texte: body,
-          pieces_jointes: files.map((file) => ({
-            id: file.id,
-            name: file.name,
-            url: file.publicUrl,
-            mimeType: file.mimeType,
-            size: file.size,
-          })),
-        },
-        t
-      );
+    const thread = await Thread.create(
+      {
+        title,
+        is_group: Boolean(isGroup),
+      },
+      { transaction }
+    );
 
-      if (files.length) {
-        await repo.createMessageAttachments(
-          files.map((file) => ({
-            message_id: message.id,
-            original_name: file.name,
-            mime_type: file.mimeType,
-            size: file.size,
-            storage_path: file.storagePath,
-            public_url: file.publicUrl,
-          })),
-          t
-        );
-      }
+    const now = new Date();
+    await ThreadParticipant.bulkCreate(
+      users.map((user) => ({
+        thread_id: thread.id,
+        user_id: user.id,
+        role: user.role,
+        joined_at: now,
+      })),
+      { transaction }
+    );
 
-      await repo.touchThread(threadId, message.created_at, t);
-      await repo.updateLastRead(threadId, currentUser.id, message.created_at, t);
-    });
+    await transaction.commit();
+
+    const fullThread = await getThread(actorId, thread.id, users.find((u) => u.id === actorId)?.role);
+    return fullThread;
   } catch (error) {
-    await cleanup();
+    await transaction.rollback();
     throw error;
   }
+}
 
-  const freshMessage = await repo.findMessageById(message.id);
-  const mapped = mapMessageRecord(freshMessage || message);
+function pruneRateLimit(userId) {
+  const now = Date.now();
+  const timestamps = rateLimiter.get(userId) || [];
+  const filtered = timestamps.filter((ts) => now - ts < RATE_LIMIT_WINDOW_MS);
+  rateLimiter.set(userId, filtered);
+  return filtered;
+}
 
-  notifier
-    .notifyOnNewMessage({
-      thread_id: threadId,
-      expediteur_id: currentUser.id,
-      texte: body,
-    })
-    .catch(() => {});
-
-  typingStatus.setTyping(threadId, currentUser.id, { isTyping: false });
-
-  return mapped;
-};
-
-exports.markAsRead = async (currentUser, threadId) => {
-  const membership = await repo.ensureParticipant(threadId, currentUser.id);
-  if (!membership) {
+async function sendMessage({ userId, threadId, text, attachments = [] }) {
+  if (text && text.length > MAX_TEXT_LENGTH) {
     throw new ApiError({
-      status: 404,
-      code: "THREAD_NOT_FOUND",
-      message: "المحادثة غير متاحة",
+      status: 400,
+      code: "MESSAGE_TOO_LONG",
+      message: "الرسالة تتجاوز الحد المسموح به",
     });
   }
-  const now = new Date();
-  await repo.updateLastRead(threadId, currentUser.id, now);
-  const unread = await repo.countUnreadForThread(threadId, currentUser.id);
-  return { unread, lastReadAt: now.toISOString() };
-};
+  await ensureThreadParticipant(userId, threadId);
 
-exports.getTypingStatus = async (currentUser, threadId) => {
-  const membership = await repo.ensureParticipant(threadId, currentUser.id);
-  if (!membership) {
+  const recent = pruneRateLimit(userId);
+  if (recent.length >= RATE_LIMIT_MAX) {
     throw new ApiError({
-      status: 404,
-      code: "THREAD_NOT_FOUND",
-      message: "المحادثة غير متاحة",
+      status: 429,
+      code: "MESSAGE_RATE_LIMITED",
+      message: "تم إرسال عدد كبير من الرسائل، الرجاء المحاولة لاحقًا",
     });
   }
-  return typingStatus.getTyping(threadId, currentUser.id);
-};
 
-exports.setTypingStatus = async (currentUser, threadId, isTyping) => {
-  const membership = await repo.ensureParticipant(threadId, currentUser.id);
-  if (!membership) {
+  if (!text && (!attachments || attachments.length === 0)) {
     throw new ApiError({
-      status: 404,
-      code: "THREAD_NOT_FOUND",
-      message: "المحادثة غير متاحة",
+      status: 400,
+      code: "MESSAGE_EMPTY",
+      message: "لا يمكن إرسال رسالة فارغة",
     });
   }
-  const user = await repo.findUserById(currentUser.id);
-  const displayName = user
-    ? [user.prenom, user.nom].filter(Boolean).join(" ") || user.email || "مستخدم"
-    : "مستخدم";
-  const label = `${displayName} يكتب الآن...`;
-  typingStatus.setTyping(threadId, currentUser.id, {
-    isTyping: Boolean(isTyping),
-    name: displayName,
-    label,
+
+  const transaction = await sequelize.transaction();
+  try {
+    const message = await Message.create(
+      {
+        thread_id: threadId,
+        sender_id: userId,
+        kind: attachments.length > 0 && !text ? "attachment" : "text",
+        text: text || null,
+      },
+      { transaction }
+    );
+
+    let attachmentRecords = [];
+    if (attachments.length) {
+      attachmentRecords = await Attachment.bulkCreate(
+        attachments.map((file) => ({
+          uploader_id: userId,
+          name: file.name,
+          mime: file.mime || null,
+          size: file.size || 0,
+          storage_key: file.storageKey || file.storage_key || randomUUID(),
+        })),
+        { transaction }
+      );
+
+      await MessageAttachment.bulkCreate(
+        attachmentRecords.map((record) => ({
+          message_id: message.id,
+          attachment_id: record.id,
+        })),
+        { transaction }
+      );
+    }
+
+    await Thread.update(
+      { last_message_id: message.id, updated_at: new Date() },
+      { where: { id: threadId }, transaction }
+    );
+
+    await transaction.commit();
+
+    const fullMessage = await Message.findByPk(message.id, {
+      include: [
+        { model: Utilisateur, as: "sender", attributes: ["id", "prenom", "nom", "email", "role"] },
+        { model: Attachment, as: "attachments", through: { attributes: [] } },
+        { model: MessageReadReceipt, as: "readReceipts", attributes: ["user_id"] },
+      ],
+    });
+
+    rateLimiter.get(userId)?.push(Date.now());
+
+    return buildMessagePayload(fullMessage);
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+}
+
+async function markRead({ userId, threadId, upToMessageId = null }) {
+  await ensureThreadParticipant(userId, threadId);
+
+  const where = {
+    thread_id: threadId,
+  };
+  if (upToMessageId) {
+    where.id = { [Op.lte]: upToMessageId };
+  }
+
+  const messages = await Message.findAll({
+    where,
+    attributes: ["id"],
   });
-  return typingStatus.getTyping(threadId, currentUser.id);
+  if (!messages.length) return { updated: 0 };
+
+  const rows = messages.map((msg) => ({
+    message_id: msg.id,
+    user_id: userId,
+    read_at: new Date(),
+  }));
+
+  await MessageReadReceipt.bulkCreate(rows, {
+    updateOnDuplicate: ["read_at", "updated_at"],
+  });
+
+  return { updated: rows.length };
+}
+
+async function unreadCount(userId) {
+  const [result] = await sequelize.query(
+    `SELECT COUNT(*) AS total FROM (
+      SELECT m.id
+      FROM messages m
+      INNER JOIN thread_participants tp
+        ON tp.thread_id = m.thread_id AND tp.user_id = :userId AND (tp.left_at IS NULL OR tp.left_at > NOW())
+      LEFT JOIN message_read_receipts r
+        ON r.message_id = m.id AND r.user_id = :userId
+      WHERE m.sender_id <> :userId AND r.id IS NULL
+    ) AS pending`,
+    {
+      replacements: { userId },
+      type: QueryTypes.SELECT,
+    }
+  );
+  return Number(result?.total || 0);
+}
+
+function setTyping({ userId, threadId, on }) {
+  if (!typingState.has(threadId)) {
+    typingState.set(threadId, new Map());
+  }
+  const threadTyping = typingState.get(threadId);
+  if (on) {
+    threadTyping.set(userId, Date.now() + TYPING_TTL_MS);
+  } else {
+    threadTyping.delete(userId);
+  }
+  return Array.from(threadTyping.entries())
+    .filter(([, expires]) => expires > Date.now())
+    .map(([id]) => Number(id));
+}
+
+function getTyping(threadId) {
+  const threadTyping = typingState.get(threadId);
+  if (!threadTyping) return [];
+  const now = Date.now();
+  for (const [key, expires] of threadTyping.entries()) {
+    if (expires <= now) threadTyping.delete(key);
+  }
+  return Array.from(threadTyping.keys()).map((id) => Number(id));
+}
+
+module.exports = {
+  createThread,
+  listThreads,
+  getThread,
+  listMessages,
+  sendMessage,
+  markRead,
+  unreadCount,
+  setTyping,
+  getTyping,
 };

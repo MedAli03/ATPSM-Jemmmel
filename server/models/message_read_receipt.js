@@ -2,7 +2,7 @@ const { DataTypes } = require("sequelize");
 
 module.exports = (sequelize) =>
   sequelize.define(
-    "MessageAttachment",
+    "MessageReadReceipt",
     {
       id: {
         type: DataTypes.INTEGER.UNSIGNED,
@@ -13,13 +13,18 @@ module.exports = (sequelize) =>
         type: DataTypes.BIGINT.UNSIGNED,
         allowNull: false,
       },
-      attachment_id: {
+      user_id: {
         type: DataTypes.INTEGER.UNSIGNED,
         allowNull: false,
       },
+      read_at: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW,
+      },
     },
     {
-      tableName: "message_attachments",
+      tableName: "message_read_receipts",
       underscored: true,
       timestamps: true,
     }
