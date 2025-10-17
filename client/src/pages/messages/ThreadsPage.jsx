@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate, useOutletContext } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -106,13 +106,16 @@ export default function ThreadsPage() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [threads, focusedIndex, rowVirtualizer]);
+  }, [threads, focusedIndex, rowVirtualizer, handleSelectThread]);
 
-  const handleSelectThread = (thread) => {
-    if (!thread) return;
-    setFocusedIndex(null);
-    navigate(`${thread.id}`);
-  };
+  const handleSelectThread = useCallback(
+    (thread) => {
+      if (!thread) return;
+      setFocusedIndex(null);
+      navigate(`${thread.id}`);
+    },
+    [navigate]
+  );
 
   const isLoading = threadsQuery.isLoading;
   const isFetching = threadsQuery.isFetching;
@@ -120,10 +123,10 @@ export default function ThreadsPage() {
   const total = threads.length;
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-6 px-4 py-8" dir="rtl">
-      <div className="flex flex-col gap-6 rounded-3xl bg-white p-4 shadow-lg dark:bg-slate-900 lg:flex-row">
-        <section className="flex w-full flex-col lg:w-[360px]">
-          <header className="sticky top-0 z-10 flex flex-col gap-4 border-b border-slate-100 pb-4 dark:border-slate-700">
+    <div className="flex h-full min-h-0 flex-col gap-6 px-4 py-6" dir="rtl">
+      <div className="flex flex-1 min-h-0 flex-col gap-6 rounded-3xl bg-white p-4 shadow-lg dark:bg-slate-900 lg:flex-row">
+        <section className="flex h-full min-h-0 w-full flex-col lg:w-[360px]">
+          <header className="sticky top-0 z-10 flex flex-col gap-4 border-b border-slate-100 bg-white pb-4 dark:border-slate-700 dark:bg-slate-900">
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-xl font-bold text-slate-900 dark:text-white">الرسائل</h1>
@@ -184,7 +187,11 @@ export default function ThreadsPage() {
               </div>
             </div>
           </header>
-          <div ref={parentRef} className="mt-4 flex-1 overflow-y-auto pr-2" aria-label="قائمة المحادثات">
+          <div
+            ref={parentRef}
+            className="mt-4 flex-1 overflow-y-auto pr-2"
+            aria-label="قائمة المحادثات"
+          >
             <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: "relative" }}>
               {rowVirtualizer.getVirtualItems().map((virtualRow) => {
                 const thread = threads[virtualRow.index];
@@ -224,13 +231,13 @@ export default function ThreadsPage() {
             </div>
           </div>
         </section>
-        <section className="hidden flex-1 rounded-3xl bg-slate-50 p-2 dark:bg-slate-950 lg:flex">
-          <div className="flex-1 overflow-hidden rounded-3xl bg-white shadow-inner dark:bg-slate-900">
+        <section className="hidden h-full min-h-0 flex-1 rounded-3xl bg-slate-50 p-2 dark:bg-slate-950 lg:flex">
+          <div className="flex h-full flex-1 overflow-hidden rounded-3xl bg-white shadow-inner dark:bg-slate-900">
             <Outlet context={realtime} />
           </div>
         </section>
       </div>
-      <section className="lg:hidden">
+      <section className="flex-1 lg:hidden">
         <Outlet context={realtime} />
       </section>
     </div>
