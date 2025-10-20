@@ -17,6 +17,7 @@ EXPO_PUBLIC_SOCKET_URL=https://api.example.com
 ```
 cd mobile
 npm install
+# run Husky setup *after* dependencies are installed
 npm run prepare
 ```
 
@@ -26,7 +27,7 @@ npm run prepare
 npm run dev
 ```
 
-This command leverages the project-local Expo CLI via `npx`, avoiding the deprecated global `expo-cli`. You can also run `npx expo start` directly if you prefer.
+This command leverages the project-local Expo CLI via `npx`, avoiding the deprecated global `expo-cli`. You can also run `npx expo start` directly. Avoid `npx run dev`—that command tries to execute a non-existent script.
 
 Use the Expo Go app or an emulator. The project defaults to Arabic (RTL) but can be toggled to French from the settings tab.
 

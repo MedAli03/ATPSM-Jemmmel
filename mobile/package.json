@@ -52,7 +52,7 @@
     "@babel/core": "^7.24.5",
     "@babel/eslint-parser": "^7.24.5",
     "@testing-library/jest-native": "^5.4.3",
-    "@testing-library/react-native": "^13.4.0",
+    "@testing-library/react-native": "^12.4.5",
     "@types/jest": "^29.5.12",
     "@types/react": "18.2.48",
     "@types/react-native": "^0.74.0",
