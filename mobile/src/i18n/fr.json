@@ -1,0 +1,41 @@
+{
+  "auth": {
+    "login_title": "Connexion",
+    "email": "E-mail",
+    "password": "Mot de passe",
+    "role_blocked": "Utilisez le tableau de bord web"
+  },
+  "actions": {
+    "login": "Se connecter",
+    "logout": "Se déconnecter",
+    "retry": "Réessayer",
+    "send": "Envoyer",
+    "cancel": "Annuler",
+    "save": "Enregistrer"
+  },
+  "tabs": {
+    "home": "Accueil",
+    "messages": "Messages",
+    "notifications": "Notifications",
+    "settings": "Paramètres",
+    "child": "Enfant",
+    "groups": "Groupes",
+    "children": "Mes enfants",
+    "pei": "PEI",
+    "dashboard": "Tableau"
+  },
+  "errors": {
+    "network": "Erreur réseau",
+    "forbidden": "Non autorisé",
+    "empty": "Aucune donnée",
+    "unknown": "Erreur inattendue"
+  },
+  "messages": {
+    "placeholder": "Écrivez votre message...",
+    "new_conversation": "Nouvelle conversation"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "mark_read": "Marquer comme lu"
+  }
+}

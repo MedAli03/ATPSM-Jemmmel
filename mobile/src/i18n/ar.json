@@ -1,0 +1,41 @@
+{
+  "auth": {
+    "login_title": "تسجيل الدخول",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "role_blocked": "استخدم لوحة التحكم على الويب"
+  },
+  "actions": {
+    "login": "تسجيل الدخول",
+    "logout": "تسجيل الخروج",
+    "retry": "إعادة المحاولة",
+    "send": "إرسال",
+    "cancel": "إلغاء",
+    "save": "حفظ"
+  },
+  "tabs": {
+    "home": "الرئيسية",
+    "messages": "الرسائل",
+    "notifications": "الإشعارات",
+    "settings": "الإعدادات",
+    "child": "الطفل",
+    "groups": "مجموعاتي",
+    "children": "أطفالي",
+    "pei": "الخطة",
+    "dashboard": "لوحة التحكم"
+  },
+  "errors": {
+    "network": "خطأ في الاتصال",
+    "forbidden": "غير مصرح",
+    "empty": "لا توجد بيانات",
+    "unknown": "حدث خطأ غير متوقع"
+  },
+  "messages": {
+    "placeholder": "اكتب رسالتك...",
+    "new_conversation": "محادثة جديدة"
+  },
+  "notifications": {
+    "title": "الإشعارات",
+    "mark_read": "تحديد كمقروء"
+  }
+}
