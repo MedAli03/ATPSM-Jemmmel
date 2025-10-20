@@ -2,7 +2,6 @@
 
 ## Prerequisites
 - Node.js 20+
-- Expo CLI (`npm install -g expo`)
 - Android Studio or Xcode for device emulators
 
 ## Environment
@@ -26,6 +25,8 @@ npm run prepare
 ```
 npm run dev
 ```
+
+This command leverages the project-local Expo CLI via `npx`, avoiding the deprecated global `expo-cli`. You can also run `npx expo start` directly if you prefer.
 
 Use the Expo Go app or an emulator. The project defaults to Arabic (RTL) but can be toggled to French from the settings tab.
 
