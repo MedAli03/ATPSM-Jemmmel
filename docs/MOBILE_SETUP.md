@@ -27,7 +27,13 @@ npm run prepare
 npm run dev
 ```
 
-This command leverages the project-local Expo CLI via `npx`, avoiding the deprecated global `expo-cli`. You can also run `npx expo start` directly. Avoid `npx run dev`—that command tries to execute a non-existent script.
+This command delegates to the project-local Expo CLI (Expo SDK 51 includes the new CLI inside `node_modules`). If you still see the legacy warning about `expo-cli`, remove any globally installed copy before running the script:
+
+```
+npm uninstall -g expo-cli
+```
+
+After removing the global package, rerun `npm run dev` (or `npx expo start`) and the toolchain will use the modern CLI bundled with Expo. Avoid `npx run dev`—that command tries to execute a non-existent script.
 
 Use the Expo Go app or an emulator. The project defaults to Arabic (RTL) but can be toggled to French from the settings tab.
 
