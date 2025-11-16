@@ -1,18 +1,21 @@
 // src/screens/parent/ParentDashboardScreen.tsx
 import React from "react";
-import { Button, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useAuth } from "../../features/auth/AuthContext";
+import { ParentNavigator } from "../../navigation/ParentNavigator";
 
 export const ParentDashboardScreen: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Bienvenue Parent</Text>
-      <Text style={styles.subtitle}>
-        {user?.prenom} {user?.nom} ({user?.role})
-      </Text>
-      <Button title="Se déconnecter" onPress={logout} />
+      <View style={styles.header}>
+        <Text style={styles.welcome}>Bienvenue, {user?.prenom ?? "Parent"}</Text>
+        <Text style={styles.subtitle}>Rôle: {user?.role ?? "PARENT"}</Text>
+      </View>
+      <View style={styles.navigatorContainer}>
+        <ParentNavigator />
+      </View>
     </View>
   );
 };
@@ -20,17 +23,24 @@ export const ParentDashboardScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
+    backgroundColor: "#f8f8f8",
   },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 8,
+  header: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "#fff",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#e0e0e0",
+  },
+  welcome: {
+    fontSize: 20,
+    fontWeight: "600",
   },
   subtitle: {
-    fontSize: 16,
-    marginBottom: 24,
+    marginTop: 4,
+    color: "#666",
+  },
+  navigatorContainer: {
+    flex: 1,
   },
 });

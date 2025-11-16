@@ -51,11 +51,10 @@ export const AppNavigator: React.FC = () => {
 
   if (user.role === "PARENT") {
     return (
-      <Stack.Navigator>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen
           name="ParentDashboard"
           component={ParentDashboardScreen}
-          options={{ title: "Espace Parent" }}
         />
       </Stack.Navigator>
     );
