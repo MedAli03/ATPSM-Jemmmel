@@ -4,7 +4,7 @@ import { LoginResponse } from "./types";
 
 interface LoginPayload {
   email: string;
-  password: string;
+  mot_de_passe: string;
 }
 
 export async function loginRequest(payload: LoginPayload): Promise<LoginResponse> {
