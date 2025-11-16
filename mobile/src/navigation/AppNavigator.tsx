@@ -62,11 +62,10 @@ export const AppNavigator: React.FC = () => {
 
   if (user.role === "EDUCATEUR") {
     return (
-      <Stack.Navigator>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen
           name="EducatorDashboard"
           component={EducatorDashboardScreen}
-          options={{ title: "Espace Éducateur" }}
         />
       </Stack.Navigator>
     );
