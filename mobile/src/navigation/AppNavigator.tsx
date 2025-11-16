@@ -1,28 +1,87 @@
+// src/navigation/AppNavigator.tsx
+import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { View, Text } from "react-native";
+import { View, Text, ActivityIndicator } from "react-native";
+import { useAuth } from "../features/auth/AuthContext";
+import { LoginScreen } from "../screens/auth/LoginScreen";
+import { ParentDashboardScreen } from "../screens/parent/ParentDashboardScreen";
+import { EducatorDashboardScreen } from "../screens/educateur/EducatorDashboardScreen";
 
-const Stack = createNativeStackNavigator();
+export type RootStackParamList = {
+  Login: undefined;
+  ParentDashboard: undefined;
+  EducatorDashboard: undefined;
+  NotAllowed: undefined;
+};
 
-export const AppNavigator = () => {
+const Stack = createNativeStackNavigator<RootStackParamList>();
+
+const LoadingScreen = () => (
+  <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+    <ActivityIndicator />
+    <Text>Chargement...</Text>
+  </View>
+);
+
+const NotAllowedScreen = () => (
+  <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+    <Text>Ce rôle n'a pas accès à l'application mobile.</Text>
+  </View>
+);
+
+export const AppNavigator: React.FC = () => {
+  const { status, user } = useAuth();
+
+  if (status === "loading") {
+    return <LoadingScreen />;
+  }
+
+  // Non connecté → stack Auth
+  if (status === "unauthenticated" || !user) {
+    return (
+      <Stack.Navigator>
+        <Stack.Screen
+          name="Login"
+          component={LoginScreen}
+          options={{ headerShown: false }}
+        />
+      </Stack.Navigator>
+    );
+  }
+
+  // Connecté → route selon le rôle
+  if (user.role === "PARENT") {
+    return (
+      <Stack.Navigator>
+        <Stack.Screen
+          name="ParentDashboard"
+          component={ParentDashboardScreen}
+          options={{ title: "Espace Parent" }}
+        />
+      </Stack.Navigator>
+    );
+  }
+
+  if (user.role === "EDUCATEUR") {
+    return (
+      <Stack.Navigator>
+        <Stack.Screen
+          name="EducatorDashboard"
+          component={EducatorDashboardScreen}
+          options={{ title: "Espace Éducateur" }}
+        />
+      </Stack.Navigator>
+    );
+  }
+
+  // Autres rôles (PRESIDENT, DIRECTEUR, ADMIN) → ne pas utiliser mobile
   return (
     <Stack.Navigator>
       <Stack.Screen
-        name="Home"
-        component={HomeScreen}
-        options={{ title: "ATPSM - Mobile" }}
+        name="NotAllowed"
+        component={NotAllowedScreen}
+        options={{ title: "Accès non autorisé" }}
       />
     </Stack.Navigator>
   );
 };
-
-const HomeScreen = () => (
-  <View
-    style={{
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
-    }}
-  >
-    <Text>Bienvenue sur l’app mobile ATPSM 👋</Text>
-  </View>
-);
