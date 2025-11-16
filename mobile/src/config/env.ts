@@ -1,4 +1,5 @@
 // src/config/env.ts
+import Constants from "expo-constants";
 import { NativeModules, Platform } from "react-native";
 
 /**
@@ -14,6 +15,17 @@ const envUrl =
   process.env.API_BASE_URL ||
   process.env.API_URL;
 
+function buildUrl(hostname: string | undefined | null): string | null {
+  if (!hostname) {
+    return null;
+  }
+  const sanitizedHost = hostname.replace(/^https?:\/\//i, "").split("/")[0];
+  if (!sanitizedHost || sanitizedHost === "localhost") {
+    return null;
+  }
+  return `http://${sanitizedHost}:${FALLBACK_PORT}${API_PATH}`;
+}
+
 function resolveFromScriptURL(): string | null {
   const scriptURL: string | undefined = NativeModules?.SourceCode?.scriptURL;
   if (!scriptURL) {
@@ -21,13 +33,22 @@ function resolveFromScriptURL(): string | null {
   }
   try {
     const { hostname } = new URL(scriptURL);
-    if (!hostname) {
-      return null;
-    }
-    return `http://${hostname}:${FALLBACK_PORT}${API_PATH}`;
+    return buildUrl(hostname);
   } catch (error) {
     return null;
   }
+}
+
+function resolveFromExpoConstants(): string | null {
+  const debuggerHost =
+    Constants.manifest?.debuggerHost ||
+    Constants.manifest2?.extra?.expoClient?.hostUri ||
+    Constants.expoConfig?.hostUri;
+  if (!debuggerHost) {
+    return null;
+  }
+  const host = debuggerHost.split(":")[0];
+  return buildUrl(host);
 }
 
 function resolveDefault(): string {
@@ -38,6 +59,7 @@ function resolveDefault(): string {
   return `http://localhost:${FALLBACK_PORT}${API_PATH}`;
 }
 
-const API_BASE_URL = envUrl || resolveFromScriptURL() || resolveDefault();
+const API_BASE_URL =
+  envUrl || resolveFromScriptURL() || resolveFromExpoConstants() || resolveDefault();
 
 export { API_BASE_URL };
