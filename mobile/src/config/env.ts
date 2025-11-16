@@ -4,11 +4,15 @@ import { NativeModules, Platform } from "react-native";
 
 /**
  * Small helper that tries to infer the LAN IP Expo is tunnelling through.
- * It keeps the "hard-coded" 4000 default in dev but lets you override it
- * with EXPO_PUBLIC_API_URL (see app.config / .env).
+ * It keeps the "hard-coded" 5000 default in dev (the backend listens on
+ * http://localhost:5000/api/auth/login) but lets you override it with
+ * EXPO_PUBLIC_API_URL or EXPO_PUBLIC_API_PORT (see app.config / .env).
  */
 const API_PATH = "/api";
-const FALLBACK_PORT = process.env.EXPO_PUBLIC_API_PORT ?? "4000";
+const FALLBACK_PORT =
+  process.env.EXPO_PUBLIC_API_PORT ??
+  process.env.EXPO_PUBLIC_SERVER_PORT ??
+  "5000";
 
 const envUrl =
   process.env.EXPO_PUBLIC_API_URL ||
