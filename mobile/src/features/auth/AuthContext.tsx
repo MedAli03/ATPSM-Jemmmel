@@ -1,10 +1,16 @@
 // src/features/auth/AuthContext.tsx
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { User, UserRole } from "./types";
 import { loginRequest } from "./api";
+import { User } from "./types";
 
-type AuthStatus = "loading" | "unauthenticated" | "authenticated";
+type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
 interface AuthContextValue {
   status: AuthStatus;
@@ -22,51 +28,68 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
-    // Charger les infos depuis AsyncStorage au démarrage
-    const bootstrapAsync = async () => {
-      try {
-        const savedToken = await AsyncStorage.getItem("token");
-        const savedUser = await AsyncStorage.getItem("user");
+    let isMounted = true;
 
-        if (savedToken && savedUser) {
-          setToken(savedToken);
-          setUser(JSON.parse(savedUser));
-          setStatus("authenticated");
-        } else {
-          setStatus("unauthenticated");
+    const bootstrap = async () => {
+      try {
+        const [storedToken, storedUser] = await Promise.all([
+          AsyncStorage.getItem("token"),
+          AsyncStorage.getItem("user"),
+        ]);
+
+        if (storedToken && storedUser) {
+          const parsedUser: User = JSON.parse(storedUser);
+          if (isMounted) {
+            setToken(storedToken);
+            setUser(parsedUser);
+            setStatus("authenticated");
+          }
+          return;
         }
-      } catch (e) {
-        console.error("Error loading auth state", e);
+      } catch (error) {
+        console.error("Failed to load auth state", error);
+      }
+
+      if (isMounted) {
         setStatus("unauthenticated");
       }
     };
 
-    bootstrapAsync();
+    bootstrap();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const login = async (email: string, password: string) => {
-    try {
-      const data = await loginRequest({ email, mot_de_passe: password });
+  const persistAuth = useCallback(async (nextToken: string, nextUser: User) => {
+    await Promise.all([
+      AsyncStorage.setItem("token", nextToken),
+      AsyncStorage.setItem("user", JSON.stringify(nextUser)),
+    ]);
+  }, []);
 
-      setToken(data.token);
-      setUser(data.user);
+  const clearAuth = useCallback(async () => {
+    await Promise.all([AsyncStorage.removeItem("token"), AsyncStorage.removeItem("user")]);
+  }, []);
+
+  const login = useCallback(
+    async (email: string, password: string) => {
+      const response = await loginRequest({ email, password });
+      setToken(response.token);
+      setUser(response.user);
       setStatus("authenticated");
+      await persistAuth(response.token, response.user);
+    },
+    [persistAuth]
+  );
 
-      await AsyncStorage.setItem("token", data.token);
-      await AsyncStorage.setItem("user", JSON.stringify(data.user));
-    } catch (error) {
-      console.error("Login failed", error);
-      throw error;
-    }
-  };
-
-  const logout = async () => {
+  const logout = useCallback(async () => {
     setToken(null);
     setUser(null);
     setStatus("unauthenticated");
-    await AsyncStorage.removeItem("token");
-    await AsyncStorage.removeItem("user");
-  };
+    await clearAuth();
+  }, [clearAuth]);
 
   return (
     <AuthContext.Provider value={{ status, user, token, login, logout }}>
@@ -76,9 +99,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 };
 
 export const useAuth = (): AuthContextValue => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) {
+  const context = useContext(AuthContext);
+  if (!context) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
-  return ctx;
+  return context;
 };

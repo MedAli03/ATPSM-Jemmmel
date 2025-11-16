@@ -1,4 +1,5 @@
 // src/services/api.ts
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { API_BASE_URL } from "../config/env";
 
@@ -7,8 +8,11 @@ export const api = axios.create({
   timeout: 10000,
 });
 
-// Intercepteur pour ajouter le token plus tard
 api.interceptors.request.use(async (config) => {
-  // TODO: récupérer le token JWT du storage sécurisé
+  const token = await AsyncStorage.getItem("token");
+  if (token) {
+    config.headers = config.headers ?? {};
+    config.headers.Authorization = `Bearer ${token}`;
+  }
   return config;
 });

@@ -1,5 +1,10 @@
 // src/features/auth/types.ts
-export type UserRole = "PARENT" | "EDUCATEUR" | "PRESIDENT" | "DIRECTEUR";
+export type UserRole =
+  | "PARENT"
+  | "EDUCATEUR"
+  | "PRESIDENT"
+  | "DIRECTEUR"
+  | "ADMIN";
 
 export interface User {
   id: number;

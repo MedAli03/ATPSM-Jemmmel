@@ -1,27 +1,34 @@
 // src/screens/auth/LoginScreen.tsx
 import React, { useState } from "react";
-import { View, Text, TextInput, Button, StyleSheet, ActivityIndicator, Alert } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Button,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { useAuth } from "../../features/auth/AuthContext";
 
 export const LoginScreen: React.FC = () => {
   const { login } = useAuth();
-  const [email, setEmail] = useState("parent@test.com"); // pour tester
-  const [password, setPassword] = useState("123456"); // pour tester
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async () => {
+  const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert("Erreur", "Veuillez saisir email et mot de passe.");
+      Alert.alert("Erreur", "Veuillez saisir votre email et mot de passe.");
       return;
     }
 
     setLoading(true);
     try {
-      await login(email, password);
-      // La navigation se fera automatiquement via AppNavigator selon le rôle
-    } catch (error: any) {
-      console.error(error);
-      Alert.alert("Erreur", "Email ou mot de passe incorrect.");
+      await login(email.trim(), password);
+    } catch (error) {
+      console.error("Login failed", error);
+      Alert.alert("Erreur", "Impossible de vous connecter. Vérifiez vos identifiants.");
     } finally {
       setLoading(false);
     }
@@ -52,7 +59,7 @@ export const LoginScreen: React.FC = () => {
       {loading ? (
         <ActivityIndicator />
       ) : (
-        <Button title="Se connecter" onPress={handleSubmit} />
+        <Button title="Se connecter" onPress={handleLogin} />
       )}
     </View>
   );

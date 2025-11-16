@@ -1,11 +1,11 @@
 // src/navigation/AppNavigator.tsx
 import React from "react";
+import { ActivityIndicator, Button, StyleSheet, Text, View } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { View, Text, ActivityIndicator } from "react-native";
 import { useAuth } from "../features/auth/AuthContext";
 import { LoginScreen } from "../screens/auth/LoginScreen";
-import { ParentDashboardScreen } from "../screens/parent/ParentDashboardScreen";
 import { EducatorDashboardScreen } from "../screens/educateur/EducatorDashboardScreen";
+import { ParentDashboardScreen } from "../screens/parent/ParentDashboardScreen";
 
 export type RootStackParamList = {
   Login: undefined;
@@ -17,17 +17,22 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const LoadingScreen = () => (
-  <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+  <View style={styles.centered}>
     <ActivityIndicator />
-    <Text>Chargement...</Text>
+    <Text style={styles.loadingText}>Chargement...</Text>
   </View>
 );
 
-const NotAllowedScreen = () => (
-  <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-    <Text>Ce rôle n'a pas accès à l'application mobile.</Text>
-  </View>
-);
+const NotAllowedScreen = () => {
+  const { logout } = useAuth();
+
+  return (
+    <View style={styles.centered}>
+      <Text style={styles.loadingText}>Ce rôle n'a pas accès à l'application mobile.</Text>
+      <Button title="Se déconnecter" onPress={logout} />
+    </View>
+  );
+};
 
 export const AppNavigator: React.FC = () => {
   const { status, user } = useAuth();
@@ -36,20 +41,14 @@ export const AppNavigator: React.FC = () => {
     return <LoadingScreen />;
   }
 
-  // Non connecté → stack Auth
   if (status === "unauthenticated" || !user) {
     return (
       <Stack.Navigator>
-        <Stack.Screen
-          name="Login"
-          component={LoginScreen}
-          options={{ headerShown: false }}
-        />
+        <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
       </Stack.Navigator>
     );
   }
 
-  // Connecté → route selon le rôle
   if (user.role === "PARENT") {
     return (
       <Stack.Navigator>
@@ -74,7 +73,6 @@ export const AppNavigator: React.FC = () => {
     );
   }
 
-  // Autres rôles (PRESIDENT, DIRECTEUR, ADMIN) → ne pas utiliser mobile
   return (
     <Stack.Navigator>
       <Stack.Screen
@@ -85,3 +83,16 @@ export const AppNavigator: React.FC = () => {
     </Stack.Navigator>
   );
 };
+
+const styles = StyleSheet.create({
+  centered: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  loadingText: {
+    marginTop: 12,
+    textAlign: "center",
+  },
+});
