@@ -3,7 +3,7 @@ import { api } from "../../services/api";
 import { Child, TimelineItem } from "./types";
 
 export const getMyChildren = async (): Promise<Child[]> => {
-  const response = await api.get<Child[]>("/parents/me/enfants");
+  const response = await api.get<Child[]>("/enfants/me/enfants");
   return response.data;
 };
 
