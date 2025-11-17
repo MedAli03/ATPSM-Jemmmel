@@ -79,8 +79,11 @@ export const PeiEvaluationsScreen: React.FC<Props> = ({ route }) => {
     setShowErrors(true);
     const errors = validateFields();
     if (Object.keys(errors).length > 0) {
+      const validationMessage =
+        errors.date || errors.score || errors.notes || "يرجى تصحيح الحقول المحددة.";
       setSuccessMessage(null);
-      setFormError(errors.date || errors.score || errors.notes || "يرجى تصحيح الحقول المحددة.");
+      setFormError(validationMessage);
+      Alert.alert("تنبيه", validationMessage);
       return;
     }
     setSubmitting(true);
@@ -98,7 +101,9 @@ export const PeiEvaluationsScreen: React.FC<Props> = ({ route }) => {
       Alert.alert("تم الحفظ", "تمت إضافة التقييم الجديد.");
       await refetch();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "حدث خطأ غير متوقع.");
+      const message = err instanceof Error ? err.message : "حدث خطأ غير متوقع.";
+      setFormError(message);
+      Alert.alert("خطأ", message);
       setSuccessMessage(null);
     } finally {
       setSubmitting(false);

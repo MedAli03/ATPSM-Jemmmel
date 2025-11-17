@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  ToastAndroid,
 } from "react-native";
 import { RouteProp, useRoute } from "@react-navigation/native";
 import { EducatorStackParamList } from "../../navigation/EducatorNavigator";
@@ -39,6 +40,14 @@ export const EducatorChatThreadScreen: React.FC = () => {
   const [sendError, setSendError] = useState<string | null>(null);
   const [sendFeedback, setSendFeedback] = useState<string | null>(null);
   const [inputTouched, setInputTouched] = useState(false);
+
+  const showSuccessToast = useCallback((message: string) => {
+    if (Platform.OS === "android") {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+      return;
+    }
+    Alert.alert("تم", message);
+  }, []);
 
   const validateMessage = useCallback(
     (value: string) => {
@@ -146,6 +155,7 @@ export const EducatorChatThreadScreen: React.FC = () => {
       setInput("");
       setInputTouched(false);
       setSendFeedback("تم إرسال الرسالة بنجاح.");
+      showSuccessToast("تم إرسال الرسالة");
     } catch (err) {
       console.error("Failed to send message", err);
       const message = err instanceof Error ? err.message : "تعذّر إرسال الرسالة.";
@@ -154,7 +164,7 @@ export const EducatorChatThreadScreen: React.FC = () => {
     } finally {
       setSending(false);
     }
-  }, [input, threadId, validateMessage]);
+  }, [input, showSuccessToast, threadId, validateMessage]);
 
   const isEducatorMessage = useCallback(
     (message: ThreadMessage) => message.sender?.role === "EDUCATEUR",
