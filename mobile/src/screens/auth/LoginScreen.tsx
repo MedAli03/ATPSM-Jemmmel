@@ -18,19 +18,40 @@ export const LoginScreen: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert("خطأ", "يرجى إدخال البريد الإلكتروني وكلمة المرور.");
+    const validationErrors: { email?: string; password?: string } = {};
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) {
+      validationErrors.email = "يرجى إدخال البريد الإلكتروني.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      validationErrors.email = "صيغة البريد الإلكتروني غير صحيحة.";
+    }
+
+    if (!password) {
+      validationErrors.password = "يرجى إدخال كلمة المرور.";
+    } else if (password.length < 6) {
+      validationErrors.password = "يجب أن تحتوي كلمة المرور على 6 أحرف على الأقل.";
+    }
+
+    if (validationErrors.email || validationErrors.password) {
+      setErrors(validationErrors);
       return;
     }
 
+    setErrors({});
+
     setLoading(true);
     try {
-      await login(email.trim(), password);
+      await login(trimmedEmail, password);
     } catch (error) {
       console.error("Login failed", error);
-      Alert.alert("خطأ", "حدث خطأ، يرجى التحقق من البيانات.");
+      Alert.alert(
+        "فشل تسجيل الدخول",
+        "البريد الإلكتروني أو كلمة المرور غير صحيحة، يرجى المحاولة مرة أخرى."
+      );
     } finally {
       setLoading(false);
     }
@@ -43,9 +64,7 @@ export const LoginScreen: React.FC = () => {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <View style={styles.heroSection}>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>منصة الجمعية</Text>
-          </View>
+          <Text style={styles.badgeText}>منصة الجمعية</Text>
           <Text style={styles.title}>تسجيل الدخول</Text>
           <Text style={styles.subtitle}>مرحباً بك من جديد، يسعدنا رؤيتك.</Text>
         </View>
@@ -53,33 +72,43 @@ export const LoginScreen: React.FC = () => {
         <View style={styles.card}>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>البريد الإلكتروني</Text>
-            <View style={styles.inputWrapper}>
-              <TextInput
-                style={styles.input}
-                placeholder="البريد الإلكتروني"
-                placeholderTextColor="#9AA0B5"
-                autoCapitalize="none"
-                keyboardType="email-address"
-                value={email}
-                onChangeText={setEmail}
-                textAlign="right"
-              />
-            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="أدخل البريد الإلكتروني"
+              placeholderTextColor="#94A3B8"
+              autoCapitalize="none"
+              keyboardType="email-address"
+              value={email}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (errors.email) {
+                  setErrors((prev) => ({ ...prev, email: undefined }));
+                }
+              }}
+              textAlign="right"
+            />
+            {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>كلمة المرور</Text>
-            <View style={styles.inputWrapper}>
-              <TextInput
-                style={styles.input}
-                placeholder="كلمة المرور"
-                placeholderTextColor="#9AA0B5"
-                secureTextEntry
-                value={password}
-                onChangeText={setPassword}
-                textAlign="right"
-              />
-            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="أدخل كلمة المرور"
+              placeholderTextColor="#94A3B8"
+              secureTextEntry
+              value={password}
+              onChangeText={(text) => {
+                setPassword(text);
+                if (errors.password) {
+                  setErrors((prev) => ({ ...prev, password: undefined }));
+                }
+              }}
+              textAlign="right"
+            />
+            {errors.password ? (
+              <Text style={styles.errorText}>{errors.password}</Text>
+            ) : null}
           </View>
 
           <TouchableOpacity
@@ -119,20 +148,18 @@ const styles = StyleSheet.create({
   },
   heroSection: {
     marginBottom: 24,
-    alignItems: "flex-start",
-  },
-  badge: {
-    backgroundColor: "rgba(37, 99, 235, 0.1)",
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 999,
-    marginBottom: 12,
   },
   badgeText: {
+    alignSelf: "flex-start",
     color: "#1D4ED8",
+    backgroundColor: "rgba(37, 99, 235, 0.12)",
+    paddingHorizontal: 18,
+    paddingVertical: 6,
+    borderRadius: 999,
     fontSize: 14,
     fontWeight: "600",
     textAlign: "right",
+    marginBottom: 12,
   },
   title: {
     fontSize: 30,
@@ -148,35 +175,39 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 24,
-    shadowColor: "#000",
-    shadowOpacity: 0.07,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 5,
+    shadowColor: "#000000",
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 6,
   },
   inputGroup: {
-    marginBottom: 16,
+    marginBottom: 18,
   },
   label: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "600",
     marginBottom: 8,
     color: "#1E293B",
     textAlign: "right",
   },
-  inputWrapper: {
+  input: {
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    backgroundColor: "#FDFDFE",
-  },
-  input: {
-    paddingVertical: 12,
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     fontSize: 16,
     color: "#0F172A",
+    backgroundColor: "#FDFDFE",
+  },
+  errorText: {
+    color: "#DC2626",
+    fontSize: 13,
+    marginTop: 6,
+    textAlign: "right",
   },
   button: {
     backgroundColor: "#2563EB",
