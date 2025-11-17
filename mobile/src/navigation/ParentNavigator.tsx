@@ -1,41 +1,99 @@
-// src/navigation/ParentNavigator.tsx
-import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { ChildListScreen } from "../screens/parent/ChildListScreen";
-import { ChildDetailScreen } from "../screens/parent/ChildDetailScreen";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { Text } from "react-native";
+
+import { ParentDashboardScreen } from "../screens/parent/ParentDashboardScreen";
+import { ChildDetailsScreen } from "../screens/parent/ChildDetailsScreen";
 import { ChildTimelineScreen } from "../screens/parent/ChildTimelineScreen";
+import { ParentMessagesScreen } from "../screens/parent/ParentMessagesScreen";
+import { ChatThreadScreen } from "../screens/parent/ChatThreadScreen";
+import { ParentNotificationsScreen } from "../screens/parent/ParentNotificationsScreen";
+import { ParentProfileScreen } from "../screens/parent/ParentProfileScreen";
 
 export type ParentStackParamList = {
-  ChildList: undefined;
-  ChildDetail: { childId: number; childName?: string };
-  ChildTimeline: { childId: number; childName?: string };
+  ParentTabs: undefined;
+  ChildDetails: { childId: number };
+  ChildTimeline: { childId: number };
+  ChatThread: { childId: number; threadId?: number };
+};
+
+export type ParentTabParamList = {
+  Dashboard: undefined;
+  Messages: undefined;
+  Notifications: undefined;
+  Profile: undefined;
 };
 
 const Stack = createNativeStackNavigator<ParentStackParamList>();
+const Tab = createBottomTabNavigator<ParentTabParamList>();
 
-export const ParentNavigator: React.FC = () => {
+const ParentTabsNavigator = () => {
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: { height: 60 },
+        tabBarLabelStyle: { fontSize: 11 },
+      }}
+    >
+      <Tab.Screen
+        name="Dashboard"
+        component={ParentDashboardScreen}
+        options={{
+          tabBarLabel: "الرئيسية",
+          tabBarIcon: () => <Text>🏠</Text>,
+        }}
+      />
+      <Tab.Screen
+        name="Messages"
+        component={ParentMessagesScreen}
+        options={{
+          tabBarLabel: "الرسائل",
+          tabBarIcon: () => <Text>💬</Text>,
+        }}
+      />
+      <Tab.Screen
+        name="Notifications"
+        component={ParentNotificationsScreen}
+        options={{
+          tabBarLabel: "الإشعارات",
+          tabBarIcon: () => <Text>🔔</Text>,
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ParentProfileScreen}
+        options={{
+          tabBarLabel: "الحساب",
+          tabBarIcon: () => <Text>👤</Text>,
+        }}
+      />
+    </Tab.Navigator>
+  );
+};
+
+export const ParentNavigator = () => {
   return (
     <Stack.Navigator>
       <Stack.Screen
-        name="ChildList"
-        component={ChildListScreen}
-        options={{ title: "Mes enfants" }}
+        name="ParentTabs"
+        component={ParentTabsNavigator}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
-        name="ChildDetail"
-        component={ChildDetailScreen}
-        options={({ route }) => ({
-          title: route.params.childName ?? "Profil",
-        })}
+        name="ChildDetails"
+        component={ChildDetailsScreen}
+        options={{ title: "ملف الطفل" }}
       />
       <Stack.Screen
         name="ChildTimeline"
         component={ChildTimelineScreen}
-        options={({ route }) => ({
-          title: route.params.childName
-            ? `Suivi - ${route.params.childName}`
-            : "Suivi",
-        })}
+        options={{ title: "تابع يوم الطفل" }}
+      />
+      <Stack.Screen
+        name="ChatThread"
+        component={ChatThreadScreen}
+        options={{ title: "المحادثة" }}
       />
     </Stack.Navigator>
   );

@@ -1,203 +1,179 @@
 // src/screens/parent/ChildListScreen.tsx
 import React from "react";
 import {
-  ActivityIndicator,
-  FlatList,
-  RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  Alert,
 } from "react-native";
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { ParentStackParamList } from "../../navigation/ParentNavigator";
-import { useMyChildren } from "../../features/parent/hooks";
-import { Child } from "../../features/parent/types";
-import { useAuth } from "../../features/auth/AuthContext";
 
-const PRIMARY = "#2563EB";
-const ACCENT = "#F97316";
+const STATIC_CHILDREN = [
+  {
+    id: 1,
+    name: "محمد أمين",
+    group: "مجموعة أ",
+    birthDate: "2018-04-12",
+    lastNote: "شارك اليوم في نشاط التلوين وكان متجاوباً بشكل جميل.",
+  },
+  {
+    id: 2,
+    name: "سارة",
+    group: "مجموعة ب",
+    birthDate: "2019-09-03",
+    lastNote: "استمتعت بلعبة التركيب وأظهرت تركيزاً جيداً.",
+  },
+  {
+    id: 3,
+    name: "آدم",
+    group: "مجموعة ج",
+    birthDate: "2017-12-25",
+    lastNote: "تفاعل مع قصة مصورة وشارك في الإجابة عن الأسئلة.",
+  },
+];
 
-const formatDate = (isoDate?: string) => {
-  if (!isoDate) return "";
-  return new Date(isoDate).toLocaleDateString("ar-TN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-};
-
-type Props = NativeStackScreenProps<ParentStackParamList, "ChildList">;
-
-export const ChildListScreen: React.FC<Props> = ({ navigation }) => {
-  const { user, logout } = useAuth();
-  const { data: children = [], loading, error, refetch } = useMyChildren();
-
-  const handleSelectChild = (child: Child) => {
-    navigation.navigate("ChildDetail", {
-      childId: child.id,
-      childName: `${child.prenom} ${child.nom}`,
-    });
+export const ChildListScreen: React.FC = () => {
+  const handleChildPress = (childName: string) => {
+    // plus tard : navigation vers ChildDetailScreen
+    Alert.alert(
+      "قريباً",
+      `سيتم قريباً عرض تفاصيل الطفل: ${childName} في شاشة مخصصة.`
+    );
   };
 
-  const renderChildItem = ({ item }: { item: Child }) => (
-    <TouchableOpacity
-      style={styles.childCard}
-      onPress={() => handleSelectChild(item)}
-      activeOpacity={0.8}
-    >
-      <Text style={styles.childName}>
-        {item.prenom} {item.nom}
-      </Text>
-      {item.date_naissance ? (
-        <Text style={styles.childMeta}>
-          تاريخ الميلاد: {formatDate(item.date_naissance)}
-        </Text>
-      ) : null}
-      {item.diagnostic ? (
-        <Text style={styles.childDiagnostic}>{item.diagnostic}</Text>
-      ) : null}
-      <Text style={styles.childHint}>اضغط لعرض تفاصيل الطفل</Text>
-    </TouchableOpacity>
-  );
-
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View>
+    <View style={styles.root}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <View style={styles.header}>
           <Text style={styles.title}>أطفالي</Text>
-          <Text style={styles.subtitle}>مرحباً {user?.prenom}, يمكنك متابعة أطفالك هنا.</Text>
+          <Text style={styles.subtitle}>
+            هذه قائمة تقريبية لأطفالك. لاحقاً سيتم جلب هذه البيانات من الخادم
+            وربطها مباشرة بحسابك في الجمعية.
+          </Text>
         </View>
-        <TouchableOpacity style={styles.logoutButton} onPress={logout}>
-          <Text style={styles.logoutText}>تسجيل الخروج</Text>
-        </TouchableOpacity>
-      </View>
 
-      {loading && children.length === 0 ? (
-        <View style={styles.centered}>
-          <ActivityIndicator color={PRIMARY} />
-        </View>
-      ) : error && children.length === 0 ? (
-        <View style={styles.centered}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={children}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderChildItem}
-          contentContainerStyle={
-            children.length === 0 ? styles.emptyContent : styles.listContent
-          }
-          ListEmptyComponent={() => (
-            <View style={styles.centered}>
-              <Text style={styles.emptyText}>
-                لا يوجد أطفال مرتبطون بحسابك حالياً.
+        {/* List of children (static) */}
+        {STATIC_CHILDREN.map((child) => (
+          <TouchableOpacity
+            key={child.id}
+            activeOpacity={0.9}
+            style={styles.childCard}
+            onPress={() => handleChildPress(child.name)}
+          >
+            <View style={styles.childHeaderRow}>
+              <Text style={styles.childName}>{child.name}</Text>
+              <Text style={styles.childGroup}>{child.group}</Text>
+            </View>
+
+            <Text style={styles.childMeta}>
+              تاريخ الميلاد: {child.birthDate}
+            </Text>
+
+            <Text style={styles.childNoteLabel}>آخر ملاحظة</Text>
+            <Text style={styles.childNote} numberOfLines={2}>
+              {child.lastNote}
+            </Text>
+
+            <View style={styles.childFooter}>
+              <Text style={styles.childFooterText}>
+                اضغط لعرض تفاصيل الطفل (قريباً)
               </Text>
             </View>
-          )}
-          refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} />}
-        />
-      )}
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
-    backgroundColor: "#F7F7FA",
-    direction: "rtl",
-    writingDirection: "rtl",
+    backgroundColor: "#EEF2FF",
+    writingDirection: "rtl", // RTL global
+  },
+  scroll: {
+    flex: 1,
+  },
+  container: {
+    paddingHorizontal: 24,
+    paddingVertical: 24,
   },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
-    backgroundColor: "#F7F7FA",
+    marginBottom: 20,
   },
   title: {
-    fontSize: 26,
-    fontWeight: "700",
-    color: "#111827",
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#0F172A",
     textAlign: "right",
   },
   subtitle: {
-    fontSize: 16,
-    color: "#4B5563",
     marginTop: 6,
+    fontSize: 13,
+    color: "#64748B",
     textAlign: "right",
-  },
-  logoutButton: {
-    marginTop: 12,
-    alignSelf: "flex-start",
-    backgroundColor: "#FEE2E2",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 999,
-  },
-  logoutText: {
-    color: "#B91C1C",
-    fontWeight: "600",
-  },
-  listContent: {
-    padding: 20,
-    gap: 12,
-  },
-  emptyContent: {
-    flexGrow: 1,
-    justifyContent: "center",
-    padding: 20,
+    lineHeight: 20,
   },
   childCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 18,
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 12,
     shadowColor: "#000",
     shadowOpacity: 0.06,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
     elevation: 3,
   },
+  childHeaderRow: {
+    flexDirection: "row-reverse",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+  },
   childName: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: "700",
-    color: "#111827",
+    color: "#0F172A",
     textAlign: "right",
+  },
+  childGroup: {
+    fontSize: 12,
+    color: "#2563EB",
+    fontWeight: "600",
   },
   childMeta: {
-    fontSize: 15,
+    fontSize: 13,
+    color: "#475569",
+    textAlign: "right",
+    marginBottom: 6,
+  },
+  childNoteLabel: {
+    fontSize: 12,
+    color: "#64748B",
+    textAlign: "right",
+    marginBottom: 2,
+  },
+  childNote: {
+    fontSize: 13,
     color: "#4B5563",
+    textAlign: "right",
+    lineHeight: 20,
+  },
+  childFooter: {
     marginTop: 8,
-    textAlign: "right",
+    alignItems: "flex-end",
   },
-  childDiagnostic: {
-    fontSize: 15,
-    color: ACCENT,
-    marginTop: 6,
-    textAlign: "right",
-  },
-  childHint: {
-    marginTop: 12,
-    fontSize: 14,
-    color: PRIMARY,
-    textAlign: "right",
-    fontWeight: "500",
-  },
-  centered: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  emptyText: {
-    color: "#6B7280",
-    fontSize: 16,
-    textAlign: "center",
-  },
-  errorText: {
-    color: "#DC2626",
-    fontSize: 16,
-    textAlign: "center",
+  childFooterText: {
+    fontSize: 12,
+    color: "#2563EB",
+    fontWeight: "600",
   },
 });

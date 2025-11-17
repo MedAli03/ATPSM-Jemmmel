@@ -1,15 +1,14 @@
-// src/navigation/AppNavigator.tsx
-import React from "react";
-import { ActivityIndicator, Button, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+
 import { useAuth } from "../features/auth/AuthContext";
 import { LoginScreen } from "../screens/auth/LoginScreen";
 import { EducatorDashboardScreen } from "../screens/educateur/EducatorDashboardScreen";
-import { ParentDashboardScreen } from "../screens/parent/ParentDashboardScreen";
+import { ParentNavigator } from "./ParentNavigator";
 
 export type RootStackParamList = {
   Login: undefined;
-  ParentDashboard: undefined;
+  ParentDashboard: undefined; // we keep the name but render ParentNavigator
   EducatorDashboard: undefined;
   NotAllowed: undefined;
 };
@@ -25,41 +24,36 @@ const LoadingScreen = () => (
 
 const NotAllowedScreen = () => {
   const { logout } = useAuth();
-
   return (
     <View style={styles.centered}>
-      <Text style={styles.loadingText}>Ce rôle n'a pas accès à l'application mobile.</Text>
-      <Button title="Se déconnecter" onPress={logout} />
+      <Text style={styles.loadingText}>Accès non autorisé</Text>
+      {/* you can add a logout button here if you want */}
     </View>
   );
 };
 
-export const AppNavigator: React.FC = () => {
-  const { status, user } = useAuth();
+export const AppNavigator = () => {
+  const { user, status } = useAuth(); // 👈 use status instead of loading
 
   if (status === "loading") {
     return <LoadingScreen />;
   }
 
+  // not authenticated → show login
   if (status === "unauthenticated" || !user) {
-    return (
-      <Stack.Navigator>
-        <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-      </Stack.Navigator>
-    );
+    return <LoginScreen />;
   }
 
+  // authenticated + parent
   if (user.role === "PARENT") {
     return (
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen
-          name="ParentDashboard"
-          component={ParentDashboardScreen}
-        />
+        <Stack.Screen name="ParentDashboard" component={ParentNavigator} />
       </Stack.Navigator>
     );
   }
 
+  // authenticated + educator
   if (user.role === "EDUCATEUR") {
     return (
       <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -71,6 +65,7 @@ export const AppNavigator: React.FC = () => {
     );
   }
 
+  // authenticated but role not allowed
   return (
     <Stack.Navigator>
       <Stack.Screen
@@ -83,14 +78,6 @@ export const AppNavigator: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  centered: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  loadingText: {
-    marginTop: 12,
-    textAlign: "center",
-  },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center" },
+  loadingText: { marginTop: 8 },
 });

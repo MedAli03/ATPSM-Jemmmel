@@ -1,173 +1,106 @@
-// src/screens/parent/ChildTimelineScreen.tsx
 import React from "react";
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from "react-native";
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { RouteProp, useRoute } from "@react-navigation/native";
 import { ParentStackParamList } from "../../navigation/ParentNavigator";
-import { useChildTimeline } from "../../features/parent/hooks";
-import { TimelineItem } from "../../features/parent/types";
 
-const PRIMARY = "#2563EB";
-const typeLabels: Record<TimelineItem["type"], string> = {
-  NOTE: "ملاحظة",
-  ACTIVITE: "نشاط",
-  EVALUATION: "تقييم",
-};
+type TimelineRoute = RouteProp<ParentStackParamList, "ChildTimeline">;
 
-const formatDate = (isoDate: string) =>
-  new Date(isoDate).toLocaleDateString("ar-TN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+const MOCK_EVENTS = [
+  {
+    id: 1,
+    date: "2025-11-15",
+    type: "note",
+    title: "ملاحظة يومية",
+    content: "Ahmed a bien participé à l’activité de communication visuelle.",
+  },
+  {
+    id: 2,
+    date: "2025-11-10",
+    type: "activity",
+    title: "نشاط تربوي",
+    content: "Atelier motricité fine avec cubes de couleurs.",
+  },
+  {
+    id: 3,
+    date: "2025-11-01",
+    type: "pei",
+    title: "تحديث PEI",
+    content: "Objectifs de communication ajustés suite aux progrès constatés.",
+  },
+];
 
-type Props = NativeStackScreenProps<ParentStackParamList, "ChildTimeline">;
+export const ChildTimelineScreen: React.FC = () => {
+  const { params } = useRoute<TimelineRoute>();
+  const { childId } = params;
 
-export const ChildTimelineScreen: React.FC<Props> = ({ route }) => {
-  const { childId } = route.params;
-  const { data: timeline = [], loading, error } = useChildTimeline(childId);
-
-  if (loading && timeline.length === 0) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator color={PRIMARY} />
-      </View>
-    );
-  }
-
-  if (error && timeline.length === 0) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>{error}</Text>
-      </View>
-    );
-  }
-
-  const renderItem = ({ item }: { item: TimelineItem }) => (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardDate}>التاريخ: {formatDate(item.date)}</Text>
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{typeLabels[item.type]}</Text>
-        </View>
-      </View>
-      <Text style={styles.cardTitle}>{item.titre}</Text>
-      {item.description ? (
-        <Text style={styles.cardDescription}>{item.description}</Text>
-      ) : null}
-      {item.created_by ? (
-        <Text style={styles.cardFooter}>المربي: {item.created_by}</Text>
-      ) : null}
-    </View>
-  );
+  // TODO: fetch notes/activités/PEI events for childId
+  const events = MOCK_EVENTS;
 
   return (
-    <View style={styles.screen}>
-      <Text style={styles.screenTitle}>متابعة الطفل</Text>
-      <FlatList
-        data={timeline}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={renderItem}
-        contentContainerStyle={
-          timeline.length === 0 ? styles.emptyContent : styles.listContent
-        }
-        ListEmptyComponent={() => (
-          <View style={styles.centered}>
-            <Text style={styles.emptyText}>لا توجد ملاحظات بعد.</Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <Text style={styles.headerTitle}>تابع يوم الطفل · {childId}</Text>
+      <Text style={styles.headerSubtitle}>
+        ملاحظات، أنشطة، و تحديثات المشروع التربوي (PEI)
+      </Text>
+
+      {events.map((e, index) => (
+        <View key={e.id} style={styles.timelineItem}>
+          <View style={styles.timelineLine} />
+          <View style={styles.bullet} />
+          <View style={styles.card}>
+            <Text style={styles.date}>{e.date}</Text>
+            <Text style={styles.title}>{e.title}</Text>
+            <Text style={styles.type}>
+              {e.type === "note"
+                ? "ملاحظة يومية"
+                : e.type === "activity"
+                ? "نشاط"
+                : "PEI"}
+            </Text>
+            <Text style={styles.contentText}>{e.content}</Text>
           </View>
-        )}
-      />
-    </View>
+        </View>
+      ))}
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: "#F7F7FA",
-    padding: 16,
-    direction: "rtl",
-    writingDirection: "rtl",
-  },
-  screenTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 16,
-    textAlign: "right",
-  },
-  listContent: {
-    paddingBottom: 24,
-    gap: 12,
-  },
-  emptyContent: {
-    flexGrow: 1,
-    justifyContent: "center",
-  },
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  cardDate: {
-    color: "#6B7280",
-    fontSize: 14,
-  },
-  badge: {
-    backgroundColor: "#DBEAFE",
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 4,
-  },
-  badgeText: {
-    color: PRIMARY,
-    fontWeight: "600",
-  },
-  cardTitle: {
+  container: { flex: 1, backgroundColor: "#F3F4F6" },
+  content: { padding: 16, paddingBottom: 32 },
+  headerTitle: {
     fontSize: 18,
     fontWeight: "700",
+    marginBottom: 4,
     color: "#111827",
-    marginBottom: 6,
-    textAlign: "right",
   },
-  cardDescription: {
-    fontSize: 15,
-    color: "#4B5563",
-    lineHeight: 22,
-    textAlign: "right",
-    marginBottom: 8,
+  headerSubtitle: { fontSize: 13, color: "#6B7280", marginBottom: 16 },
+  timelineItem: { flexDirection: "row", marginBottom: 16 },
+  timelineLine: {
+    width: 2,
+    backgroundColor: "#D1D5DB",
+    marginRight: 10,
+    marginLeft: 8,
   },
-  cardFooter: {
-    fontSize: 14,
-    color: "#6B7280",
-    textAlign: "right",
+  bullet: {
+    width: 12,
+    height: 12,
+    borderRadius: 999,
+    backgroundColor: "#2563EB",
+    position: "absolute",
+    left: 3,
+    top: 16,
   },
-  centered: {
+  card: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-    direction: "rtl",
-    writingDirection: "rtl",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
-  emptyText: {
-    color: "#6B7280",
-    fontSize: 16,
-    textAlign: "center",
-  },
-  errorText: {
-    color: "#DC2626",
-    fontSize: 16,
-    textAlign: "center",
-  },
+  date: { fontSize: 11, color: "#9CA3AF", marginBottom: 4 },
+  title: { fontSize: 15, fontWeight: "600", color: "#111827" },
+  type: { fontSize: 12, color: "#2563EB", marginTop: 2 },
+  contentText: { fontSize: 13, color: "#374151", marginTop: 6 },
 });
