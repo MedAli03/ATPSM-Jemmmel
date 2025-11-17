@@ -3,9 +3,8 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 import { useAuth } from "../features/auth/AuthContext";
 import { LoginScreen } from "../screens/auth/LoginScreen";
-import { EducatorDashboardScreen } from "../screens/educateur/EducatorDashboardScreen";
 import { ParentNavigator } from "./ParentNavigator";
-
+import { EducatorNavigator } from "./EducatorNavigator";
 export type RootStackParamList = {
   Login: undefined;
   ParentDashboard: undefined; // we keep the name but render ParentNavigator
@@ -59,7 +58,7 @@ export const AppNavigator = () => {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen
           name="EducatorDashboard"
-          component={EducatorDashboardScreen}
+          component={EducatorNavigator} // nested, but extra stack
         />
       </Stack.Navigator>
     );

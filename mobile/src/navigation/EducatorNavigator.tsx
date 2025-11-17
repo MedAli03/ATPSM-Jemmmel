@@ -1,44 +1,127 @@
-// src/navigation/EducatorNavigator.tsx
-import React from "react";
+import { Text } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { GroupListScreen } from "../screens/educateur/GroupListScreen";
-import { GroupChildrenScreen } from "../screens/educateur/GroupChildrenScreen";
-import { ChildPeiScreen } from "../screens/educateur/ChildPeiScreen";
-import { PeiEvaluationsScreen } from "../screens/educateur/PeiEvaluationsScreen";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+
+import { EducatorDashboardScreen } from "../screens/educateur/EducatorDashboardScreen";
+import { EducatorGroupsScreen } from "../screens/educateur/EducatorGroupsScreen";
+import { EducatorMessagesScreen } from "../screens/educateur/EducatorMessagesScreen";
+import { EducatorChatThreadScreen } from "../screens/educateur/EducatorChatThreadScreen";
+import { EducatorProfileScreen } from "../screens/educateur/EducatorProfileScreen";
+import { EducatorChildDetailsScreen } from "../screens/educateur/EducatorChildDetailsScreen";
+import { EducatorChildTimelineScreen } from "../screens/educateur/EducatorChildTimelineScreen";
+import { DailyNoteFormScreen } from "../screens/educateur/DailyNoteFormScreen";
+import { ActivityFormScreen } from "../screens/educateur/ActivityFormScreen";
+import { ObservationInitialeScreen } from "../screens/educateur/ObservationInitialeScreen";
+import { EducatorPeiDetailScreen } from "../screens/educateur/EducatorPeiDetailScreen";
 
 export type EducatorStackParamList = {
-  GroupList: undefined;
-  GroupChildren: { groupId: number; groupName: string };
-  ChildPei: { childId: number; childName: string };
-  PeiEvaluations: { peiId: number; childName: string };
+  EducatorTabs: undefined;
+  EducatorChildDetails: { childId: number };
+  EducatorChildTimeline: { childId: number };
+  DailyNoteForm: { childId: number };
+  ActivityForm: { childId: number };
+  EducatorChatThread: { threadId?: number; childId?: number };
+  ObservationInitiale: { childId: number };
+  EducatorPeiDetail: { childId: number; peiId: number };
+};
+
+export type EducatorTabParamList = {
+  EducatorDashboard: undefined;
+  EducatorGroups: undefined;
+  EducatorMessages: undefined;
+  EducatorProfile: undefined;
 };
 
 const Stack = createNativeStackNavigator<EducatorStackParamList>();
+const Tab = createBottomTabNavigator<EducatorTabParamList>();
 
-export const EducatorNavigator: React.FC = () => {
+const EducatorTabsNavigator = () => {
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: { height: 60 },
+        tabBarLabelStyle: { fontSize: 11 },
+      }}
+    >
+      <Tab.Screen
+        name="EducatorDashboard"
+        component={EducatorDashboardScreen}
+        options={{
+          tabBarLabel: "الرئيسية",
+          tabBarIcon: () => <Text>🏠</Text>,
+        }}
+      />
+      <Tab.Screen
+        name="EducatorGroups"
+        component={EducatorGroupsScreen}
+        options={{
+          tabBarLabel: "مجموعاتي",
+          tabBarIcon: () => <Text>👥</Text>,
+        }}
+      />
+      <Tab.Screen
+        name="EducatorMessages"
+        component={EducatorMessagesScreen}
+        options={{
+          tabBarLabel: "الرسائل",
+          tabBarIcon: () => <Text>💬</Text>,
+        }}
+      />
+      <Tab.Screen
+        name="EducatorProfile"
+        component={EducatorProfileScreen}
+        options={{
+          tabBarLabel: "الحساب",
+          tabBarIcon: () => <Text>👤</Text>,
+        }}
+      />
+    </Tab.Navigator>
+  );
+};
+
+export const EducatorNavigator = () => {
   return (
     <Stack.Navigator>
       <Stack.Screen
-        name="GroupList"
-        component={GroupListScreen}
-        options={{ title: "Mes groupes" }}
+        name="EducatorTabs"
+        component={EducatorTabsNavigator}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
-        name="GroupChildren"
-        component={GroupChildrenScreen}
-        options={({ route }) => ({ title: route.params.groupName })}
+        name="EducatorChildDetails"
+        component={EducatorChildDetailsScreen}
+        options={{ title: "ملف الطفل" }}
       />
       <Stack.Screen
-        name="ChildPei"
-        component={ChildPeiScreen}
-        options={({ route }) => ({ title: route.params.childName })}
+        name="EducatorChildTimeline"
+        component={EducatorChildTimelineScreen}
+        options={{ title: "يوم الطفل" }}
       />
       <Stack.Screen
-        name="PeiEvaluations"
-        component={PeiEvaluationsScreen}
-        options={({ route }) => ({
-          title: `Évaluations - ${route.params.childName}`,
-        })}
+        name="DailyNoteForm"
+        component={DailyNoteFormScreen}
+        options={{ title: "ملاحظة يومية جديدة" }}
+      />
+      <Stack.Screen
+        name="ActivityForm"
+        component={ActivityFormScreen}
+        options={{ title: "نشاط جديد" }}
+      />
+      <Stack.Screen
+        name="EducatorChatThread"
+        component={EducatorChatThreadScreen}
+        options={{ title: "محادثة مع الولي" }}
+      />
+      <Stack.Screen
+        name="ObservationInitiale"
+        component={ObservationInitialeScreen}
+        options={{ title: "الملاحظة الأولية" }}
+      />
+      <Stack.Screen
+        name="EducatorPeiDetail"
+        component={EducatorPeiDetailScreen}
+        options={{ title: "PEI – تفاصيل" }}
       />
     </Stack.Navigator>
   );

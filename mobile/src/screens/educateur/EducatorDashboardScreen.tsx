@@ -1,82 +1,609 @@
-// src/screens/educateur/EducatorDashboardScreen.tsx
-import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  SafeAreaView,
+  StatusBar,
+  TouchableOpacity,
+} from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../../features/auth/AuthContext";
-import { EducatorNavigator } from "../../navigation/EducatorNavigator";
+
+// ⚠️ simpler: we let navigation be "any" because this screen lives inside a Tab + Stack
+const navigationAny = () => useNavigation<any>();
+
+type DashboardStats = {
+  groupsCount: number;
+  childrenCount: number;
+  todaySessions: number;
+};
+
+type TodayChild = {
+  id: number;
+  name: string;
+  group: string;
+  focus: string;
+};
+
+type TodaySession = {
+  id: number;
+  time: string;
+  group: string;
+  theme: string;
+};
+
+// 👇 NEW types for PEI & observation
+type PeiSummary = {
+  id: number;
+  childId: number;
+  childName: string;
+  status: "ACTIVE" | "TO_REVIEW" | "CLOSED";
+  nextReviewDate?: string; // ex: "2025-02-01"
+};
+
+type ObservationSummary = {
+  id: number;
+  childId: number;
+  childName: string;
+  date: string;
+  completed: boolean;
+};
+
+const MOCK_STATS: DashboardStats = {
+  groupsCount: 2,
+  childrenCount: 6,
+  todaySessions: 3,
+};
+
+const MOCK_TODAY_CHILDREN: TodayChild[] = [
+  {
+    id: 1,
+    name: "Ahmed Ben Ali",
+    group: "مجموعة الألوان",
+    focus: "Communication visuelle",
+  },
+  {
+    id: 2,
+    name: "Sarra Trabelsi",
+    group: "مجموعة الأشكال",
+    focus: "Motricité fine",
+  },
+];
+
+const MOCK_TODAY_SESSIONS: TodaySession[] = [
+  {
+    id: 1,
+    time: "09:00",
+    group: "مجموعة الألوان",
+    theme: "تواصل بصري + صور",
+  },
+  {
+    id: 2,
+    time: "10:30",
+    group: "مجموعة الأشكال",
+    theme: "تمارين حركية دقيقة",
+  },
+  {
+    id: 3,
+    time: "14:00",
+    group: "مجموعة الألوان",
+    theme: "لعبة تصنيف الألوان",
+  },
+];
+
+// 👇 MOCK PEI & observations (based on your rapport: observation_initiale + PEI)
+const MOCK_PEI: PeiSummary[] = [
+  {
+    id: 1,
+    childId: 1,
+    childName: "Ahmed Ben Ali",
+    status: "ACTIVE",
+    nextReviewDate: "2025-02-01",
+  },
+  {
+    id: 2,
+    childId: 2,
+    childName: "Sarra Trabelsi",
+    status: "TO_REVIEW",
+    nextReviewDate: "2025-01-15",
+  },
+];
+
+const MOCK_OBSERVATIONS: ObservationSummary[] = [
+  {
+    id: 1,
+    childId: 3,
+    childName: "Youssef M.",
+    date: "2025-11-01",
+    completed: true,
+  },
+  {
+    id: 2,
+    childId: 4,
+    childName: "Ines K.",
+    date: "2025-11-10",
+    completed: false,
+  },
+];
 
 export const EducatorDashboardScreen: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
+  const navigation = navigationAny();
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [todayChildren, setTodayChildren] = useState<TodayChild[]>([]);
+  const [todaySessions, setTodaySessions] = useState<TodaySession[]>([]);
+  // 👇 NEW state
+  const [peiItems, setPeiItems] = useState<PeiSummary[]>([]);
+  const [observations, setObservations] = useState<ObservationSummary[]>([]);
+
+  useEffect(() => {
+    // TODO: replace with real API call (e.g. /educateur/dashboard)
+    setStats(MOCK_STATS);
+    setTodayChildren(MOCK_TODAY_CHILDREN);
+    setTodaySessions(MOCK_TODAY_SESSIONS);
+    // TODO: /educateur/pei/summary & /educateur/observations/summary
+    setPeiItems(MOCK_PEI);
+    setObservations(MOCK_OBSERVATIONS);
+  }, []);
+
+  const educatorName =
+    (user as any)?.fullName ||
+    (user as any)?.name ||
+    (user as any)?.username ||
+    "المربّي/ـة";
+
+  // later you can compute real date from new Date()
+  const currentYearLabel = "السنة الدراسية 2024 / 2025";
+
+  const hasChildrenToday = todayChildren.length > 0;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.headerCard}>
-        <Text style={styles.title}>مرحباً، {user?.prenom ?? "المربي"}</Text>
-        <Text style={styles.subtitle}>هذا هو فضاؤك لمتابعة المجموعات والأطفال.</Text>
-        <TouchableOpacity style={styles.logoutButton} onPress={logout}>
-          <Text style={styles.logoutText}>تسجيل الخروج</Text>
-        </TouchableOpacity>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" />
+      <View style={styles.container}>
+        {/* HEADER */}
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.helloText}>مرحبًا، {educatorName}</Text>
+            <Text style={styles.subTitle}>
+              Espace Éducateur · لوحة المتابعة
+            </Text>
+          </View>
+          <View style={styles.yearChip}>
+            <Text style={styles.yearChipText}>{currentYearLabel}</Text>
+          </View>
+        </View>
+
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* SUMMARY CARDS */}
+          {stats && (
+            <View style={styles.row}>
+              <View style={[styles.summaryCard, styles.primary]}>
+                <Text style={styles.summaryLabel}>مجموعاتي</Text>
+                <Text style={styles.summaryValue}>{stats.groupsCount}</Text>
+                <Text style={styles.summaryHint}>المجموعات المسندة إليك</Text>
+                <TouchableOpacity
+                  style={styles.summaryLink}
+                  onPress={() => navigation.navigate("EducatorGroups")}
+                >
+                  <Text style={styles.summaryLinkText}>عرض التفاصيل ▸</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={[styles.summaryCard, styles.secondary]}>
+                <Text style={styles.summaryLabel}>الأطفال</Text>
+                <Text style={styles.summaryValue}>{stats.childrenCount}</Text>
+                <Text style={styles.summaryHint}>
+                  عدد الأطفال في مجموعاتك الحالية
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* PEI + OBSERVATION SECTION */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>PEI و الملاحظة الأوّلية</Text>
+              <Text style={styles.sectionSubtitle}>
+                نظرة سريعة على ملفات الأطفال التربوية.
+              </Text>
+            </View>
+
+            <View style={styles.peiObsRow}>
+              {/* PEI CARD */}
+              <View style={styles.peiCard}>
+                <View style={styles.peiHeaderRow}>
+                  <Text style={styles.peiTitle}>PEI النشطة</Text>
+                  <Text style={styles.peiCount}>{peiItems.length}</Text>
+                </View>
+                {peiItems.length === 0 ? (
+                  <Text style={styles.peiEmpty}>
+                    لا توجد PEI مفعّلة حاليًا في مجموعتك.
+                  </Text>
+                ) : (
+                  peiItems.slice(0, 3).map((p) => (
+                    <TouchableOpacity
+                      key={p.id}
+                      style={styles.peiItem}
+                      onPress={() =>
+                        navigation.navigate("EducatorChildDetails", {
+                          childId: p.childId,
+                        })
+                      }
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.peiChildName}>{p.childName}</Text>
+                        {p.nextReviewDate && (
+                          <Text style={styles.peiNextReview}>
+                            مراجعة قادمة: {p.nextReviewDate}
+                          </Text>
+                        )}
+                      </View>
+                      <View
+                        style={[
+                          styles.peiStatusChip,
+                          p.status === "ACTIVE"
+                            ? styles.peiStatusActive
+                            : p.status === "TO_REVIEW"
+                            ? styles.peiStatusToReview
+                            : styles.peiStatusClosed,
+                        ]}
+                      >
+                        <Text style={styles.peiStatusText}>
+                          {p.status === "ACTIVE"
+                            ? "مفعّل"
+                            : p.status === "TO_REVIEW"
+                            ? "في انتظار التقييم"
+                            : "مغلق"}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))
+                )}
+              </View>
+
+              {/* OBSERVATION CARD */}
+              <View style={styles.obsCard}>
+                <View style={styles.obsHeaderRow}>
+                  <Text style={styles.obsTitle}>الملاحظة الأوّلية</Text>
+                  <Text style={styles.obsCount}>{observations.length}</Text>
+                </View>
+                {observations.length === 0 ? (
+                  <Text style={styles.obsEmpty}>
+                    لا توجد ملاحظات أوّلية مسجّلة بعد.
+                  </Text>
+                ) : (
+                  observations.slice(0, 3).map((o) => (
+                    <TouchableOpacity
+                      key={o.id}
+                      style={styles.obsItem}
+                      onPress={() =>
+                        navigation.navigate("EducatorChildDetails", {
+                          childId: o.childId,
+                        })
+                      }
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.obsChildName}>{o.childName}</Text>
+                        <Text style={styles.obsDate}>بتاريخ: {o.date}</Text>
+                      </View>
+                      <View
+                        style={[
+                          styles.obsStatusChip,
+                          o.completed
+                            ? styles.obsStatusDone
+                            : styles.obsStatusPending,
+                        ]}
+                      >
+                        <Text style={styles.obsStatusText}>
+                          {o.completed ? "مكتملة" : "في طور الإنجاز"}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))
+                )}
+              </View>
+            </View>
+          </View>
+
+          {/* TODAY CHILDREN */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>أطفال اليوم</Text>
+              <Text style={styles.sectionSubtitle}>
+                Suivi quotidien · ملاحظات و أنشطة سريعة.
+              </Text>
+            </View>
+
+            {!hasChildrenToday ? (
+              <View style={styles.emptyBox}>
+                <Text style={styles.emptyTitle}>لا توجد حصص اليوم</Text>
+                <Text style={styles.emptyText}>
+                  يمكنك التخطيط من خلال صفحة المجموعات أو عبر تحديث PEI.
+                </Text>
+              </View>
+            ) : (
+              todayChildren.map((c) => (
+                <TouchableOpacity
+                  key={c.id}
+                  style={styles.childCard}
+                  onPress={() =>
+                    navigation.navigate("EducatorChildTimeline", {
+                      childId: c.id,
+                    })
+                  }
+                >
+                  <View style={styles.childHeaderRow}>
+                    <View style={styles.childInfo}>
+                      <Text style={styles.childName}>{c.name}</Text>
+                      <Text style={styles.childGroup}>{c.group}</Text>
+                    </View>
+                    <View style={styles.childChip}>
+                      <Text style={styles.childChipText}>تابع اليوم</Text>
+                    </View>
+                  </View>
+
+                  <Text style={styles.childFocus}>
+                    تركيز اليوم:{" "}
+                    <Text style={styles.childFocusBold}>{c.focus}</Text>
+                  </Text>
+
+                  <View style={styles.actionsRow}>
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={() =>
+                        navigation.navigate("DailyNoteForm", { childId: c.id })
+                      }
+                    >
+                      <Text style={styles.actionEmoji}>📝</Text>
+                      <Text style={styles.actionText}>ملاحظة</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={() =>
+                        navigation.navigate("ActivityForm", { childId: c.id })
+                      }
+                    >
+                      <Text style={styles.actionEmoji}>🎯</Text>
+                      <Text style={styles.actionText}>نشاط</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={() =>
+                        navigation.navigate("EducatorChatThread", {
+                          childId: c.id,
+                        })
+                      }
+                    >
+                      <Text style={styles.actionEmoji}>💬</Text>
+                      <Text style={styles.actionText}>رسالة</Text>
+                    </TouchableOpacity>
+                  </View>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+
+          {/* QUICK SHORTCUTS */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>اختصارات سريعة</Text>
+            </View>
+            <View style={styles.row}>
+              <TouchableOpacity
+                style={styles.quickCard}
+                onPress={() => navigation.navigate("EducatorGroups")}
+              >
+                <Text style={styles.quickEmoji}>👥</Text>
+                <Text style={styles.quickTitle}>مجموعاتي</Text>
+                <Text style={styles.quickText}>عرض المجموعات و الأطفال</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.quickCard}
+                onPress={() => navigation.navigate("EducatorMessages")}
+              >
+                <Text style={styles.quickEmoji}>💬</Text>
+                <Text style={styles.quickTitle}>رسائل الأولياء</Text>
+                <Text style={styles.quickText}>تواصل مع الأولياء بسهولة</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* FOOTER */}
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              ATPSM – Jemmel · متابعة تربوية رقمية متكاملة.
+            </Text>
+          </View>
+        </ScrollView>
       </View>
-      <Text style={styles.sectionTitle}>مجموعاتي</Text>
-      <View style={styles.navigatorWrapper}>
-        <EducatorNavigator />
-      </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: { flex: 1, backgroundColor: "#F5F6FA" },
+  container: { flex: 1, paddingHorizontal: 16 },
+  header: {
+    paddingTop: 12,
+    paddingBottom: 8,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  helloText: { fontSize: 22, fontWeight: "700", color: "#111827" },
+  subTitle: { fontSize: 14, color: "#6B7280", marginTop: 4 },
+  yearChip: {
+    backgroundColor: "#EEF2FF",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  yearChipText: { fontSize: 11, color: "#4338CA", fontWeight: "600" },
+
+  scroll: { flex: 1 },
+  scrollContent: { paddingBottom: 24 },
+
+  row: { flexDirection: "row", gap: 12, marginBottom: 12 },
+
+  summaryCard: {
     flex: 1,
-    backgroundColor: "#F7F7FA",
-    padding: 16,
-    direction: "rtl",
-    writingDirection: "rtl",
-  },
-  headerCard: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 18,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-    marginBottom: 16,
+    padding: 14,
+    borderWidth: 1,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#111827",
-    textAlign: "right",
+  primary: { backgroundColor: "#2563EB10", borderColor: "#2563EB30" },
+  secondary: { backgroundColor: "#10B98110", borderColor: "#10B98130" },
+  accent: { backgroundColor: "#F59E0B10", borderColor: "#F59E0B30" },
+
+  summaryLabel: { fontSize: 13, color: "#6B7280" },
+  summaryValue: { fontSize: 24, fontWeight: "800", color: "#111827" },
+  summaryHint: { fontSize: 12, color: "#6B7280", marginTop: 6 },
+  summaryLink: { marginTop: 8 },
+  summaryLinkText: { fontSize: 12, color: "#1D4ED8", fontWeight: "600" },
+
+  section: { marginTop: 16 },
+  sectionHeader: { marginBottom: 8 },
+  sectionTitle: { fontSize: 18, fontWeight: "700", color: "#111827" },
+  sectionSubtitle: { fontSize: 13, color: "#6B7280" },
+
+  emptyBox: {
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
-  subtitle: {
-    fontSize: 16,
-    color: "#4B5563",
-    marginTop: 8,
-    textAlign: "right",
+  emptyTitle: { fontSize: 15, fontWeight: "600", marginBottom: 4 },
+  emptyText: { fontSize: 13, color: "#6B7280" },
+
+  // PEI + Observation cards
+  peiObsRow: {
+    flexDirection: "row",
+    gap: 10,
   },
-  logoutButton: {
-    marginTop: 16,
-    alignSelf: "flex-start",
-    backgroundColor: "#FEE2E2",
-    paddingVertical: 10,
-    paddingHorizontal: 18,
+  peiCard: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  peiHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
+  peiTitle: { fontSize: 14, fontWeight: "700", color: "#111827" },
+  peiCount: { fontSize: 14, fontWeight: "700", color: "#2563EB" },
+  peiEmpty: { fontSize: 12, color: "#6B7280", marginTop: 4 },
+  peiItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 6,
+    paddingVertical: 4,
+  },
+  peiChildName: { fontSize: 13, fontWeight: "600", color: "#111827" },
+  peiNextReview: { fontSize: 11, color: "#6B7280", marginTop: 2 },
+  peiStatusChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 999,
   },
-  logoutText: {
-    color: "#B91C1C",
-    fontWeight: "600",
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#1F2937",
-    textAlign: "right",
-    marginBottom: 12,
-  },
-  navigatorWrapper: {
+  peiStatusText: { fontSize: 10, fontWeight: "600" },
+  peiStatusActive: { backgroundColor: "#DCFCE7" },
+  peiStatusToReview: { backgroundColor: "#FEF3C7" },
+  peiStatusClosed: { backgroundColor: "#E5E7EB" },
+
+  obsCard: {
     flex: 1,
-    borderRadius: 18,
-    overflow: "hidden",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
+  obsHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
+  obsTitle: { fontSize: 14, fontWeight: "700", color: "#111827" },
+  obsCount: { fontSize: 14, fontWeight: "700", color: "#10B981" },
+  obsEmpty: { fontSize: 12, color: "#6B7280", marginTop: 4 },
+  obsItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 6,
+    paddingVertical: 4,
+  },
+  obsChildName: { fontSize: 13, fontWeight: "600", color: "#111827" },
+  obsDate: { fontSize: 11, color: "#6B7280", marginTop: 2 },
+  obsStatusChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  obsStatusText: { fontSize: 10, fontWeight: "600" },
+  obsStatusDone: { backgroundColor: "#DBEAFE" },
+  obsStatusPending: { backgroundColor: "#FEE2E2" },
+
+  // children of the day
+  childCard: {
+    marginTop: 8,
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  childHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  childInfo: { flex: 1, paddingRight: 8 },
+  childName: { fontSize: 16, fontWeight: "600", color: "#111827" },
+  childGroup: { fontSize: 13, color: "#4B5563", marginTop: 2 },
+  childChip: {
+    backgroundColor: "#DCFCE7",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  childChipText: { fontSize: 11, color: "#15803D", fontWeight: "600" },
+  childFocus: { fontSize: 13, color: "#2563EB", marginTop: 4 },
+  childFocusBold: { fontWeight: "600" },
+
+  actionsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
+  },
+  actionButton: { alignItems: "center", flex: 1 },
+  actionEmoji: { fontSize: 18 },
+  actionText: { fontSize: 11, marginTop: 2, color: "#374151" },
+
+  quickCard: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  quickEmoji: { fontSize: 22, marginBottom: 6 },
+  quickTitle: { fontSize: 14, fontWeight: "600", color: "#111827" },
+  quickText: { fontSize: 12, color: "#6B7280" },
+
+  footer: { marginTop: 24, alignItems: "center" },
+  footerText: { fontSize: 11, color: "#9CA3AF" },
 });
