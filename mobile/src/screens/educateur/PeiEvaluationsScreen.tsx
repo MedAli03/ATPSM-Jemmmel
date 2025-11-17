@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -35,10 +36,39 @@ export const PeiEvaluationsScreen: React.FC<Props> = ({ route }) => {
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const validateForm = () => {
+    const trimmedPeriode = periode.trim();
+    const trimmedComment = commentaire.trim();
+    const trimmedNote = note.trim();
+
+    if (trimmedPeriode.length < 3) {
+      return "الرجاء تحديد الفترة بدقة (3 أحرف على الأقل).";
+    }
+
+    if (trimmedComment && trimmedComment.length < 10) {
+      return "الملاحظات العامة يجب أن تحتوي 10 أحرف على الأقل.";
+    }
+
+    if (trimmedNote) {
+      const numericNote = Number(trimmedNote);
+      if (Number.isNaN(numericNote)) {
+        return "الرجاء إدخال رقم صالح في خانة الدرجة.";
+      }
+      if (numericNote < 0 || numericNote > 100) {
+        return "الدرجة يجب أن تكون بين 0 و100.";
+      }
+    }
+
+    return null;
+  };
 
   const handleCreateEvaluation = async () => {
-    if (!periode.trim()) {
-      setFormError("الرجاء إدخال الفترة.");
+    const validationMessage = validateForm();
+    if (validationMessage) {
+      setSuccessMessage(null);
+      setFormError(validationMessage);
       return;
     }
     setSubmitting(true);
@@ -52,9 +82,12 @@ export const PeiEvaluationsScreen: React.FC<Props> = ({ route }) => {
       setCommentaire("");
       setNote("");
       setFormError(null);
+      setSuccessMessage("تم حفظ التقييم بنجاح.");
+      Alert.alert("تم الحفظ", "تمت إضافة التقييم الجديد.");
       await refetch();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "حدث خطأ غير متوقع.");
+      setSuccessMessage(null);
     } finally {
       setSubmitting(false);
     }
@@ -137,6 +170,9 @@ export const PeiEvaluationsScreen: React.FC<Props> = ({ route }) => {
               textAlign="right"
             />
             {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
+            {successMessage ? (
+              <Text style={styles.successText}>{successMessage}</Text>
+            ) : null}
             {error && evaluations.length > 0 ? (
               <Text style={styles.errorText}>{error}</Text>
             ) : null}
@@ -301,6 +337,12 @@ const styles = StyleSheet.create({
   errorText: {
     color: "#DC2626",
     fontSize: 15,
+    textAlign: "center",
+    marginTop: 6,
+  },
+  successText: {
+    color: "#059669",
+    fontSize: 14,
     textAlign: "center",
     marginTop: 6,
   },

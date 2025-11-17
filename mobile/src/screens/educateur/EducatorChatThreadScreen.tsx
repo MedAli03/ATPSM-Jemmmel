@@ -36,6 +36,8 @@ export const EducatorChatThreadScreen: React.FC = () => {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [nextCursor, setNextCursor] = useState<MessageCursor | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [sendFeedback, setSendFeedback] = useState<string | null>(null);
 
   const loadThread = useCallback(async () => {
     if (!threadId) return;
@@ -63,6 +65,14 @@ export const EducatorChatThreadScreen: React.FC = () => {
   useEffect(() => {
     loadThread();
   }, [loadThread]);
+
+  useEffect(() => {
+    if (!sendFeedback) {
+      return;
+    }
+    const timeout = setTimeout(() => setSendFeedback(null), 3000);
+    return () => clearTimeout(timeout);
+  }, [sendFeedback]);
 
   const refreshMessages = useCallback(async () => {
     if (!threadId) return;
@@ -98,16 +108,31 @@ export const EducatorChatThreadScreen: React.FC = () => {
   }, [threadId, nextCursor, loadingMore]);
 
   const handleSend = useCallback(async () => {
-    if (!threadId || !input.trim()) return;
+    if (!threadId) return;
+    const trimmed = input.trim();
+    if (trimmed.length < 2) {
+      const message = "الرسالة قصيرة جدًا.";
+      setSendError(message);
+      return;
+    }
+    if (trimmed.length > 800) {
+      const message = "الرسالة طويلة جدًا، الرجاء الاختصار.";
+      setSendError(message);
+      return;
+    }
+    setSendError(null);
+    setSendFeedback(null);
     setSending(true);
     try {
-      const message = await sendThreadMessage(threadId, { text: input.trim() });
+      const message = await sendThreadMessage(threadId, { text: trimmed });
       setMessages((prev) => [...prev, message]);
       setInput("");
+      setSendFeedback("تم إرسال الرسالة بنجاح.");
     } catch (err) {
       console.error("Failed to send message", err);
       const message = err instanceof Error ? err.message : "تعذّر إرسال الرسالة.";
       Alert.alert("خطأ", message);
+      setSendError(message);
     } finally {
       setSending(false);
     }
@@ -216,21 +241,25 @@ export const EducatorChatThreadScreen: React.FC = () => {
         </TouchableOpacity>
       ) : null}
 
-      <View style={styles.inputRow}>
-        <TextInput
-          style={styles.input}
-          placeholder={`رسالة حول الطفل ${childId ?? ""}...`}
-          value={input}
-          onChangeText={setInput}
-        />
-        <TouchableOpacity
-          style={[styles.sendButton, (sending || !input.trim()) && styles.sendButtonDisabled]}
-          onPress={handleSend}
-          disabled={sending || !input.trim()}
-        >
-          <Text style={styles.sendText}>{sending ? "..." : "إرسال"}</Text>
-        </TouchableOpacity>
-      </View>
+        <View style={styles.inputSection}>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              placeholder={`رسالة حول الطفل ${childId ?? ""}...`}
+              value={input}
+              onChangeText={setInput}
+            />
+            <TouchableOpacity
+              style={[styles.sendButton, (sending || !input.trim()) && styles.sendButtonDisabled]}
+              onPress={handleSend}
+              disabled={sending || !input.trim()}
+            >
+              <Text style={styles.sendText}>{sending ? "..." : "إرسال"}</Text>
+            </TouchableOpacity>
+          </View>
+          {sendError ? <Text style={styles.sendErrorText}>{sendError}</Text> : null}
+          {sendFeedback ? <Text style={styles.sendSuccessText}>{sendFeedback}</Text> : null}
+        </View>
     </KeyboardAvoidingView>
   );
 };
@@ -276,6 +305,11 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   loadingText: { color: "#4B5563", fontSize: 13 },
+  inputSection: {
+    paddingHorizontal: 8,
+    paddingBottom: 8,
+    backgroundColor: "#FFFFFF",
+  },
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -303,6 +337,20 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: { opacity: 0.5 },
   sendText: { color: "#FFFFFF", fontWeight: "600", fontSize: 13 },
+  sendErrorText: {
+    color: "#B91C1C",
+    fontSize: 12,
+    textAlign: "right",
+    marginTop: 4,
+    marginHorizontal: 8,
+  },
+  sendSuccessText: {
+    color: "#059669",
+    fontSize: 12,
+    textAlign: "right",
+    marginTop: 2,
+    marginHorizontal: 8,
+  },
   loadOlderBtn: {
     marginHorizontal: 16,
     marginBottom: 8,

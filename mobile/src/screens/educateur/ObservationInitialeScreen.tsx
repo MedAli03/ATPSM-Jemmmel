@@ -91,6 +91,7 @@ export const ObservationInitialeScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const updateField = (key: keyof ObservationFormState, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -138,20 +139,37 @@ export const ObservationInitialeScreen: React.FC = () => {
   }, [childId]);
 
   const hasValidationErrors = useMemo(() => {
-    return !form.date.trim() || !form.needs.trim();
+    const date = form.date.trim();
+    const needs = form.needs.trim();
+    const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+    return !datePattern.test(date) || needs.length < 10;
   }, [form.date, form.needs]);
 
+  const validateForm = () => {
+    const date = form.date.trim();
+    const needs = form.needs.trim();
+    const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+
+    if (!datePattern.test(date)) {
+      return "صيغة التاريخ يجب أن تكون على شكل YYYY-MM-DD.";
+    }
+
+    if (needs.length < 10) {
+      return "وصف الاحتياجات يجب أن يحتوي على 10 أحرف على الأقل.";
+    }
+
+    return null;
+  };
+
   const handleSave = async () => {
-    // simple validation
-    if (!form.date.trim()) {
-      Alert.alert("تنبيه", "الرجاء تحديد تاريخ الملاحظة (صيغة ISO: YYYY-MM-DD)");
+    const validationMessage = validateForm();
+    if (validationMessage) {
+      setValidationError(validationMessage);
+      Alert.alert("تنبيه", validationMessage);
       return;
     }
 
-    if (!form.needs.trim()) {
-      Alert.alert("تنبيه", "الرجاء تحديد أهم الاحتياجات التربوية.");
-      return;
-    }
+    setValidationError(null);
 
     setIsSaving(true);
 
@@ -181,7 +199,9 @@ export const ObservationInitialeScreen: React.FC = () => {
       ]);
     } catch (err) {
       console.error("Failed to save observation_initiale", err);
-      Alert.alert("خطأ", "تعذّر حفظ الملاحظة. الرجاء المحاولة من جديد.");
+      const message = err instanceof Error ? err.message : "تعذّر حفظ الملاحظة. الرجاء المحاولة من جديد.";
+      setValidationError(message);
+      Alert.alert("خطأ", message);
     } finally {
       setIsSaving(false);
     }
@@ -213,6 +233,11 @@ export const ObservationInitialeScreen: React.FC = () => {
             Individuel) وتحديد نقاط القوة والاحتياجات.
           </Text>
         </View>
+        {validationError ? (
+          <View style={styles.validationBox}>
+            <Text style={styles.validationText}>{validationError}</Text>
+          </View>
+        ) : null}
 
         {/* DATE + CONTEXT */}
         <View style={styles.card}>
@@ -347,6 +372,19 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 14,
     marginBottom: 12,
+  },
+  validationBox: {
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FECACA",
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 12,
+  },
+  validationText: {
+    color: "#B91C1C",
+    textAlign: "center",
+    fontSize: 13,
   },
   title: { fontSize: 18, fontWeight: "700", color: "#111827" },
   childIdText: { fontSize: 13, color: "#4B5563", marginTop: 4 },

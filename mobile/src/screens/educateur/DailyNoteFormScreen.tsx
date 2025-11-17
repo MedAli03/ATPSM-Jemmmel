@@ -16,6 +16,7 @@ export const DailyNoteFormScreen: React.FC = () => {
   const [peiId, setPeiId] = useState<number | null>(initialPeiId ?? null);
   const [loading, setLoading] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialPeiId) {
@@ -50,22 +51,37 @@ export const DailyNoteFormScreen: React.FC = () => {
   }, [childId, initialPeiId]);
 
   const handleSave = async () => {
-    if (!note.trim()) {
-      Alert.alert("تنبيه", "الرجاء كتابة الملاحظة.");
+    const trimmed = note.trim();
+
+    if (trimmed.length < 10) {
+      const message = "الرجاء إدخال ملاحظة أوضح (10 أحرف على الأقل).";
+      setFormError(message);
+      Alert.alert("تنبيه", message);
+      return;
+    }
+
+    if (trimmed.length > 800) {
+      const message = "الملاحظة طويلة جدًا، الرجاء الاختصار (أقل من 800 حرف).";
+      setFormError(message);
+      Alert.alert("تنبيه", message);
       return;
     }
 
     if (!peiId) {
-      Alert.alert("تنبيه", "لا يوجد PEI نشط لهذا الطفل، لا يمكن ربط الملاحظة.");
+      const message = "لا يوجد PEI نشط لهذا الطفل، لا يمكن ربط الملاحظة.";
+      setFormError(message);
+      Alert.alert("تنبيه", message);
       return;
     }
+
+    setFormError(null);
 
     setSaving(true);
     try {
       await addDailyNote(childId, {
         peiId,
         date_note: new Date().toISOString(),
-        contenu: note.trim(),
+        contenu: trimmed,
       });
       Alert.alert("تمّ الحفظ", "تمّ حفظ الملاحظة بنجاح.", [
         { text: "حسنًا", onPress: () => navigation.goBack() },
@@ -74,6 +90,7 @@ export const DailyNoteFormScreen: React.FC = () => {
       console.error("Failed to save daily note", err);
       const defaultMessage = "تعذّر حفظ الملاحظة. حاول مرة أخرى.";
       const message = err instanceof ForbiddenError ? err.message : err instanceof Error ? err.message : defaultMessage;
+      setFormError(message);
       Alert.alert("خطأ", message);
     } finally {
       setSaving(false);
@@ -96,6 +113,7 @@ export const DailyNoteFormScreen: React.FC = () => {
         value={note}
         onChangeText={setNote}
       />
+      {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
       <TouchableOpacity
         style={[styles.saveBtn, (saving || loading) && styles.saveBtnDisabled]}
         onPress={handleSave}
@@ -126,6 +144,12 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingVertical: 12,
     alignItems: "center",
+  },
+  errorText: {
+    color: "#DC2626",
+    textAlign: "center",
+    marginTop: 8,
+    fontSize: 13,
   },
   saveBtnDisabled: { opacity: 0.6 },
   saveText: { color: "#FFFFFF", fontWeight: "700", fontSize: 14 },

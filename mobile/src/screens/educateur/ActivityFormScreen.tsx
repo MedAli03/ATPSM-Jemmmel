@@ -27,6 +27,7 @@ export const ActivityFormScreen: React.FC = () => {
   const [peiId, setPeiId] = useState<number | null>(initialPeiId ?? null);
   const [loadingPei, setLoadingPei] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialPeiId) {
@@ -58,22 +59,46 @@ export const ActivityFormScreen: React.FC = () => {
   }, [childId, initialPeiId]);
 
   const handleSave = async () => {
-    if (!title.trim()) {
-      Alert.alert("تنبيه", "الرجاء إدخال عنوان النشاط.");
+    const trimmedTitle = title.trim();
+    const trimmedObjective = objective.trim();
+    const trimmedDescription = description.trim();
+
+    if (trimmedTitle.length < 3) {
+      const message = "الرجاء إدخال عنوان لا يقل عن 3 أحرف.";
+      setFormError(message);
+      Alert.alert("تنبيه", message);
+      return;
+    }
+
+    if (trimmedObjective && trimmedObjective.length < 3) {
+      const message = "الهدف التربوي يجب أن يكون أكثر تحديدًا.";
+      setFormError(message);
+      Alert.alert("تنبيه", message);
+      return;
+    }
+
+    if (trimmedDescription && trimmedDescription.length < 10) {
+      const message = "الرجاء تقديم وصف مكوّن من 10 أحرف على الأقل.";
+      setFormError(message);
+      Alert.alert("تنبيه", message);
       return;
     }
 
     if (!peiId) {
-      Alert.alert("تنبيه", "لا يوجد PEI نشط، لا يمكن ربط النشاط.");
+      const message = "لا يوجد PEI نشط، لا يمكن ربط النشاط.";
+      setFormError(message);
+      Alert.alert("تنبيه", message);
       return;
     }
+
+    setFormError(null);
 
     setSaving(true);
     try {
       await addPEIActivity(peiId, {
-        titre: title.trim(),
-        objectifs: objective.trim() || undefined,
-        description: description.trim() || undefined,
+        titre: trimmedTitle,
+        objectifs: trimmedObjective || undefined,
+        description: trimmedDescription || undefined,
         date_activite: new Date().toISOString(),
         enfant_id: childId,
       });
@@ -84,6 +109,7 @@ export const ActivityFormScreen: React.FC = () => {
       console.error("Failed to save activity", err);
       const fallback = "تعذّر حفظ النشاط. حاول مجددًا.";
       const message = err instanceof ForbiddenError ? err.message : err instanceof Error ? err.message : fallback;
+      setFormError(message);
       Alert.alert("خطأ", message);
     } finally {
       setSaving(false);
@@ -122,6 +148,7 @@ export const ActivityFormScreen: React.FC = () => {
         value={description}
         onChangeText={setDescription}
       />
+      {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
 
       <TouchableOpacity
         style={[styles.saveBtn, (saving || loadingPei) && styles.saveBtnDisabled]}
@@ -161,6 +188,12 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingVertical: 12,
     alignItems: "center",
+  },
+  errorText: {
+    color: "#DC2626",
+    marginTop: 8,
+    textAlign: "center",
+    fontSize: 13,
   },
   saveBtnDisabled: { opacity: 0.6 },
   saveText: { color: "#FFFFFF", fontWeight: "700", fontSize: 14 },
