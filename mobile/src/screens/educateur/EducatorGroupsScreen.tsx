@@ -11,7 +11,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { EducatorStackParamList } from "../../navigation/EducatorNavigator";
-import { getChildrenByGroup, getMyGroups } from "../../features/educateur/api";
+import { ForbiddenError, getChildrenByGroup, getMyGroups } from "../../features/educateur/api";
 
 type Nav = NativeStackNavigationProp<EducatorStackParamList>;
 
@@ -68,7 +68,10 @@ export const EducatorGroupsScreen: React.FC = () => {
         setGroups(mapped);
       } catch (err) {
         console.error("Failed to load groups", err);
-        setError("تعذّر تحميل المجموعات. الرجاء إعادة المحاولة.");
+        const fallback = "تعذّر تحميل المجموعات. الرجاء إعادة المحاولة.";
+        const message = err instanceof ForbiddenError ? err.message : fallback;
+        setGroups([]);
+        setError(message);
       } finally {
         if (fromRefresh) {
           setRefreshing(false);

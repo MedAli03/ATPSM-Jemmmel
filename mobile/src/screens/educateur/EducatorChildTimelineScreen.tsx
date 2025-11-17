@@ -11,7 +11,7 @@ import {
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { EducatorStackParamList } from "../../navigation/EducatorNavigator";
-import { getActivePeiForChild, getChildHistory } from "../../features/educateur/api";
+import { ForbiddenError, getActivePeiForChild, getChildHistory } from "../../features/educateur/api";
 import { ChildHistoryEvent } from "../../features/educateur/types";
 
 type Route = RouteProp<EducatorStackParamList, "EducatorChildTimeline">;
@@ -46,7 +46,13 @@ export const EducatorChildTimelineScreen: React.FC = () => {
         }
       } catch (err) {
         console.error("Failed to load child timeline", err);
-        setError("تعذّر تحميل سجلّ الطفل. حاول مرة أخرى لاحقًا.");
+        const fallback = "تعذّر تحميل سجلّ الطفل. حاول مرة أخرى لاحقًا.";
+        const message = err instanceof ForbiddenError ? err.message : fallback;
+        setEvents([]);
+        if (err instanceof ForbiddenError) {
+          setPeiId(null);
+        }
+        setError(message);
       } finally {
         if (fromRefresh) {
           setRefreshing(false);

@@ -12,6 +12,7 @@ import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { EducatorStackParamList } from "../../navigation/EducatorNavigator";
 import {
+  ForbiddenError,
   getActivePeiForChild,
   getChildDetails,
   getLatestObservationInitiale,
@@ -83,7 +84,14 @@ export const EducatorChildDetailsScreen: React.FC = () => {
       } catch (err) {
         console.error("Failed to load child profile", err);
         if (isMounted) {
-          setError("تعذّر تحميل ملف الطفل. حاول مجددًا لاحقًا.");
+          const fallback = "تعذّر تحميل ملف الطفل. حاول مجددًا لاحقًا.";
+          const message = err instanceof ForbiddenError ? err.message : fallback;
+          setChild(null);
+          setObservation(null);
+          setPeiDetails(null);
+          setEvaluations([]);
+          setActivities([]);
+          setError(message);
         }
       } finally {
         if (isMounted) {

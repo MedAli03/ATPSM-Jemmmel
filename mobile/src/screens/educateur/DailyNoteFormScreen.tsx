@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ActivityInd
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { EducatorStackParamList } from "../../navigation/EducatorNavigator";
-import { addDailyNote, getActivePeiForChild } from "../../features/educateur/api";
+import { ForbiddenError, addDailyNote, getActivePeiForChild } from "../../features/educateur/api";
 
 type Route = RouteProp<EducatorStackParamList, "DailyNoteForm">;
 type Nav = NativeStackNavigationProp<EducatorStackParamList>;
@@ -32,6 +32,9 @@ export const DailyNoteFormScreen: React.FC = () => {
         }
       } catch (err) {
         console.error("Failed to load active PEI for note", err);
+        if (err instanceof ForbiddenError) {
+          Alert.alert("غير مصرح", err.message);
+        }
       } finally {
         if (isMounted) {
           setLoading(false);
@@ -69,7 +72,8 @@ export const DailyNoteFormScreen: React.FC = () => {
       ]);
     } catch (err) {
       console.error("Failed to save daily note", err);
-      const message = err instanceof Error ? err.message : "تعذّر حفظ الملاحظة. حاول مرة أخرى.";
+      const defaultMessage = "تعذّر حفظ الملاحظة. حاول مرة أخرى.";
+      const message = err instanceof ForbiddenError ? err.message : err instanceof Error ? err.message : defaultMessage;
       Alert.alert("خطأ", message);
     } finally {
       setSaving(false);

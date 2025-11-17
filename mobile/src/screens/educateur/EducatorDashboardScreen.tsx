@@ -13,6 +13,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../../features/auth/AuthContext";
 import {
+  ForbiddenError,
   getChildrenByGroup,
   getMyGroups,
   listEducatorPeiSummaries,
@@ -152,7 +153,13 @@ export const EducatorDashboardScreen: React.FC = () => {
         );
       } catch (err) {
         console.error("Failed to load dashboard", err);
-        setError("تعذّر تحميل لوحة المتابعة. الرجاء المحاولة لاحقًا.");
+        const fallbackMessage = "تعذّر تحميل لوحة المتابعة. الرجاء المحاولة لاحقًا.";
+        const message = err instanceof ForbiddenError ? err.message : fallbackMessage;
+        setStats(null);
+        setTodayChildren([]);
+        setPeiItems([]);
+        setObservations([]);
+        setError(message);
       } finally {
         if (fromRefresh) {
           setIsRefreshing(false);

@@ -1,4 +1,5 @@
 // src/features/educateur/api.ts
+import axios from "axios";
 import { api } from "../../services/api";
 import {
   ChildDetails,
@@ -180,6 +181,26 @@ interface SendMessageResponse {
   data?: RawThreadMessage;
 }
 
+export class ForbiddenError extends Error {
+  constructor(message?: string) {
+    super(
+      message ?? "لا تملك صلاحية الوصول إلى هذه البيانات. الرجاء التواصل مع الإدارة.",
+    );
+    this.name = "ForbiddenError";
+  }
+}
+
+const throwIfForbidden = (error: unknown, fallbackMessage?: string) => {
+  if (axios.isAxiosError(error) && error.response?.status === 403) {
+    const responseData = error.response?.data as { message?: string } | undefined;
+    const backendMessage =
+      typeof responseData?.message === "string" ? responseData.message : undefined;
+    throw new ForbiddenError(
+      backendMessage ?? fallbackMessage ?? "لا يمكنك الوصول إلى هذه البيانات.",
+    );
+  }
+};
+
 let cachedActiveYear: SchoolYear | null = null;
 
 const getActiveSchoolYear = async (): Promise<SchoolYear> => {
@@ -276,45 +297,53 @@ const normalizePeiSummary = (
 };
 
 export const getMyGroups = async (options?: { includeHistory?: boolean }): Promise<Group[]> => {
-  const activeYear = await getActiveSchoolYear();
-  const response = await api.get<BooleanResponse<RawGroup[]>>("/groupes", {
-    params: {
-      anneeId: activeYear.id,
-      page: 1,
-      limit: 50,
-    },
-  });
-  const rows = response.data?.data ?? [];
+  try {
+    const activeYear = await getActiveSchoolYear();
+    const response = await api.get<BooleanResponse<RawGroup[]>>("/groupes", {
+      params: {
+        anneeId: activeYear.id,
+        page: 1,
+        limit: 50,
+      },
+    });
+    const rows = response.data?.data ?? [];
 
-  const mapGroup = (group: RawGroup, fallbackYear?: string | null): Group => ({
-    id: group.id,
-    nom: group.nom,
-    description: group.description ?? null,
-    annee_id: group.annee_id,
-    annee_scolaire: fallbackYear ?? activeYear.libelle,
-    statut: group.statut,
-    nb_enfants: group.nb_enfants,
-  });
+    const mapGroup = (group: RawGroup, fallbackYear?: string | null): Group => ({
+      id: group.id,
+      nom: group.nom,
+      description: group.description ?? null,
+      annee_id: group.annee_id,
+      annee_scolaire: fallbackYear ?? activeYear.libelle,
+      statut: group.statut,
+      nb_enfants: group.nb_enfants,
+    });
 
-  const activeGroups = rows.map((group) => mapGroup(group));
+    const activeGroups = rows.map((group) => mapGroup(group));
 
-  if (!options?.includeHistory) {
-    return activeGroups;
+    if (!options?.includeHistory) {
+      return activeGroups;
+    }
+
+    const archivedResponse = await api.get<BooleanResponse<RawGroup[]>>("/groupes", {
+      params: {
+        statut: "archive",
+        page: 1,
+        limit: 50,
+      },
+    });
+    const archivedRows = archivedResponse.data?.data ?? [];
+    const archivedGroups = archivedRows.map((group) =>
+      mapGroup(
+        group,
+        group.annee_id === activeYear.id ? activeYear.libelle : `السنة #${group.annee_id}`,
+      ),
+    );
+
+    return [...activeGroups, ...archivedGroups];
+  } catch (error) {
+    throwIfForbidden(error, "لا يمكنك عرض المجموعات غير المسندة إليك.");
+    throw error;
   }
-
-  const archivedResponse = await api.get<BooleanResponse<RawGroup[]>>("/groupes", {
-    params: {
-      statut: "archive",
-      page: 1,
-      limit: 50,
-    },
-  });
-  const archivedRows = archivedResponse.data?.data ?? [];
-  const archivedGroups = archivedRows.map((group) =>
-    mapGroup(group, group.annee_id === activeYear.id ? activeYear.libelle : `السنة #${group.annee_id}`)
-  );
-
-  return [...activeGroups, ...archivedGroups];
 };
 
 export const getChildrenByGroup = async (
@@ -324,60 +353,80 @@ export const getChildrenByGroup = async (
   if (!groupId) {
     return [];
   }
-  const anneeId = await ensureActiveYearId(options?.anneeId);
-  const response = await api.get<GroupChildrenResponse>(`/groupes/${groupId}/inscriptions`, {
-    params: {
-      anneeId,
-      page: options?.page ?? 1,
-      limit: options?.limit ?? 50,
-    },
-  });
-  const items = response.data?.data?.items ?? [];
-  return items.map((item) => ({
-    id: item.enfant_id,
-    prenom: item.prenom ?? "",
-    nom: item.nom ?? "",
-    date_naissance: item.date_naissance ?? undefined,
-  }));
+  try {
+    const anneeId = await ensureActiveYearId(options?.anneeId);
+    const response = await api.get<GroupChildrenResponse>(`/groupes/${groupId}/inscriptions`, {
+      params: {
+        anneeId,
+        page: options?.page ?? 1,
+        limit: options?.limit ?? 50,
+      },
+    });
+    const items = response.data?.data?.items ?? [];
+    return items.map((item) => ({
+      id: item.enfant_id,
+      prenom: item.prenom ?? "",
+      nom: item.nom ?? "",
+      date_naissance: item.date_naissance ?? undefined,
+    }));
+  } catch (error) {
+    throwIfForbidden(error, "لا يمكنك عرض أطفال مجموعة غير مسندة إليك.");
+    throw error;
+  }
 };
 
 export const getChildDetails = async (childId: number): Promise<ChildDetails> => {
-  const response = await api.get<BooleanResponse<ChildDetails>>(`/enfants/${childId}`);
-  return response.data.data;
+  try {
+    const response = await api.get<BooleanResponse<ChildDetails>>(`/enfants/${childId}`);
+    return response.data.data;
+  } catch (error) {
+    throwIfForbidden(error, "لا يمكنك عرض ملف طفل خارج مجموعاتك.");
+    throw error;
+  }
 };
 
 export const getActivePeiForChild = async (
   childId: number,
 ): Promise<ProjetEducatifIndividuelSummary | null> => {
-  const response = await api.get<PeiListResponse>("/pei", {
-    params: {
-      enfant_id: childId,
-      statut: "actif",
-      page: 1,
-      pageSize: 1,
-    },
-  });
-  const rows = response.data?.data ?? [];
-  if (!rows.length) {
-    return null;
+  try {
+    const response = await api.get<PeiListResponse>("/pei", {
+      params: {
+        enfant_id: childId,
+        statut: "actif",
+        page: 1,
+        pageSize: 1,
+      },
+    });
+    const rows = response.data?.data ?? [];
+    if (!rows.length) {
+      return null;
+    }
+    return normalizePeiSummary(rows[0]);
+  } catch (error) {
+    throwIfForbidden(error, "لا يمكنك الوصول إلى هذا الـ PEI.");
+    throw error;
   }
-  return normalizePeiSummary(rows[0]);
 };
 
 export const listEducatorPeiSummaries = async (
   educatorId: number,
   options?: { anneeId?: number; limit?: number },
 ): Promise<ProjetEducatifIndividuelSummary[]> => {
-  const response = await api.get<PeiListResponse>("/pei", {
-    params: {
-      educateur_id: educatorId,
-      annee_id: options?.anneeId,
-      page: 1,
-      pageSize: options?.limit ?? 20,
-    },
-  });
-  const rows = response.data?.data ?? [];
-  return rows.map((row) => normalizePeiSummary(row));
+  try {
+    const response = await api.get<PeiListResponse>("/pei", {
+      params: {
+        educateur_id: educatorId,
+        annee_id: options?.anneeId,
+        page: 1,
+        pageSize: options?.limit ?? 20,
+      },
+    });
+    const rows = response.data?.data ?? [];
+    return rows.map((row) => normalizePeiSummary(row));
+  } catch (error) {
+    throwIfForbidden(error, "لا يمكنك عرض PEI لمربّين آخرين.");
+    throw error;
+  }
 };
 
 export const createPEI = async (payload: CreatePeiPayload): Promise<PeiDetails> => {
@@ -386,8 +435,13 @@ export const createPEI = async (payload: CreatePeiPayload): Promise<PeiDetails> 
 };
 
 export const getPEI = async (peiId: number): Promise<PeiDetails> => {
-  const response = await api.get<PeiDetails>(`/pei/${peiId}`);
-  return response.data;
+  try {
+    const response = await api.get<PeiDetails>(`/pei/${peiId}`);
+    return response.data;
+  } catch (error) {
+    throwIfForbidden(error, "لا يمكنك عرض هذا المشروع التربوي.");
+    throw error;
+  }
 };
 
 export const updatePEI = async (
@@ -421,46 +475,56 @@ export const addDailyNote = async (
 export const getPeiEvaluations = async (
   peiId: number,
 ): Promise<PeiEvaluation[]> => {
-  const response = await api.get<PaginatedResponse<EvaluationDto>>(
-    `/pei/${peiId}/evaluations`,
-    {
-      params: { page: 1, pageSize: 20 },
-    },
-  );
-  const rows = response.data?.data ?? [];
-  return rows.map((evaluation) => ({
-    id: evaluation.id,
-    date: evaluation.date_evaluation,
-    periode: evaluation.date_evaluation,
-    commentaire_global: evaluation.notes ?? undefined,
-    note_globale: evaluation.score ?? undefined,
-    created_by: formatUserName(evaluation.educateur),
-  }));
+  try {
+    const response = await api.get<PaginatedResponse<EvaluationDto>>(
+      `/pei/${peiId}/evaluations`,
+      {
+        params: { page: 1, pageSize: 20 },
+      },
+    );
+    const rows = response.data?.data ?? [];
+    return rows.map((evaluation) => ({
+      id: evaluation.id,
+      date: evaluation.date_evaluation,
+      periode: evaluation.date_evaluation,
+      commentaire_global: evaluation.notes ?? undefined,
+      note_globale: evaluation.score ?? undefined,
+      created_by: formatUserName(evaluation.educateur),
+    }));
+  } catch (error) {
+    throwIfForbidden(error, "لا يمكنك الاطّلاع على تقييمات هذا الـ PEI.");
+    throw error;
+  }
 };
 
 export const getPeiActivities = async (
   peiId: number,
   options?: { page?: number; pageSize?: number },
 ): Promise<PeiActivitySummary[]> => {
-  const response = await api.get<PaginatedResponse<ActivityDto>>(
-    `/pei/${peiId}/activites`,
-    {
-      params: {
-        page: options?.page ?? 1,
-        pageSize: options?.pageSize ?? 20,
+  try {
+    const response = await api.get<PaginatedResponse<ActivityDto>>(
+      `/pei/${peiId}/activites`,
+      {
+        params: {
+          page: options?.page ?? 1,
+          pageSize: options?.pageSize ?? 20,
+        },
       },
-    },
-  );
-  const rows = response.data?.data ?? [];
-  return rows.map((activity) => ({
-    id: activity.id,
-    date: activity.date_activite,
-    titre: activity.titre,
-    description: activity.description,
-    objectifs: activity.objectifs,
-    type: activity.type,
-    educateur: formatUserName(activity.educateur),
-  }));
+    );
+    const rows = response.data?.data ?? [];
+    return rows.map((activity) => ({
+      id: activity.id,
+      date: activity.date_activite,
+      titre: activity.titre,
+      description: activity.description,
+      objectifs: activity.objectifs,
+      type: activity.type,
+      educateur: formatUserName(activity.educateur),
+    }));
+  } catch (error) {
+    throwIfForbidden(error, "لا يمكنك عرض أنشطة هذا الـ PEI.");
+    throw error;
+  }
 };
 
 export const createPeiEvaluation = async (
@@ -571,31 +635,36 @@ export const getChildHistory = async (
   childId: number,
   options?: { peiId?: number },
 ): Promise<ChildHistoryEvent[]> => {
-  const activePei = options?.peiId ? { id: options.peiId } : await getActivePeiForChild(childId);
-  if (!activePei) {
-    return [];
+  try {
+    const activePei = options?.peiId ? { id: options.peiId } : await getActivePeiForChild(childId);
+    if (!activePei) {
+      return [];
+    }
+    const peiId = options?.peiId ?? activePei.id;
+
+    const [activitiesResp, evaluationsResp, notesResp] = await Promise.all([
+      api.get<PaginatedResponse<ActivityDto>>(`/pei/${peiId}/activites`, {
+        params: { page: 1, pageSize: 20 },
+      }),
+      api.get<PaginatedResponse<EvaluationDto>>(`/pei/${peiId}/evaluations`, {
+        params: { page: 1, pageSize: 20 },
+      }),
+      api.get<PaginatedResponse<DailyNoteDto>>(`/pei/${peiId}/daily-notes`, {
+        params: { page: 1, pageSize: 20 },
+      }),
+    ]);
+
+    const events: ChildHistoryEvent[] = [
+      ...((activitiesResp.data?.data ?? []).map(mapActivityToHistory)),
+      ...((evaluationsResp.data?.data ?? []).map(mapEvaluationToHistory)),
+      ...((notesResp.data?.data ?? []).map(mapDailyNoteToHistory)),
+    ];
+
+    return sortEvents(events);
+  } catch (error) {
+    throwIfForbidden(error, "لا يمكنك عرض سجلّ هذا الطفل.");
+    throw error;
   }
-  const peiId = options?.peiId ?? activePei.id;
-
-  const [activitiesResp, evaluationsResp, notesResp] = await Promise.all([
-    api.get<PaginatedResponse<ActivityDto>>(`/pei/${peiId}/activites`, {
-      params: { page: 1, pageSize: 20 },
-    }),
-    api.get<PaginatedResponse<EvaluationDto>>(`/pei/${peiId}/evaluations`, {
-      params: { page: 1, pageSize: 20 },
-    }),
-    api.get<PaginatedResponse<DailyNoteDto>>(`/pei/${peiId}/daily-notes`, {
-      params: { page: 1, pageSize: 20 },
-    }),
-  ]);
-
-  const events: ChildHistoryEvent[] = [
-    ...((activitiesResp.data?.data ?? []).map(mapActivityToHistory)),
-    ...((evaluationsResp.data?.data ?? []).map(mapEvaluationToHistory)),
-    ...((notesResp.data?.data ?? []).map(mapDailyNoteToHistory)),
-  ];
-
-  return sortEvents(events);
 };
 
 export const listMessageThreads = async (options?: {

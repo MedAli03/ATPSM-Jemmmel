@@ -11,7 +11,7 @@ import {
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { EducatorStackParamList } from "../../navigation/EducatorNavigator";
-import { addPEIActivity, getActivePeiForChild } from "../../features/educateur/api";
+import { ForbiddenError, addPEIActivity, getActivePeiForChild } from "../../features/educateur/api";
 
 type Route = RouteProp<EducatorStackParamList, "ActivityForm">;
 type Nav = NativeStackNavigationProp<EducatorStackParamList>;
@@ -42,6 +42,9 @@ export const ActivityFormScreen: React.FC = () => {
         }
       } catch (err) {
         console.error("Failed to load active PEI for activity", err);
+        if (err instanceof ForbiddenError) {
+          Alert.alert("غير مصرح", err.message);
+        }
       } finally {
         if (isMounted) {
           setLoadingPei(false);
@@ -79,7 +82,8 @@ export const ActivityFormScreen: React.FC = () => {
       ]);
     } catch (err) {
       console.error("Failed to save activity", err);
-      const message = err instanceof Error ? err.message : "تعذّر حفظ النشاط. حاول مجددًا.";
+      const fallback = "تعذّر حفظ النشاط. حاول مجددًا.";
+      const message = err instanceof ForbiddenError ? err.message : err instanceof Error ? err.message : fallback;
       Alert.alert("خطأ", message);
     } finally {
       setSaving(false);

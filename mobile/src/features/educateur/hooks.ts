@@ -1,6 +1,7 @@
 // src/features/educateur/hooks.ts
 import { useCallback, useEffect, useState } from "react";
 import {
+  ForbiddenError,
   getActivePeiForChild,
   getChildrenByGroup,
   getMyGroups,
@@ -14,6 +15,9 @@ import {
 } from "./types";
 
 const getErrorMessage = (error: unknown) => {
+  if (error instanceof ForbiddenError) {
+    return error.message;
+  }
   if (error instanceof Error) {
     return error.message;
   }
