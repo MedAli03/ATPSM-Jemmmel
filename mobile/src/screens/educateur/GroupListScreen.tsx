@@ -14,23 +14,12 @@ import { useMyGroups } from "../../features/educateur/hooks";
 import { Group } from "../../features/educateur/types";
 import { EducatorStackParamList } from "../../navigation/EducatorNavigator";
 
+const PRIMARY = "#2563EB";
+
 type Props = NativeStackScreenProps<EducatorStackParamList, "GroupList">;
 
-const renderGroupItem = (
-  group: Group,
-  onPress: (group: Group) => void,
-): JSX.Element => (
-  <TouchableOpacity style={styles.card} onPress={() => onPress(group)}>
-    <Text style={styles.cardTitle}>{group.nom}</Text>
-    <Text style={styles.cardSubtitle}>{group.annee_scolaire}</Text>
-    {group.description ? (
-      <Text style={styles.cardDescription}>{group.description}</Text>
-    ) : null}
-  </TouchableOpacity>
-);
-
 export const GroupListScreen: React.FC<Props> = ({ navigation }) => {
-  const { groups, loading, error, refetch } = useMyGroups();
+  const { groups = [], loading, error, refetch } = useMyGroups();
 
   const handleSelectGroup = (group: Group) => {
     navigation.navigate("GroupChildren", {
@@ -39,13 +28,29 @@ export const GroupListScreen: React.FC<Props> = ({ navigation }) => {
     });
   };
 
+  const renderGroupItem = ({ item }: { item: Group }) => (
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => handleSelectGroup(item)}
+      activeOpacity={0.85}
+    >
+      <Text style={styles.cardTitle}>{item.nom}</Text>
+      <Text style={styles.cardSubtitle}>السنة الدراسية: {item.annee_scolaire}</Text>
+      {item.description ? (
+        <Text style={styles.cardDescription}>وصف المجموعة: {item.description}</Text>
+      ) : null}
+      <Text style={styles.cardHint}>اضغط لعرض أطفال المجموعة</Text>
+    </TouchableOpacity>
+  );
+
   return (
     <View style={styles.container}>
-      {loading ? (
+      <Text style={styles.screenTitle}>مجموعاتي</Text>
+      {loading && groups.length === 0 ? (
         <View style={styles.centered}>
-          <ActivityIndicator />
+          <ActivityIndicator color={PRIMARY} />
         </View>
-      ) : error ? (
+      ) : error && groups.length === 0 ? (
         <View style={styles.centered}>
           <Text style={styles.errorText}>{error}</Text>
         </View>
@@ -53,13 +58,13 @@ export const GroupListScreen: React.FC<Props> = ({ navigation }) => {
         <FlatList
           data={groups}
           keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => renderGroupItem(item, handleSelectGroup)}
+          renderItem={renderGroupItem}
           contentContainerStyle={
             groups.length === 0 ? styles.emptyContent : styles.listContent
           }
           ListEmptyComponent={() => (
             <View style={styles.centered}>
-              <Text style={styles.emptyText}>Aucun groupe assigné.</Text>
+              <Text style={styles.emptyText}>لا توجد مجموعات مخصصة لك حالياً.</Text>
             </View>
           )}
           refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} />}
@@ -72,7 +77,60 @@ export const GroupListScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#F7F7FA",
+    padding: 16,
+    direction: "rtl",
+    writingDirection: "rtl",
+  },
+  screenTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 16,
+    textAlign: "right",
+  },
+  listContent: {
+    paddingBottom: 20,
+    gap: 12,
+  },
+  emptyContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+  },
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 18,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#111827",
+    textAlign: "right",
+  },
+  cardSubtitle: {
+    fontSize: 15,
+    color: "#4B5563",
+    marginTop: 8,
+    textAlign: "right",
+  },
+  cardDescription: {
+    fontSize: 15,
+    color: "#6B7280",
+    marginTop: 8,
+    textAlign: "right",
+    lineHeight: 22,
+  },
+  cardHint: {
+    marginTop: 12,
+    color: PRIMARY,
+    fontWeight: "600",
+    textAlign: "right",
   },
   centered: {
     flex: 1,
@@ -80,41 +138,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 24,
   },
-  errorText: {
-    color: "#d9534f",
-    textAlign: "center",
-  },
   emptyText: {
-    color: "#666",
+    color: "#6B7280",
+    fontSize: 16,
     textAlign: "center",
   },
-  emptyContent: {
-    flexGrow: 1,
-  },
-  listContent: {
-    padding: 16,
-    gap: 12,
-  },
-  card: {
-    backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-  },
-  cardSubtitle: {
-    marginTop: 4,
-    color: "#666",
-  },
-  cardDescription: {
-    marginTop: 8,
-    color: "#444",
+  errorText: {
+    color: "#DC2626",
+    fontSize: 16,
+    textAlign: "center",
   },
 });

@@ -9,16 +9,15 @@ export const EducatorDashboardScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Bienvenue, {user?.prenom ?? "Éducateur"}</Text>
-          <Text style={styles.subtitle}>{user?.role ?? "EDUCATEUR"}</Text>
-        </View>
-        <TouchableOpacity onPress={logout}>
-          <Text style={styles.logout}>Se déconnecter</Text>
+      <View style={styles.headerCard}>
+        <Text style={styles.title}>مرحباً، {user?.prenom ?? "المربي"}</Text>
+        <Text style={styles.subtitle}>هذا هو فضاؤك لمتابعة المجموعات والأطفال.</Text>
+        <TouchableOpacity style={styles.logoutButton} onPress={logout}>
+          <Text style={styles.logoutText}>تسجيل الخروج</Text>
         </TouchableOpacity>
       </View>
-      <View style={styles.navigatorContainer}>
+      <Text style={styles.sectionTitle}>مجموعاتي</Text>
+      <View style={styles.navigatorWrapper}>
         <EducatorNavigator />
       </View>
     </View>
@@ -28,31 +27,56 @@ export const EducatorDashboardScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f8f8",
+    backgroundColor: "#F7F7FA",
+    padding: 16,
+    direction: "rtl",
+    writingDirection: "rtl",
   },
-  header: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#fff",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#ddd",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+  headerCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+    marginBottom: 16,
   },
   title: {
-    fontSize: 20,
-    fontWeight: "600",
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#111827",
+    textAlign: "right",
   },
   subtitle: {
-    marginTop: 4,
-    color: "#666",
+    fontSize: 16,
+    color: "#4B5563",
+    marginTop: 8,
+    textAlign: "right",
   },
-  logout: {
-    color: "#d9534f",
+  logoutButton: {
+    marginTop: 16,
+    alignSelf: "flex-start",
+    backgroundColor: "#FEE2E2",
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 999,
+  },
+  logoutText: {
+    color: "#B91C1C",
     fontWeight: "600",
   },
-  navigatorContainer: {
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#1F2937",
+    textAlign: "right",
+    marginBottom: 12,
+  },
+  navigatorWrapper: {
     flex: 1,
+    borderRadius: 18,
+    overflow: "hidden",
   },
 });

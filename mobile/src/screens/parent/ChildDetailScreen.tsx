@@ -13,12 +13,18 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { ParentStackParamList } from "../../navigation/ParentNavigator";
 import { useChildDetail } from "../../features/parent/hooks";
 
-type Props = NativeStackScreenProps<ParentStackParamList, "ChildDetail">;
+const PRIMARY = "#2563EB";
 
 const formatDate = (isoDate?: string) => {
   if (!isoDate) return "";
-  return new Date(isoDate).toLocaleDateString();
+  return new Date(isoDate).toLocaleDateString("ar-TN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 };
+
+type Props = NativeStackScreenProps<ParentStackParamList, "ChildDetail">;
 
 export const ChildDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const { childId, childName } = route.params;
@@ -33,7 +39,7 @@ export const ChildDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator />
+        <ActivityIndicator color={PRIMARY} />
       </View>
     );
   }
@@ -41,37 +47,50 @@ export const ChildDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   if (error || !child) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.errorText}>{error ?? "Impossible de charger le profil."}</Text>
+        <Text style={styles.errorText}>{error ?? "تعذر تحميل بيانات الطفل."}</Text>
         <TouchableOpacity onPress={refetch} style={styles.retryButton}>
-          <Text style={styles.retryText}>Réessayer</Text>
+          <Text style={styles.retryText}>إعادة المحاولة</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      {child.photo_url ? (
-        <Image source={{ uri: child.photo_url }} style={styles.avatar} />
-      ) : (
-        <View style={styles.placeholderAvatar}>
-          <Text style={styles.placeholderInitials}>
-            {child.prenom.charAt(0)}
-            {child.nom.charAt(0)}
-          </Text>
-        </View>
-      )}
-      <Text style={styles.name}>
-        {child.prenom} {child.nom}
-      </Text>
-      <Text style={styles.label}>Date de naissance</Text>
-      <Text style={styles.value}>{formatDate(child.date_naissance)}</Text>
-      {child.diagnostic ? (
-        <>
-          <Text style={styles.label}>Diagnostic</Text>
-          <Text style={styles.value}>{child.diagnostic}</Text>
-        </>
-      ) : null}
+    <ScrollView contentContainerStyle={styles.container}>
+      <View style={styles.avatarWrapper}>
+        {child.photo_url ? (
+          <Image source={{ uri: child.photo_url }} style={styles.avatar} />
+        ) : (
+          <View style={styles.placeholderAvatar}>
+            <Text style={styles.placeholderInitials}>
+              {child.prenom.charAt(0)}
+              {child.nom.charAt(0)}
+            </Text>
+          </View>
+        )}
+        <Text style={styles.childName}>
+          {child.prenom} {child.nom}
+        </Text>
+        <Text style={styles.childRole}>معلومات الطفل</Text>
+      </View>
+
+      <View style={styles.infoCard}>
+        <Text style={styles.label}>الاسم الكامل</Text>
+        <Text style={styles.value}>
+          {child.prenom} {child.nom}
+        </Text>
+
+        <Text style={styles.label}>تاريخ الميلاد</Text>
+        <Text style={styles.value}>{formatDate(child.date_naissance)}</Text>
+
+        {child.diagnostic ? (
+          <>
+            <Text style={styles.label}>التشخيص</Text>
+            <Text style={styles.value}>{child.diagnostic}</Text>
+          </>
+        ) : null}
+      </View>
+
       <TouchableOpacity
         style={styles.timelineButton}
         onPress={() =>
@@ -81,83 +100,111 @@ export const ChildDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           })
         }
       >
-        <Text style={styles.timelineText}>Voir le suivi</Text>
+        <Text style={styles.timelineText}>عرض المتابعة اليومية</Text>
       </TouchableOpacity>
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
+  container: {
+    padding: 20,
+    backgroundColor: "#F7F7FA",
+    direction: "rtl",
+    writingDirection: "rtl",
+  },
   centered: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
+    backgroundColor: "#F7F7FA",
+    direction: "rtl",
+    writingDirection: "rtl",
   },
   errorText: {
-    color: "#d9534f",
+    color: "#DC2626",
+    fontSize: 16,
     textAlign: "center",
     marginBottom: 12,
   },
   retryButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: "#007bff",
+    backgroundColor: PRIMARY,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 999,
   },
   retryText: {
     color: "#fff",
     fontWeight: "600",
   },
-  content: {
-    padding: 24,
+  avatarWrapper: {
     alignItems: "center",
+    marginBottom: 20,
   },
   avatar: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    marginBottom: 16,
   },
   placeholderAvatar: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    marginBottom: 16,
+    backgroundColor: "#E5E7EB",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#e0e0e0",
   },
   placeholderInitials: {
     fontSize: 32,
     fontWeight: "700",
-    color: "#666",
+    color: "#6B7280",
   },
-  name: {
+  childName: {
     fontSize: 24,
     fontWeight: "700",
-    marginBottom: 16,
-  },
-  label: {
-    alignSelf: "flex-start",
-    color: "#666",
+    color: "#111827",
     marginTop: 12,
+    textAlign: "center",
   },
-  value: {
-    alignSelf: "flex-start",
+  childRole: {
     fontSize: 16,
+    color: "#6B7280",
     marginTop: 4,
   },
+  infoCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  label: {
+    fontSize: 15,
+    color: "#6B7280",
+    marginTop: 12,
+    textAlign: "right",
+  },
+  value: {
+    fontSize: 17,
+    color: "#111827",
+    marginTop: 4,
+    textAlign: "right",
+    fontWeight: "600",
+  },
   timelineButton: {
+    backgroundColor: PRIMARY,
+    paddingVertical: 14,
+    borderRadius: 999,
     marginTop: 24,
-    alignSelf: "stretch",
-    backgroundColor: "#4caf50",
-    paddingVertical: 12,
-    borderRadius: 10,
+    alignItems: "center",
   },
   timelineText: {
-    color: "#fff",
-    textAlign: "center",
-    fontWeight: "600",
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
   },
 });
