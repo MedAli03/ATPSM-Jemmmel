@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -13,55 +13,178 @@ import {
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { EducatorStackParamList } from "../../navigation/EducatorNavigator";
+import {
+  createObservationInitiale,
+  getLatestObservationInitiale,
+  ObservationInitialeDto,
+  updateObservationInitiale,
+} from "../../features/educateur/api";
 
 type Route = RouteProp<EducatorStackParamList, "ObservationInitiale">;
 type Nav = NativeStackNavigationProp<EducatorStackParamList>;
+
+type ObservationFormState = {
+  date: string;
+  context: string;
+  communication: string;
+  social: string;
+  behavior: string;
+  interests: string;
+  sensory: string;
+  strengths: string;
+  needs: string;
+};
+
+const emptyForm: ObservationFormState = {
+  date: "",
+  context: "",
+  communication: "",
+  social: "",
+  behavior: "",
+  interests: "",
+  sensory: "",
+  strengths: "",
+  needs: "",
+};
+
+const serializeContenu = (fields: ObservationFormState): string =>
+  JSON.stringify({ version: 1, ...fields });
+
+const parseContenu = (value: string | null | undefined): Partial<ObservationFormState> => {
+  if (!value) {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    if (parsed && typeof parsed === "object") {
+      const { date, ...rest } = parsed as Record<string, unknown>;
+      const normalized: Partial<ObservationFormState> = {};
+      Object.entries(rest).forEach(([key, val]) => {
+        if (typeof val === "string" && key in emptyForm) {
+          normalized[key as keyof ObservationFormState] = val;
+        }
+      });
+      if (typeof date === "string") {
+        normalized.date = date;
+      }
+      return normalized;
+    }
+  } catch (error) {
+    // Fallback: legacy plain text stored in contenu
+    return { needs: value };
+  }
+
+  return {};
+};
 
 export const ObservationInitialeScreen: React.FC = () => {
   const { params } = useRoute<Route>();
   const navigation = useNavigation<Nav>();
   const { childId } = params;
 
-  // you can pre-fill later from API if observation exists
-  const [date, setDate] = useState<string>("");
-  const [context, setContext] = useState<string>(""); // contexte de l’observation
-  const [communication, setCommunication] = useState<string>("");
-  const [social, setSocial] = useState<string>("");
-  const [behavior, setBehavior] = useState<string>("");
-  const [interests, setInterests] = useState<string>("");
-  const [sensory, setSensory] = useState<string>("");
-  const [strengths, setStrengths] = useState<string>("");
-  const [needs, setNeeds] = useState<string>("");
+  const [form, setForm] = useState<ObservationFormState>(() => ({
+    ...emptyForm,
+    date: new Date().toISOString().slice(0, 10),
+  }));
+  const [observation, setObservation] = useState<ObservationInitialeDto | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const updateField = (key: keyof ObservationFormState, value: string) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadObservation = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const latest = await getLatestObservationInitiale(childId);
+        if (!isMounted) return;
+
+        if (latest) {
+          const parsed = parseContenu(latest.contenu);
+          setObservation(latest);
+          setForm((prev) => ({
+            ...prev,
+            ...parsed,
+            date:
+              parsed.date ||
+              latest.date_observation?.slice(0, 10) ||
+              prev.date,
+          }));
+        }
+      } catch (err) {
+        console.error("Failed to load observation_initiale", err);
+        if (isMounted) {
+          setError("تعذّر تحميل الملاحظة الأوّلية. جرّب مجددًا.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadObservation();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [childId]);
+
+  const hasValidationErrors = useMemo(() => {
+    return !form.date.trim() || !form.needs.trim();
+  }, [form.date, form.needs]);
 
   const handleSave = async () => {
     // simple validation
-    if (!needs.trim()) {
+    if (!form.date.trim()) {
+      Alert.alert("تنبيه", "الرجاء تحديد تاريخ الملاحظة (صيغة ISO: YYYY-MM-DD)");
+      return;
+    }
+
+    if (!form.needs.trim()) {
       Alert.alert("تنبيه", "الرجاء تحديد أهم الاحتياجات التربوية.");
       return;
     }
 
-    const payload = {
-      childId,
-      date: date || null,
-      context,
-      communication,
-      social,
-      behavior,
-      interests,
-      sensory,
-      strengths,
-      needs,
+    setIsSaving(true);
+
+    const dto = {
+      enfant_id: childId,
+      date_observation: form.date,
+      contenu: serializeContenu(form),
     };
 
-    // TODO: POST or PUT /enfants/:id/observation-initiale
-    console.log("Saving observation_initiale", payload);
+    try {
+      let next: ObservationInitialeDto;
+      if (observation) {
+        next = await updateObservationInitiale(observation.id, {
+          date_observation: dto.date_observation,
+          contenu: dto.contenu,
+        });
+      } else {
+        next = await createObservationInitiale(dto);
+      }
 
-    Alert.alert("تمّ الحفظ", "تمّ حفظ الملاحظة الأولية بنجاح.", [
-      {
-        text: "حسنًا",
-        onPress: () => navigation.goBack(),
-      },
-    ]);
+      setObservation(next);
+      Alert.alert("تمّ الحفظ", "تمّ حفظ الملاحظة الأولية بنجاح.", [
+        {
+          text: "حسنًا",
+          onPress: () => navigation.goBack(),
+        },
+      ]);
+    } catch (err) {
+      console.error("Failed to save observation_initiale", err);
+      Alert.alert("خطأ", "تعذّر حفظ الملاحظة. الرجاء المحاولة من جديد.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -79,6 +202,12 @@ export const ObservationInitialeScreen: React.FC = () => {
         <View style={styles.headerCard}>
           <Text style={styles.title}>الملاحظة الأوّلية للطفل</Text>
           <Text style={styles.childIdText}>ID الطفل: {childId}</Text>
+          {isLoading && (
+            <Text style={styles.loadingText}>جارٍ تحميل الملاحظة السابقة...</Text>
+          )}
+          {error && !isLoading && (
+            <Text style={styles.errorText}>{error}</Text>
+          )}
           <Text style={styles.helper}>
             هذه الملاحظة تساعد في بناء الـ PEI الأولي (Projet Éducatif
             Individuel) وتحديد نقاط القوة والاحتياجات.
@@ -93,8 +222,8 @@ export const ObservationInitialeScreen: React.FC = () => {
           <TextInput
             style={styles.input}
             placeholder="مثال: 2025-11-17"
-            value={date}
-            onChangeText={setDate}
+            value={form.date}
+            onChangeText={(text) => updateField("date", text)}
           />
 
           <Text style={styles.label}>السياق</Text>
@@ -102,8 +231,8 @@ export const ObservationInitialeScreen: React.FC = () => {
             style={styles.textArea}
             placeholder="مثال: حصة فردية / حصة جماعية / وقت الاستراحة..."
             multiline
-            value={context}
-            onChangeText={setContext}
+            value={form.context}
+            onChangeText={(text) => updateField("context", text)}
           />
         </View>
 
@@ -116,8 +245,8 @@ export const ObservationInitialeScreen: React.FC = () => {
             style={styles.textArea}
             placeholder="كيفية تواصل الطفل؟ (لغة، إيماءات، صور، تجنّب التواصل...)"
             multiline
-            value={communication}
-            onChangeText={setCommunication}
+            value={form.communication}
+            onChangeText={(text) => updateField("communication", text)}
           />
 
           <Text style={styles.label}>
@@ -127,8 +256,8 @@ export const ObservationInitialeScreen: React.FC = () => {
             style={styles.textArea}
             placeholder="استجابة الطفل للآخرين، اللعب مع الزملاء، الاتصال البصري..."
             multiline
-            value={social}
-            onChangeText={setSocial}
+            value={form.social}
+            onChangeText={(text) => updateField("social", text)}
           />
 
           <Text style={styles.label}>السلوك (Comportement)</Text>
@@ -136,8 +265,8 @@ export const ObservationInitialeScreen: React.FC = () => {
             style={styles.textArea}
             placeholder="سلوكيات متكرّرة، نوبات غضب، صعوبات في الانتقال بين الأنشطة..."
             multiline
-            value={behavior}
-            onChangeText={setBehavior}
+            value={form.behavior}
+            onChangeText={(text) => updateField("behavior", text)}
           />
 
           <Text style={styles.label}>الاهتمامات (Centres d’intérêt)</Text>
@@ -145,8 +274,8 @@ export const ObservationInitialeScreen: React.FC = () => {
             style={styles.textArea}
             placeholder="أنشطة/أشياء يحبّها الطفل، تركيز خاص على موضوع معيّن..."
             multiline
-            value={interests}
-            onChangeText={setInterests}
+            value={form.interests}
+            onChangeText={(text) => updateField("interests", text)}
           />
 
           <Text style={styles.label}>الحسّيّات (Profil sensoriel)</Text>
@@ -154,8 +283,8 @@ export const ObservationInitialeScreen: React.FC = () => {
             style={styles.textArea}
             placeholder="حساسية للصوت/الضوء، بحث عن حركة، لمس الأشياء باستمرار..."
             multiline
-            value={sensory}
-            onChangeText={setSensory}
+            value={form.sensory}
+            onChangeText={(text) => updateField("sensory", text)}
           />
         </View>
 
@@ -168,8 +297,8 @@ export const ObservationInitialeScreen: React.FC = () => {
             style={styles.textArea}
             placeholder="ما الذي ينجح الطفل في فعله؟ ما هي قدراته الحالية؟"
             multiline
-            value={strengths}
-            onChangeText={setStrengths}
+            value={form.strengths}
+            onChangeText={(text) => updateField("strengths", text)}
           />
 
           <Text style={styles.label}>الاحتياجات والأولويات التربوية *</Text>
@@ -177,8 +306,8 @@ export const ObservationInitialeScreen: React.FC = () => {
             style={styles.textArea}
             placeholder="ما هي أهمّ الاحتياجات التي يجب أخذها بعين الاعتبار في الـ PEI؟"
             multiline
-            value={needs}
-            onChangeText={setNeeds}
+            value={form.needs}
+            onChangeText={(text) => updateField("needs", text)}
           />
           <Text style={styles.requiredHint}>
             * هذا الحقل ضروري لأنه يؤثّر مباشرة في أهداف الـ PEI.
@@ -194,10 +323,13 @@ export const ObservationInitialeScreen: React.FC = () => {
             <Text style={styles.cancelText}>إلغاء</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.actionBtn, styles.saveBtn]}
+            style={[styles.actionBtn, styles.saveBtn, hasValidationErrors && styles.disabledBtn]}
             onPress={handleSave}
+            disabled={isSaving || hasValidationErrors}
           >
-            <Text style={styles.saveText}>حفظ الملاحظة</Text>
+            <Text style={styles.saveText}>
+              {isSaving ? "جارٍ الحفظ..." : "حفظ الملاحظة"}
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -219,6 +351,18 @@ const styles = StyleSheet.create({
   title: { fontSize: 18, fontWeight: "700", color: "#111827" },
   childIdText: { fontSize: 13, color: "#4B5563", marginTop: 4 },
   helper: { fontSize: 12, color: "#4B5563", marginTop: 6 },
+  loadingText: {
+    color: "#6B7280",
+    fontSize: 12,
+    textAlign: "center",
+    marginTop: 6,
+  },
+  errorText: {
+    color: "#DC2626",
+    fontSize: 12,
+    textAlign: "center",
+    marginTop: 6,
+  },
 
   card: {
     backgroundColor: "#FFFFFF",
@@ -279,6 +423,9 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
     backgroundColor: "#2563EB",
+  },
+  disabledBtn: {
+    opacity: 0.65,
   },
   cancelText: { fontSize: 14, fontWeight: "600", color: "#111827" },
   saveText: { fontSize: 14, fontWeight: "700", color: "#FFFFFF" },

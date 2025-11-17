@@ -9,6 +9,30 @@ import {
   ProjetEducatifIndividuelSummary,
 } from "./types";
 
+export interface ObservationInitialeDto {
+  id: number;
+  enfant_id: number;
+  educateur_id: number;
+  date_observation: string;
+  contenu: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ObservationInitialePayload {
+  enfant_id: number;
+  date_observation: string;
+  contenu: string;
+}
+
+type ObservationListResponse = {
+  ok?: boolean;
+  rows: ObservationInitialeDto[];
+  count: number;
+  page: number;
+  limit: number;
+};
+
 export const getMyGroups = async (): Promise<Group[]> => {
   const response = await api.get<Group[]>("/educateurs/me/groupes");
   return response.data;
@@ -51,4 +75,40 @@ export const createPeiEvaluation = async (
     payload,
   );
   return response.data;
+};
+
+export const getLatestObservationInitiale = async (
+  enfantId: number,
+): Promise<ObservationInitialeDto | null> => {
+  const response = await api.get<ObservationListResponse>("/observation", {
+    params: {
+      enfant_id: enfantId,
+      limit: 1,
+      page: 1,
+    },
+  });
+
+  const rows = response.data?.rows ?? [];
+  return rows.length > 0 ? rows[0] : null;
+};
+
+export const createObservationInitiale = async (
+  payload: ObservationInitialePayload,
+): Promise<ObservationInitialeDto> => {
+  const response = await api.post<{ ok: boolean; data: ObservationInitialeDto }>(
+    "/observation",
+    payload,
+  );
+  return response.data.data;
+};
+
+export const updateObservationInitiale = async (
+  observationId: number,
+  payload: Partial<Omit<ObservationInitialePayload, "enfant_id">>,
+): Promise<ObservationInitialeDto> => {
+  const response = await api.put<{ ok: boolean; data: ObservationInitialeDto }>(
+    `/observation/${observationId}`,
+    payload,
+  );
+  return response.data.data;
 };
