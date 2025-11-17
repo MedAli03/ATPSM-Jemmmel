@@ -1,15 +1,31 @@
 // src/screens/educateur/EducatorChildDetailsScreen.tsx
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { EducatorStackParamList } from "../../navigation/EducatorNavigator";
+import {
+  getActivePeiForChild,
+  getChildDetails,
+  getLatestObservationInitiale,
+  getPEI,
+  getPeiActivities,
+  getPeiEvaluations,
+  ObservationInitialeDto,
+} from "../../features/educateur/api";
+import {
+  ChildDetails,
+  PeiActivitySummary,
+  PeiDetails,
+  PeiEvaluation,
+} from "../../features/educateur/types";
 
 type Route = RouteProp<EducatorStackParamList, "EducatorChildDetails">;
 type Nav = NativeStackNavigationProp<EducatorStackParamList>;
@@ -19,70 +35,125 @@ export const EducatorChildDetailsScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const { childId } = params;
 
-  // TODO: replace all this with real API calls
-  const child = {
-    id: childId,
-    firstName: "Ahmed",
-    lastName: "Ben Ali",
-    birthDate: "2017-04-10",
-    group: "مجموعة الألوان",
-    diagnosis: "TSA - Niveau 2 (communication + interaction sociale)",
-    allergies: "لا يوجد",
-    needs: "Structure visuelle, routines stables, temps de transition.",
-  };
+  const [child, setChild] = useState<ChildDetails | null>(null);
+  const [observation, setObservation] = useState<ObservationInitialeDto | null>(null);
+  const [peiDetails, setPeiDetails] = useState<PeiDetails | null>(null);
+  const [evaluations, setEvaluations] = useState<PeiEvaluation[]>([]);
+  const [activities, setActivities] = useState<PeiActivitySummary[]>([]);
+  const [activePeiId, setActivePeiId] = useState<number | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const peiSummary = {
-    status: "ACTIVE" as "ACTIVE" | "TO_REVIEW" | "CLOSED",
-    lastUpdate: "2025-11-01",
-    nextReview: "2026-02-01",
-    objectivesCount: 4,
-    activitiesCount: 9,
-  };
+  useEffect(() => {
+    let isMounted = true;
 
-  const observation = {
-    exists: true,
-    date: "2025-10-15",
-    completed: true,
-  };
+    const loadProfile = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [childData, observationData] = await Promise.all([
+          getChildDetails(childId),
+          getLatestObservationInitiale(childId).catch(() => null),
+        ]);
 
-  const lastEvaluations = [
-    {
-      id: 1,
-      date: "2025-11-10",
-      summary: "تحسّن ملحوظ في التواصل البصري خلال الأنشطة المهيكلة.",
-    },
-    {
-      id: 2,
-      date: "2025-09-01",
-      summary: "ثبات في تنفيذ الروتين الصباحي مع دعم بسيط.",
-    },
-  ];
+        if (!isMounted) return;
+        setChild(childData);
+        setObservation(observationData);
 
-  const lastActivities = [
-    {
-      id: 1,
-      date: "2025-11-15",
-      title: "لعبة تصنيف الألوان",
-    },
-    {
-      id: 2,
-      date: "2025-11-12",
-      title: "تمارين حركية دقيقة بالمعجون",
-    },
-  ];
+        const activePei = await getActivePeiForChild(childId);
+        if (!isMounted) return;
 
-  const fullName = `${child.firstName} ${child.lastName}`;
+        if (activePei) {
+          setActivePeiId(activePei.id);
+          const [peiInfo, evals, acts] = await Promise.all([
+            getPEI(activePei.id),
+            getPeiEvaluations(activePei.id),
+            getPeiActivities(activePei.id, { pageSize: 5 }),
+          ]);
+          if (!isMounted) return;
+          setPeiDetails(peiInfo);
+          setEvaluations(evals.slice(0, 3));
+          setActivities(acts.slice(0, 3));
+        } else {
+          setActivePeiId(null);
+          setPeiDetails(null);
+          setEvaluations([]);
+          setActivities([]);
+        }
+      } catch (err) {
+        console.error("Failed to load child profile", err);
+        if (isMounted) {
+          setError("تعذّر تحميل ملف الطفل. حاول مجددًا لاحقًا.");
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [childId]);
+
+  const fullName = `${child?.prenom ?? ""} ${child?.nom ?? ""}`.trim() || "ملف طفل";
 
   const renderPeiStatusLabel = () => {
-    switch (peiSummary.status) {
-      case "ACTIVE":
+    if (!peiDetails) return "لا يوجد";
+    switch (peiDetails.statut) {
+      case "ACTIF":
         return "PEI مفعّل";
-      case "TO_REVIEW":
-        return "في انتظار مراجعة";
-      default:
+      case "CLOTURE":
         return "PEI مغلق";
+      default:
+        return "في انتظار مراجعة";
     }
   };
+
+  if (loading && !child) {
+    return (
+      <View style={styles.loaderContainer}>
+        <ActivityIndicator color="#2563EB" />
+        <Text style={styles.loaderText}>جارٍ تحميل ملف الطفل...</Text>
+      </View>
+    );
+  }
+
+  const groupLabel = peiDetails?.titre ?? "ملف تربوي";
+  const birthDate = child?.date_naissance ? child.date_naissance.slice(0, 10) : "غير متاح";
+  const diagnosis = child?.diagnostic ?? "غير مصرح";
+  const allergies = child?.allergies ?? "غير مصرح";
+  const needs = child?.besoins_specifiques ?? child?.description ?? "لم يتم تحديد احتياجات بعد";
+  const peiStatusStyle = peiDetails
+    ? peiDetails.statut === "ACTIF"
+      ? styles.peiStatusActive
+      : peiDetails.statut === "CLOTURE"
+      ? styles.peiStatusClosed
+      : styles.peiStatusToReview
+    : styles.peiStatusClosed;
+  const formatDate = (value?: string | null) => (value ? value.slice(0, 10) : "غير متاح");
+  const observationInfo = observation
+    ? {
+        exists: true,
+        date: observation.date_observation?.slice(0, 10) ?? "",
+        completed: Boolean(observation.contenu),
+      }
+    : { exists: false, date: "", completed: false };
+  const peiStats = peiDetails
+    ? {
+        lastUpdate: peiDetails.date_derniere_maj ?? peiDetails.date_debut,
+        nextReview: peiDetails.date_fin_prevue ?? undefined,
+        objectivesCount: peiDetails.objectifs
+          ? peiDetails.objectifs.split(/\n+/).filter((line) => line.trim().length > 0).length
+          : 0,
+        activitiesCount: activities.length,
+      }
+    : null;
+  const lastEvaluations = evaluations;
+  const lastActivities = activities;
 
   return (
     <ScrollView
@@ -90,22 +161,21 @@ export const EducatorChildDetailsScreen: React.FC = () => {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
+      {error && (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
+
       {/* HEADER */}
       <View style={styles.headerCard}>
         <View style={styles.headerTopRow}>
           <View style={{ flex: 1 }}>
             <Text style={styles.childName}>{fullName}</Text>
-            <Text style={styles.childGroup}>{child.group}</Text>
+            <Text style={styles.childGroup}>{groupLabel}</Text>
           </View>
           <View
-            style={[
-              styles.peiStatusChip,
-              peiSummary.status === "ACTIVE"
-                ? styles.peiStatusActive
-                : peiSummary.status === "TO_REVIEW"
-                ? styles.peiStatusToReview
-                : styles.peiStatusClosed,
-            ]}
+            style={[styles.peiStatusChip, peiStatusStyle]}
           >
             <Text style={styles.peiStatusText}>{renderPeiStatusLabel()}</Text>
           </View>
@@ -123,22 +193,22 @@ export const EducatorChildDetailsScreen: React.FC = () => {
 
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>تاريخ الميلاد</Text>
-          <Text style={styles.infoValue}>{child.birthDate}</Text>
+          <Text style={styles.infoValue}>{birthDate}</Text>
         </View>
 
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>التشخيص</Text>
-          <Text style={styles.infoValue}>{child.diagnosis}</Text>
+          <Text style={styles.infoValue}>{diagnosis}</Text>
         </View>
 
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>الحساسيّات</Text>
-          <Text style={styles.infoValue}>{child.allergies}</Text>
+          <Text style={styles.infoValue}>{allergies}</Text>
         </View>
 
         <View style={styles.infoRowColumn}>
           <Text style={styles.infoLabel}>الاحتياجات التربوية</Text>
-          <Text style={styles.infoValue}>{child.needs}</Text>
+          <Text style={styles.infoValue}>{needs}</Text>
         </View>
       </View>
 
@@ -151,16 +221,18 @@ export const EducatorChildDetailsScreen: React.FC = () => {
 
         <View style={styles.obsRow}>
           <View style={{ flex: 1 }}>
-            {observation.exists ? (
+            {observationInfo.exists ? (
               <>
                 <Text style={styles.obsStatusText}>
-                  {observation.completed
+                  {observationInfo.completed
                     ? "ملاحظة أولية مكتملة."
                     : "ملاحظة أولية في طور الإنجاز."}
                 </Text>
-                <Text style={styles.obsDate}>
-                  آخر تحديث: {observation.date}
-                </Text>
+                {observationInfo.date ? (
+                  <Text style={styles.obsDate}>
+                    آخر تحديث: {observationInfo.date}
+                  </Text>
+                ) : null}
               </>
             ) : (
               <Text style={styles.obsStatusText}>
@@ -171,14 +243,14 @@ export const EducatorChildDetailsScreen: React.FC = () => {
           <View
             style={[
               styles.obsStatusChip,
-              observation.exists && observation.completed
+              observationInfo.exists && observationInfo.completed
                 ? styles.obsStatusDone
                 : styles.obsStatusPending,
             ]}
           >
             <Text style={styles.obsStatusChipText}>
-              {observation.exists
-                ? observation.completed
+              {observationInfo.exists
+                ? observationInfo.completed
                   ? "مكتملة"
                   : "غير مكتملة"
                 : "غير موجودة"}
@@ -206,36 +278,44 @@ export const EducatorChildDetailsScreen: React.FC = () => {
         <View style={styles.peiRow}>
           <View style={styles.peiColumn}>
             <Text style={styles.peiLabel}>آخر تحديث</Text>
-            <Text style={styles.peiValue}>{peiSummary.lastUpdate}</Text>
+            <Text style={styles.peiValue}>
+              {peiStats?.lastUpdate ? formatDate(peiStats.lastUpdate) : "غير متاح"}
+            </Text>
           </View>
           <View style={styles.peiColumn}>
             <Text style={styles.peiLabel}>مراجعة قادمة</Text>
-            <Text style={styles.peiValue}>{peiSummary.nextReview}</Text>
+            <Text style={styles.peiValue}>
+              {peiStats?.nextReview ? formatDate(peiStats.nextReview) : "غير محدد"}
+            </Text>
           </View>
         </View>
 
         <View style={styles.peiRow}>
           <View style={styles.peiColumn}>
             <Text style={styles.peiLabel}>عدد الأهداف</Text>
-            <Text style={styles.peiValue}>{peiSummary.objectivesCount}</Text>
+            <Text style={styles.peiValue}>{peiStats?.objectivesCount ?? 0}</Text>
           </View>
           <View style={styles.peiColumn}>
             <Text style={styles.peiLabel}>عدد الأنشطة</Text>
-            <Text style={styles.peiValue}>{peiSummary.activitiesCount}</Text>
+            <Text style={styles.peiValue}>{peiStats?.activitiesCount ?? 0}</Text>
           </View>
         </View>
 
         <View style={styles.peiActionsRow}>
           <TouchableOpacity
-            style={styles.peiActionBtn}
+            style={[styles.peiActionBtn, !activePeiId && styles.peiActionBtnDisabled]}
+            disabled={!activePeiId}
             onPress={() =>
+              activePeiId &&
               navigation.navigate("EducatorPeiDetail", {
-                childId: child.id,
-                peiId: 1, // later: real PEI id from API
+                childId,
+                peiId: activePeiId,
               })
             }
           >
-            <Text style={styles.peiActionText}>عرض تفاصيل الـ PEI</Text>
+            <Text style={styles.peiActionText}>
+              {activePeiId ? "عرض تفاصيل الـ PEI" : "لا يوجد PEI نشط"}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -251,8 +331,10 @@ export const EducatorChildDetailsScreen: React.FC = () => {
           ) : (
             lastEvaluations.map((e) => (
               <View key={e.id} style={styles.itemRow}>
-                <Text style={styles.itemDate}>{e.date}</Text>
-                <Text style={styles.itemSummary}>{e.summary}</Text>
+                <Text style={styles.itemDate}>{formatDate(e.date)}</Text>
+                <Text style={styles.itemSummary}>
+                  {e.commentaire_global ?? "بدون ملاحظات"}
+                </Text>
               </View>
             ))
           )}
@@ -267,8 +349,10 @@ export const EducatorChildDetailsScreen: React.FC = () => {
           ) : (
             lastActivities.map((a) => (
               <View key={a.id} style={styles.itemRow}>
-                <Text style={styles.itemDate}>{a.date}</Text>
-                <Text style={styles.itemSummary}>{a.title}</Text>
+                <Text style={styles.itemDate}>{formatDate(a.date)}</Text>
+                <Text style={styles.itemSummary}>
+                  {a.titre ?? a.description ?? "نشاط تربوي"}
+                </Text>
               </View>
             ))
           )}
@@ -286,7 +370,10 @@ export const EducatorChildDetailsScreen: React.FC = () => {
           <TouchableOpacity
             style={styles.quickBtn}
             onPress={() =>
-              navigation.navigate("DailyNoteForm", { childId: child.id })
+              navigation.navigate("DailyNoteForm", {
+                childId,
+                peiId: activePeiId ?? undefined,
+              })
             }
           >
             <Text style={styles.quickEmoji}>📝</Text>
@@ -296,7 +383,10 @@ export const EducatorChildDetailsScreen: React.FC = () => {
           <TouchableOpacity
             style={styles.quickBtn}
             onPress={() =>
-              navigation.navigate("ActivityForm", { childId: child.id })
+              navigation.navigate("ActivityForm", {
+                childId,
+                peiId: activePeiId ?? undefined,
+              })
             }
           >
             <Text style={styles.quickEmoji}>🎯</Text>
@@ -307,7 +397,7 @@ export const EducatorChildDetailsScreen: React.FC = () => {
             style={styles.quickBtn}
             onPress={() =>
               navigation.navigate("EducatorChatThread", {
-                childId: child.id,
+                childId,
               })
             }
           >
@@ -326,6 +416,23 @@ export const EducatorChildDetailsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F3F4F6" },
   content: { padding: 16, paddingBottom: 24 },
+  loaderContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 32,
+    backgroundColor: "#F3F4F6",
+  },
+  loaderText: { marginTop: 12, color: "#4B5563" },
+  errorBox: {
+    backgroundColor: "#FEF2F2",
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+    marginBottom: 12,
+  },
+  errorText: { fontSize: 13, color: "#B91C1C", textAlign: "right" },
 
   headerCard: {
     backgroundColor: "#EEF2FF",
@@ -421,8 +528,13 @@ const styles = StyleSheet.create({
     borderColor: "#2563EB",
     paddingVertical: 10,
     alignItems: "center",
+    backgroundColor: "#EFF6FF",
   },
   peiActionText: { fontSize: 13, fontWeight: "600", color: "#2563EB" },
+  peiActionBtnDisabled: {
+    backgroundColor: "#E5E7EB",
+    borderColor: "#D1D5DB",
+  },
 
   // Evaluations & activities
   rowCardWrapper: {

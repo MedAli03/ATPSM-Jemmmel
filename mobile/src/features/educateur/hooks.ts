@@ -28,7 +28,7 @@ export const useMyGroups = () => {
   const fetchGroups = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getMyGroups();
+      const data = await getMyGroups({ includeHistory: true });
       setGroups(data);
       setError(null);
     } catch (err) {

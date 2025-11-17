@@ -6,123 +6,26 @@ import {
     ScrollView,
     SafeAreaView,
     TouchableOpacity,
+    ActivityIndicator,
 } from "react-native";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { EducatorStackParamList } from "../../navigation/EducatorNavigator";
+import {
+  getPEI,
+  getPeiActivities,
+  getPeiEvaluations,
+} from "../../features/educateur/api";
+import {
+  PeiActivitySummary,
+  PeiDetails,
+  PeiEvaluation,
+} from "../../features/educateur/types";
 
 type Route = RouteProp<EducatorStackParamList, "EducatorPeiDetail">;
 type Nav = NativeStackNavigationProp<EducatorStackParamList>;
 
 type TabKey = "OBJECTIFS" | "ACTIVITES" | "EVALUATIONS";
-
-type PeiOverview = {
-  title: string;
-  status: "ACTIVE" | "TO_REVIEW" | "CLOSED";
-  startDate: string;
-  endDate?: string | null;
-  lastEvaluationDate?: string | null;
-};
-
-type PeiObjective = {
-  id: number;
-  domain: string; // Communication, Autonomie...
-  description: string;
-  status: "IN_PROGRESS" | "ACHIEVED" | "NOT_STARTED";
-  progress: number; // 0–100
-};
-
-type PeiActivity = {
-  id: number;
-  date: string;
-  title: string;
-  domain: string;
-  status: "DONE" | "PLANNED";
-};
-
-type PeiEvaluation = {
-  id: number;
-  date: string;
-  periodLabel: string; // "Évaluation 3 mois"
-  summary: string;
-  globalScore?: number; // 1–5
-};
-
-// MOCKS – replace later with API data
-const MOCK_OVERVIEW: PeiOverview = {
-  title: "PEI 2024 / 2025 – Ahmed",
-  status: "ACTIVE",
-  startDate: "2024-09-01",
-  endDate: null,
-  lastEvaluationDate: "2025-01-15",
-};
-
-const MOCK_OBJECTIVES: PeiObjective[] = [
-  {
-    id: 1,
-    domain: "Communication",
-    description: "Augmenter les demandes spontanées à l’aide de pictogrammes.",
-    status: "IN_PROGRESS",
-    progress: 60,
-  },
-  {
-    id: 2,
-    domain: "Autonomie",
-    description: "Participer au rangement du matériel à la fin de l’activité.",
-    status: "ACHIEVED",
-    progress: 100,
-  },
-  {
-    id: 3,
-    domain: "Interaction sociale",
-    description: "Tolérer la présence d’un pair pendant 5 minutes de jeu.",
-    status: "NOT_STARTED",
-    progress: 0,
-  },
-];
-
-const MOCK_ACTIVITIES: PeiActivity[] = [
-  {
-    id: 1,
-    date: "2025-02-01",
-    title: "Jeu de demandes avec pictogrammes",
-    domain: "Communication",
-    status: "DONE",
-  },
-  {
-    id: 2,
-    date: "2025-01-20",
-    title: "Routine de rangement après activité",
-    domain: "Autonomie",
-    status: "DONE",
-  },
-  {
-    id: 3,
-    date: "2025-02-05",
-    title: "Jeu parallèle avec un pair",
-    domain: "Interaction sociale",
-    status: "PLANNED",
-  },
-];
-
-const MOCK_EVALUATIONS: PeiEvaluation[] = [
-  {
-    id: 1,
-    date: "2025-01-15",
-    periodLabel: "Évaluation à 3 mois",
-    summary:
-      "Progression satisfaisante en communication visuelle, objectifs d’autonomie largement atteints.",
-    globalScore: 4,
-  },
-  {
-    id: 2,
-    date: "2024-11-15",
-    periodLabel: "Bilan initial",
-    summary:
-      "Mise en place des routines et introduction des supports visuels.",
-    globalScore: 3,
-  },
-];
 
 export const EducatorPeiDetailScreen: React.FC = () => {
   const { params } = useRoute<Route>();
@@ -130,82 +33,113 @@ export const EducatorPeiDetailScreen: React.FC = () => {
   const { childId, peiId } = params;
 
   const [tab, setTab] = useState<TabKey>("OBJECTIFS");
-  const [overview, setOverview] = useState<PeiOverview | null>(null);
-  const [objectives, setObjectives] = useState<PeiObjective[]>([]);
-  const [activities, setActivities] = useState<PeiActivity[]>([]);
+  const [pei, setPei] = useState<PeiDetails | null>(null);
+  const [activities, setActivities] = useState<PeiActivitySummary[]>([]);
   const [evaluations, setEvaluations] = useState<PeiEvaluation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // TODO: fetch from API:
-    // GET /enfants/:childId/pei/:peiId
-    setOverview(MOCK_OVERVIEW);
-    setObjectives(MOCK_OBJECTIVES);
-    setActivities(MOCK_ACTIVITIES);
-    setEvaluations(MOCK_EVALUATIONS);
-  }, [childId, peiId]);
+    let isMounted = true;
 
-  const renderStatusLabel = (status: PeiOverview["status"]) => {
+    const loadPei = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [peiDetails, activityItems, evaluationItems] = await Promise.all([
+          getPEI(peiId),
+          getPeiActivities(peiId, { pageSize: 20 }),
+          getPeiEvaluations(peiId),
+        ]);
+        if (!isMounted) return;
+        setPei(peiDetails);
+        setActivities(activityItems);
+        setEvaluations(evaluationItems);
+      } catch (err) {
+        console.error("Failed to load PEI details", err);
+        if (isMounted) {
+          setError("تعذّر تحميل بيانات الـ PEI. حاول لاحقًا.");
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadPei();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [peiId]);
+
+  const renderStatusLabel = (status?: PeiDetails["statut"]) => {
     switch (status) {
-      case "ACTIVE":
+      case "ACTIF":
         return "PEI مفعّل";
-      case "TO_REVIEW":
-        return "في انتظار مراجعة";
-      default:
+      case "CLOTURE":
         return "PEI مغلق";
-    }
-  };
-
-  const renderObjectiveStatus = (status: PeiObjective["status"]) => {
-    switch (status) {
-      case "IN_PROGRESS":
-        return "جاري الإنجاز";
-      case "ACHIEVED":
-        return "متحقّق";
+      case "BROUILLON":
+        return "PEI في طور الإعداد";
       default:
-        return "غير مفعّل";
+        return "PEI";
     }
   };
 
   const openChildTimeline = () => {
-    navigation.navigate("EducatorChildTimeline", { childId });
+    navigation.navigate("EducatorChildTimeline", { childId, peiId });
   };
+
+  const formatDate = (value?: string | null) => (value ? value.slice(0, 10) : "-");
+  const objectiveLines = pei?.objectifs
+    ? pei.objectifs.split(/\n+/).map((line) => line.trim()).filter(Boolean)
+    : [];
+  const statusStyle = pei?.statut === "ACTIF"
+    ? styles.statusActive
+    : pei?.statut === "CLOTURE"
+    ? styles.statusClosed
+    : styles.statusToReview;
+  const showLoader = loading && !pei;
+
+  if (showLoader) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loaderBox}>
+          <ActivityIndicator color="#2563EB" />
+          <Text style={styles.loaderText}>جارٍ تحميل تفاصيل الـ PEI...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
+        {error && (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+
         {/* HEADER */}
-        {overview && (
+        {pei ? (
           <View style={styles.headerCard}>
-            <Text style={styles.title}>{overview.title}</Text>
+            <Text style={styles.title}>{pei.titre}</Text>
 
             <View style={styles.headerRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.headerLabel}>بداية الـ PEI</Text>
-                <Text style={styles.headerValue}>{overview.startDate}</Text>
-                {overview.lastEvaluationDate && (
+                <Text style={styles.headerValue}>{formatDate(pei.date_debut)}</Text>
+                {pei.date_derniere_maj && (
                   <>
-                    <Text style={[styles.headerLabel, { marginTop: 6 }]}>
-                      آخر تقييم
-                    </Text>
-                    <Text style={styles.headerValue}>
-                      {overview.lastEvaluationDate}
-                    </Text>
+                    <Text style={[styles.headerLabel, { marginTop: 6 }]}>آخر تحديث</Text>
+                    <Text style={styles.headerValue}>{formatDate(pei.date_derniere_maj)}</Text>
                   </>
                 )}
               </View>
-              <View
-                style={[
-                  styles.statusChip,
-                  overview.status === "ACTIVE"
-                    ? styles.statusActive
-                    : overview.status === "TO_REVIEW"
-                    ? styles.statusToReview
-                    : styles.statusClosed,
-                ]}
-              >
-                <Text style={styles.statusText}>
-                  {renderStatusLabel(overview.status)}
-                </Text>
+              <View style={[styles.statusChip, statusStyle]}>
+                <Text style={styles.statusText}>{renderStatusLabel(pei.statut)}</Text>
               </View>
             </View>
 
@@ -215,6 +149,10 @@ export const EducatorPeiDetailScreen: React.FC = () => {
             >
               <Text style={styles.timelineBtnText}>عرض يوم الطفل (Timeline)</Text>
             </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.emptyPeiBox}>
+            <Text style={styles.emptyText}>لا تتوفر بيانات الـ PEI الحالية.</Text>
           </View>
         )}
 
@@ -245,45 +183,15 @@ export const EducatorPeiDetailScreen: React.FC = () => {
         >
           {tab === "OBJECTIFS" && (
             <View>
-              {objectives.length === 0 ? (
+              {objectiveLines.length === 0 ? (
                 <Text style={styles.emptyText}>
                   لا توجد أهداف مربوطة بهذا الـ PEI بعد.
                 </Text>
               ) : (
-                objectives.map((obj) => (
-                  <View key={obj.id} style={styles.objectiveCard}>
-                    <View style={styles.objectiveHeaderRow}>
-                      <Text style={styles.objectiveDomain}>{obj.domain}</Text>
-                      <View
-                        style={[
-                          styles.objectiveStatusChip,
-                          obj.status === "ACHIEVED"
-                            ? styles.objectiveStatusAchieved
-                            : obj.status === "IN_PROGRESS"
-                            ? styles.objectiveStatusInProgress
-                            : styles.objectiveStatusNotStarted,
-                        ]}
-                      >
-                        <Text style={styles.objectiveStatusText}>
-                          {renderObjectiveStatus(obj.status)}
-                        </Text>
-                      </View>
-                    </View>
-                    <Text style={styles.objectiveDescription}>
-                      {obj.description}
-                    </Text>
-
-                    <View style={styles.progressBar}>
-                      <View
-                        style={[
-                          styles.progressFill,
-                          { width: `${obj.progress}%` },
-                        ]}
-                      />
-                    </View>
-                    <Text style={styles.progressLabel}>
-                      التقدّم: {obj.progress}%
-                    </Text>
+                objectiveLines.map((line, index) => (
+                  <View key={`objective-${index}`} style={styles.objectiveCard}>
+                    <Text style={styles.objectiveDomain}>هدف #{index + 1}</Text>
+                    <Text style={styles.objectiveDescription}>{line}</Text>
                   </View>
                 ))
               )}
@@ -300,26 +208,20 @@ export const EducatorPeiDetailScreen: React.FC = () => {
                 activities.map((act) => (
                   <View key={act.id} style={styles.activityCard}>
                     <View style={styles.activityHeaderRow}>
-                      <View>
-                        <Text style={styles.activityTitle}>{act.title}</Text>
-                        <Text style={styles.activityDomain}>
-                          المجال: {act.domain}
-                        </Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.activityTitle}>{act.titre ?? "نشاط"}</Text>
+                        {act.type ? (
+                          <Text style={styles.activityDomain}>النوع: {act.type}</Text>
+                        ) : null}
                       </View>
-                      <View
-                        style={[
-                          styles.activityStatusChip,
-                          act.status === "DONE"
-                            ? styles.activityStatusDone
-                            : styles.activityStatusPlanned,
-                        ]}
-                      >
-                        <Text style={styles.activityStatusText}>
-                          {act.status === "DONE" ? "منجزة" : "مخطّطة"}
-                        </Text>
-                      </View>
+                      {act.educateur && (
+                        <Text style={styles.activityEducator}>{act.educateur}</Text>
+                      )}
                     </View>
-                    <Text style={styles.activityDate}>بتاريخ: {act.date}</Text>
+                    <Text style={styles.activityDate}>بتاريخ: {formatDate(act.date)}</Text>
+                    {act.description ? (
+                      <Text style={styles.activityDescription}>{act.description}</Text>
+                    ) : null}
                   </View>
                 ))
               )}
@@ -338,20 +240,22 @@ export const EducatorPeiDetailScreen: React.FC = () => {
                     <View style={styles.evaluationHeaderRow}>
                       <View>
                         <Text style={styles.evaluationPeriod}>
-                          {ev.periodLabel}
+                          {ev.periode || "تقييم"}
                         </Text>
                         <Text style={styles.evaluationDate}>
-                          بتاريخ: {ev.date}
+                          بتاريخ: {formatDate(ev.date)}
                         </Text>
                       </View>
-                      {ev.globalScore != null && (
+                      {ev.note_globale != null && (
                         <View style={styles.scoreBadge}>
                           <Text style={styles.scoreLabel}>تقييم عام</Text>
-                          <Text style={styles.scoreValue}>{ev.globalScore}/5</Text>
+                          <Text style={styles.scoreValue}>{ev.note_globale}/5</Text>
                         </View>
                       )}
                     </View>
-                    <Text style={styles.evaluationSummary}>{ev.summary}</Text>
+                    <Text style={styles.evaluationSummary}>
+                      {ev.commentaire_global ?? "لا توجد ملاحظات"}
+                    </Text>
                   </View>
                 ))
               )}
@@ -385,6 +289,22 @@ const TabButton: React.FC<TabButtonProps> = ({ label, active, onPress }) => {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#F3F4F6" },
   container: { flex: 1, paddingHorizontal: 16, paddingTop: 8 },
+  loaderBox: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  loaderText: { marginTop: 12, color: "#4B5563" },
+  errorBox: {
+    backgroundColor: "#FEF2F2",
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+    marginBottom: 12,
+  },
+  errorText: { fontSize: 13, color: "#B91C1C", textAlign: "right" },
 
   headerCard: {
     backgroundColor: "#EEF2FF",
@@ -424,6 +344,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#2563EB",
     fontWeight: "600",
+  },
+  emptyPeiBox: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    marginBottom: 12,
   },
 
   tabsRow: {
@@ -466,45 +394,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
-  objectiveHeaderRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 4,
-  },
   objectiveDomain: {
     fontSize: 13,
     fontWeight: "700",
     color: "#111827",
   },
-  objectiveStatusChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  objectiveStatusText: { fontSize: 11, fontWeight: "600" },
-  objectiveStatusAchieved: { backgroundColor: "#DCFCE7" },
-  objectiveStatusInProgress: { backgroundColor: "#FEF3C7" },
-  objectiveStatusNotStarted: { backgroundColor: "#E5E7EB" },
   objectiveDescription: {
     fontSize: 13,
     color: "#4B5563",
-    marginTop: 4,
-  },
-  progressBar: {
-    height: 6,
-    borderRadius: 999,
-    backgroundColor: "#E5E7EB",
-    marginTop: 8,
-    overflow: "hidden",
-  },
-  progressFill: {
-    height: "100%",
-    borderRadius: 999,
-    backgroundColor: "#2563EB",
-  },
-  progressLabel: {
-    fontSize: 11,
-    color: "#6B7280",
     marginTop: 4,
   },
 
@@ -523,15 +420,9 @@ const styles = StyleSheet.create({
   },
   activityTitle: { fontSize: 14, fontWeight: "700", color: "#111827" },
   activityDomain: { fontSize: 12, color: "#6B7280", marginTop: 2 },
-  activityStatusChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  activityStatusText: { fontSize: 11, fontWeight: "600" },
-  activityStatusDone: { backgroundColor: "#DCFCE7" },
-  activityStatusPlanned: { backgroundColor: "#FEF3C7" },
+  activityEducator: { fontSize: 12, color: "#6B7280" },
   activityDate: { fontSize: 12, color: "#6B7280", marginTop: 6 },
+  activityDescription: { fontSize: 12, color: "#374151", marginTop: 6 },
 
   // EVALUATIONS
   evaluationCard: {

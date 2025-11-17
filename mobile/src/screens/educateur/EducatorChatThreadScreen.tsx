@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -8,52 +8,130 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
+  RefreshControl,
+  Alert,
 } from "react-native";
 import { RouteProp, useRoute } from "@react-navigation/native";
 import { EducatorStackParamList } from "../../navigation/EducatorNavigator";
+import {
+  getThreadDetails,
+  listThreadMessages,
+  markThreadAsRead,
+  sendThreadMessage,
+} from "../../features/educateur/api";
+import { MessageCursor, MessageThreadSummary, ThreadMessage } from "../../features/educateur/types";
 
 type Route = RouteProp<EducatorStackParamList, "EducatorChatThread">;
 
-type Message = {
-  id: number;
-  from: "PARENT" | "EDUCATEUR";
-  content: string;
-  createdAt: string;
-};
-
-const MOCK_MESSAGES: Message[] = [
-  {
-    id: 1,
-    from: "PARENT",
-    content: "Bonjour madame, comment s’est passé la journée ?",
-    createdAt: "08:30",
-  },
-  {
-    id: 2,
-    from: "EDUCATEUR",
-    content: "Ahmed était très concentré aujourd’hui, bravo à lui.",
-    createdAt: "08:45",
-  },
-];
-
 export const EducatorChatThreadScreen: React.FC = () => {
   const { params } = useRoute<Route>();
-  const { childId } = params;
-  const [messages, setMessages] = useState<Message[]>(MOCK_MESSAGES);
+  const { childId, threadId } = params;
+  const [thread, setThread] = useState<MessageThreadSummary | null>(null);
+  const [messages, setMessages] = useState<ThreadMessage[]>([]);
   const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(Boolean(threadId));
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [nextCursor, setNextCursor] = useState<MessageCursor | null>(null);
 
-  const sendMessage = () => {
-    if (!input.trim()) return;
-    const newMsg: Message = {
-      id: messages.length + 1,
-      from: "EDUCATEUR",
-      content: input.trim(),
-      createdAt: "Maintenant",
-    };
-    setMessages((prev) => [...prev, newMsg]);
-    setInput("");
-    // TODO: POST /threads/:id/messages
-  };
+  const loadThread = useCallback(async () => {
+    if (!threadId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const [threadDetails, history] = await Promise.all([
+        getThreadDetails(threadId),
+        listThreadMessages(threadId, { limit: 30 }),
+      ]);
+      setThread(threadDetails);
+      setMessages(history.messages);
+      setNextCursor(history.nextCursor);
+      if (history.messages.length) {
+        await markThreadAsRead(threadId, history.messages[history.messages.length - 1].id);
+      }
+    } catch (err) {
+      console.error("Failed to load thread", err);
+      setError("تعذّر تحميل المحادثة. الرجاء العودة لاحقًا.");
+    } finally {
+      setLoading(false);
+    }
+  }, [threadId]);
+
+  useEffect(() => {
+    loadThread();
+  }, [loadThread]);
+
+  const refreshMessages = useCallback(async () => {
+    if (!threadId) return;
+    setRefreshing(true);
+    try {
+      const history = await listThreadMessages(threadId, { limit: 30 });
+      setMessages(history.messages);
+      setNextCursor(history.nextCursor);
+      if (history.messages.length) {
+        await markThreadAsRead(threadId, history.messages[history.messages.length - 1].id);
+      }
+    } catch (err) {
+      console.error("Failed to refresh messages", err);
+      Alert.alert("خطأ", "تعذّر تحديث الرسائل، حاول مجددًا.");
+    } finally {
+      setRefreshing(false);
+    }
+  }, [threadId]);
+
+  const loadOlder = useCallback(async () => {
+    if (!threadId || !nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const history = await listThreadMessages(threadId, { cursor: nextCursor, limit: 30 });
+      setMessages((prev) => [...history.messages, ...prev]);
+      setNextCursor(history.nextCursor);
+    } catch (err) {
+      console.error("Failed to load older messages", err);
+      Alert.alert("خطأ", "تعذّر تحميل رسائل أقدم.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [threadId, nextCursor, loadingMore]);
+
+  const handleSend = useCallback(async () => {
+    if (!threadId || !input.trim()) return;
+    setSending(true);
+    try {
+      const message = await sendThreadMessage(threadId, { text: input.trim() });
+      setMessages((prev) => [...prev, message]);
+      setInput("");
+    } catch (err) {
+      console.error("Failed to send message", err);
+      const message = err instanceof Error ? err.message : "تعذّر إرسال الرسالة.";
+      Alert.alert("خطأ", message);
+    } finally {
+      setSending(false);
+    }
+  }, [input, threadId]);
+
+  const isEducatorMessage = useCallback(
+    (message: ThreadMessage) => message.sender?.role === "EDUCATEUR",
+    []
+  );
+
+  const threadTitle = useMemo(() => {
+    if (thread?.title) return thread.title;
+    const parent = thread?.participants.find((p) => p.role === "PARENT");
+    return parent?.name ?? "محادثة";
+  }, [thread]);
+
+  if (!threadId) {
+    return (
+      <View style={styles.emptyState}>
+        <Text style={styles.emptyTitle}>لا يوجد معرف للمحادثة</Text>
+        <Text style={styles.emptyText}>يرجى فتح شاشة الرسائل واختيار محادثة للعرض.</Text>
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -61,42 +139,96 @@ export const EducatorChatThreadScreen: React.FC = () => {
       behavior={Platform.select({ ios: "padding", android: undefined })}
       keyboardVerticalOffset={80}
     >
+      <View style={styles.threadInfoBox}>
+        <Text style={styles.threadTitle}>{threadTitle}</Text>
+        {thread?.participants.length ? (
+          <Text style={styles.threadSubtitle}>
+            المشاركون: {thread.participants.map((p) => p.name).filter(Boolean).join("، ")}
+          </Text>
+        ) : null}
+      </View>
+
+      {error && (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
+
+      {loading && messages.length === 0 ? (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator color="#2563EB" />
+          <Text style={styles.loadingText}>جارٍ تحميل الرسائل...</Text>
+        </View>
+      ) : null}
+
       <FlatList
         data={messages}
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={{ padding: 16, paddingBottom: 8 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refreshMessages} />}
+        ListEmptyComponent={
+          !loading && !error ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyTitle}>لا توجد رسائل بعد</Text>
+              <Text style={styles.emptyText}>ابدأ المحادثة بإرسال أول رسالة.</Text>
+            </View>
+          ) : null
+        }
         renderItem={({ item }) => {
-          const isEducator = item.from === "EDUCATEUR";
+          const educator = isEducatorMessage(item);
           return (
             <View
               style={[
                 styles.bubbleRow,
-                { justifyContent: isEducator ? "flex-end" : "flex-start" },
+                { justifyContent: educator ? "flex-end" : "flex-start" },
               ]}
             >
               <View
                 style={[
                   styles.bubble,
-                  isEducator ? styles.bubbleEducator : styles.bubbleParent,
+                  educator ? styles.bubbleEducator : styles.bubbleParent,
                 ]}
               >
-                <Text style={styles.bubbleText}>{item.content}</Text>
-                <Text style={styles.bubbleTime}>{item.createdAt}</Text>
+                <Text style={styles.bubbleText}>{item.text}</Text>
+                <Text style={styles.bubbleTime}>
+                  {item.createdAt
+                    ? new Date(item.createdAt).toLocaleTimeString("ar-TN", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : ""}
+                </Text>
               </View>
             </View>
           );
         }}
       />
 
+      {nextCursor ? (
+        <TouchableOpacity
+          style={styles.loadOlderBtn}
+          onPress={loadOlder}
+          disabled={loadingMore}
+        >
+          <Text style={styles.loadOlderText}>
+            {loadingMore ? "جارٍ التحميل..." : "تحميل رسائل أقدم"}
+          </Text>
+        </TouchableOpacity>
+      ) : null}
+
       <View style={styles.inputRow}>
         <TextInput
           style={styles.input}
-          placeholder={`رسالة حول الطفل ${childId}...`}
+          placeholder={`رسالة حول الطفل ${childId ?? ""}...`}
           value={input}
           onChangeText={setInput}
         />
-        <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
-          <Text style={styles.sendText}>إرسال</Text>
+        <TouchableOpacity
+          style={[styles.sendButton, (sending || !input.trim()) && styles.sendButtonDisabled]}
+          onPress={handleSend}
+          disabled={sending || !input.trim()}
+        >
+          <Text style={styles.sendText}>{sending ? "..." : "إرسال"}</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -121,6 +253,29 @@ const styles = StyleSheet.create({
     textAlign: "right",
     marginTop: 4,
   },
+  threadInfoBox: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  threadTitle: { fontSize: 16, fontWeight: "700", color: "#111827" },
+  threadSubtitle: { fontSize: 12, color: "#6B7280", marginTop: 4 },
+  errorBox: {
+    marginHorizontal: 16,
+    backgroundColor: "#FEF2F2",
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+  },
+  errorText: { color: "#B91C1C", fontSize: 13, textAlign: "right" },
+  loadingBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 12,
+  },
+  loadingText: { color: "#4B5563", fontSize: 13 },
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -146,5 +301,27 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: "#2563EB",
   },
+  sendButtonDisabled: { opacity: 0.5 },
   sendText: { color: "#FFFFFF", fontWeight: "600", fontSize: 13 },
+  loadOlderBtn: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    paddingVertical: 8,
+    alignItems: "center",
+  },
+  loadOlderText: { color: "#2563EB", fontWeight: "600", fontSize: 13 },
+  emptyState: {
+    marginHorizontal: 16,
+    marginVertical: 20,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#FFFFFF",
+  },
+  emptyTitle: { fontSize: 15, fontWeight: "600", color: "#111827", marginBottom: 6 },
+  emptyText: { fontSize: 13, color: "#6B7280", lineHeight: 20 },
 });

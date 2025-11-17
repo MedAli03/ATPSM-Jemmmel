@@ -17,9 +17,9 @@ import { EducatorPeiDetailScreen } from "../screens/educateur/EducatorPeiDetailS
 export type EducatorStackParamList = {
   EducatorTabs: undefined;
   EducatorChildDetails: { childId: number };
-  EducatorChildTimeline: { childId: number };
-  DailyNoteForm: { childId: number };
-  ActivityForm: { childId: number };
+  EducatorChildTimeline: { childId: number; peiId?: number };
+  DailyNoteForm: { childId: number; peiId?: number };
+  ActivityForm: { childId: number; peiId?: number };
   EducatorChatThread: { threadId?: number; childId?: number };
   ObservationInitiale: { childId: number };
   EducatorPeiDetail: { childId: number; peiId: number };

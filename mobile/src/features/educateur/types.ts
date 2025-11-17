@@ -35,6 +35,8 @@ export interface ChildDetails extends ChildSummary {
 
 export type ProjetEducatifIndividuelSummary = {
   id: number;
+  enfant_id: number;
+  enfant_nom_complet?: string;
   titre: string;
   statut: "ACTIF" | "CLOTURE" | "BROUILLON";
   date_debut: string;
@@ -43,7 +45,6 @@ export type ProjetEducatifIndividuelSummary = {
 };
 
 export interface PeiDetails extends ProjetEducatifIndividuelSummary {
-  enfant_id: number;
   educateur_id: number;
   annee_id: number;
   date_derniere_maj?: string;
@@ -104,3 +105,44 @@ export interface ChildHistoryEvent {
   description?: string;
   meta?: Record<string, unknown>;
 }
+
+export interface PeiActivitySummary {
+  id: number;
+  date: string;
+  titre?: string | null;
+  type?: string | null;
+  description?: string | null;
+  objectifs?: string | null;
+  educateur?: string;
+}
+
+export interface ThreadParticipantSummary {
+  id: number;
+  name?: string | null;
+  role?: string | null;
+  avatarUrl?: string | null;
+  isCurrentUser?: boolean;
+}
+
+export interface ThreadMessage {
+  id: number;
+  threadId: number;
+  kind?: string | null;
+  text?: string | null;
+  createdAt: string;
+  sender?: { id: number; name?: string | null; role?: string | null } | null;
+  readBy?: number[];
+}
+
+export interface MessageThreadSummary {
+  id: number;
+  title?: string | null;
+  updatedAt?: string | null;
+  unreadCount: number;
+  isGroup?: boolean;
+  archived?: boolean;
+  lastMessage?: ThreadMessage | null;
+  participants: ThreadParticipantSummary[];
+}
+
+export type MessageCursor = { id: string; createdAt: string };

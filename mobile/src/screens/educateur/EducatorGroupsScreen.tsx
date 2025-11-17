@@ -1,14 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { EducatorStackParamList } from "../../navigation/EducatorNavigator";
+import { getChildrenByGroup, getMyGroups } from "../../features/educateur/api";
 
 type Nav = NativeStackNavigationProp<EducatorStackParamList>;
 
@@ -20,46 +23,68 @@ type Group = {
   children: { id: number; name: string }[];
 };
 
-// TODO: remove this mock when connecting API
-const MOCK_GROUPS: Group[] = [
-  {
-    id: 1,
-    name: "مجموعة الألوان",
-    year: "2024/2025",
-    isCurrent: true,
-    children: [
-      { id: 1, name: "Ahmed Ben Ali" },
-      { id: 2, name: "Sarra Trabelsi" },
-      { id: 3, name: "Youssef M." },
-    ],
-  },
-  {
-    id: 2,
-    name: "مجموعة الأشكال",
-    year: "2023/2024",
-    isCurrent: false,
-    children: [
-      { id: 4, name: "Ines K." },
-      { id: 5, name: "Hamza R." },
-    ],
-  },
-  {
-    id: 3,
-    name: "مجموعة الحيوانات",
-    year: "2022/2023",
-    isCurrent: false,
-    children: [{ id: 6, name: "Mariem S." }],
-  },
-];
-
 export const EducatorGroupsScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const [groups, setGroups] = useState<Group[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchGroups = useCallback(
+    async (fromRefresh = false) => {
+      if (fromRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      setError(null);
+
+      try {
+        const apiGroups = await getMyGroups({ includeHistory: true });
+        const mapped = await Promise.all(
+          apiGroups.map(async (group) => {
+            const isCurrent = group.statut !== "archive";
+            let children: { id: number; name: string }[] = [];
+            if (isCurrent) {
+              try {
+                const roster = await getChildrenByGroup(group.id);
+                children = roster.map((child) => ({
+                  id: child.id,
+                  name: `${child.prenom} ${child.nom}`.trim() || `طفل #${child.id}`,
+                }));
+              } catch (err) {
+                console.warn("Failed to load group children", group.id, err);
+              }
+            }
+            return {
+              id: group.id,
+              name: group.nom,
+              year: group.annee_scolaire ?? `السنة #${group.annee_id}`,
+              isCurrent,
+              children,
+            };
+          })
+        );
+        setGroups(mapped);
+      } catch (err) {
+        console.error("Failed to load groups", err);
+        setError("تعذّر تحميل المجموعات. الرجاء إعادة المحاولة.");
+      } finally {
+        if (fromRefresh) {
+          setRefreshing(false);
+        } else {
+          setLoading(false);
+        }
+      }
+    },
+    []
+  );
 
   useEffect(() => {
-    // 👉 Later: GET /educateur/me/groups (with historique)
-    setGroups(MOCK_GROUPS);
-  }, []);
+    fetchGroups();
+  }, [fetchGroups]);
+
+  const onRefresh = useCallback(() => fetchGroups(true), [fetchGroups]);
 
   const currentGroup = groups.find((g) => g.isCurrent);
   const pastGroups = groups.filter((g) => !g.isCurrent);
@@ -69,7 +94,21 @@ export const EducatorGroupsScreen: React.FC = () => {
       style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
+      {loading && (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator color="#2563EB" />
+          <Text style={styles.loadingText}>يتم تحميل المجموعات المسندة إليك...</Text>
+        </View>
+      )}
+
+      {error && (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
+
       {/* CURRENT GROUP */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>المجموعة الحالية</Text>
@@ -160,6 +199,27 @@ export const EducatorGroupsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F3F4F6" },
   content: { padding: 16, paddingBottom: 32 },
+  loadingBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 12,
+    marginBottom: 12,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  loadingText: { fontSize: 13, color: "#4B5563" },
+  errorBox: {
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+    marginBottom: 12,
+  },
+  errorText: { fontSize: 13, color: "#B91C1C" },
   section: { marginBottom: 18 },
   sectionTitle: { fontSize: 18, fontWeight: "700", color: "#111827" },
   sectionSubtitle: { fontSize: 13, color: "#6B7280", marginTop: 4 },

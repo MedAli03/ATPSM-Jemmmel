@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -7,9 +7,17 @@ import {
   SafeAreaView,
   StatusBar,
   TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../../features/auth/AuthContext";
+import {
+  getChildrenByGroup,
+  getMyGroups,
+  listEducatorPeiSummaries,
+  listRecentObservations,
+} from "../../features/educateur/api";
 
 // ⚠️ simpler: we let navigation be "any" because this screen lives inside a Tab + Stack
 const navigationAny = () => useNavigation<any>();
@@ -27,14 +35,6 @@ type TodayChild = {
   focus: string;
 };
 
-type TodaySession = {
-  id: number;
-  time: string;
-  group: string;
-  theme: string;
-};
-
-// 👇 NEW types for PEI & observation
 type PeiSummary = {
   id: number;
   childId: number;
@@ -51,102 +51,126 @@ type ObservationSummary = {
   completed: boolean;
 };
 
-const MOCK_STATS: DashboardStats = {
-  groupsCount: 2,
-  childrenCount: 6,
-  todaySessions: 3,
-};
-
-const MOCK_TODAY_CHILDREN: TodayChild[] = [
-  {
-    id: 1,
-    name: "Ahmed Ben Ali",
-    group: "مجموعة الألوان",
-    focus: "Communication visuelle",
-  },
-  {
-    id: 2,
-    name: "Sarra Trabelsi",
-    group: "مجموعة الأشكال",
-    focus: "Motricité fine",
-  },
-];
-
-const MOCK_TODAY_SESSIONS: TodaySession[] = [
-  {
-    id: 1,
-    time: "09:00",
-    group: "مجموعة الألوان",
-    theme: "تواصل بصري + صور",
-  },
-  {
-    id: 2,
-    time: "10:30",
-    group: "مجموعة الأشكال",
-    theme: "تمارين حركية دقيقة",
-  },
-  {
-    id: 3,
-    time: "14:00",
-    group: "مجموعة الألوان",
-    theme: "لعبة تصنيف الألوان",
-  },
-];
-
-// 👇 MOCK PEI & observations (based on your rapport: observation_initiale + PEI)
-const MOCK_PEI: PeiSummary[] = [
-  {
-    id: 1,
-    childId: 1,
-    childName: "Ahmed Ben Ali",
-    status: "ACTIVE",
-    nextReviewDate: "2025-02-01",
-  },
-  {
-    id: 2,
-    childId: 2,
-    childName: "Sarra Trabelsi",
-    status: "TO_REVIEW",
-    nextReviewDate: "2025-01-15",
-  },
-];
-
-const MOCK_OBSERVATIONS: ObservationSummary[] = [
-  {
-    id: 1,
-    childId: 3,
-    childName: "Youssef M.",
-    date: "2025-11-01",
-    completed: true,
-  },
-  {
-    id: 2,
-    childId: 4,
-    childName: "Ines K.",
-    date: "2025-11-10",
-    completed: false,
-  },
-];
-
 export const EducatorDashboardScreen: React.FC = () => {
   const { user } = useAuth();
   const navigation = navigationAny();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [todayChildren, setTodayChildren] = useState<TodayChild[]>([]);
-  const [todaySessions, setTodaySessions] = useState<TodaySession[]>([]);
-  // 👇 NEW state
   const [peiItems, setPeiItems] = useState<PeiSummary[]>([]);
   const [observations, setObservations] = useState<ObservationSummary[]>([]);
+  const [yearLabel, setYearLabel] = useState<string>("السنة الدراسيّة الجارية");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const buildChildName = useCallback((prenom?: string | null, nom?: string | null) => {
+    const value = [prenom, nom].filter(Boolean).join(" ");
+    return value.trim() || "طفل";
+  }, []);
+
+  const loadDashboard = useCallback(
+    async (fromRefresh = false) => {
+      if (fromRefresh) {
+        setIsRefreshing(true);
+      } else {
+        setIsLoading(true);
+      }
+      setError(null);
+
+      try {
+        const [groups, peiSummaries, observationRows] = await Promise.all([
+          getMyGroups(),
+          user?.id ? listEducatorPeiSummaries(user.id, { limit: 20 }) : Promise.resolve([]),
+          user?.id
+            ? listRecentObservations({ educateurId: user.id, limit: 5 })
+            : Promise.resolve([]),
+        ]);
+
+        const activeGroups = groups.filter((group) => group.statut !== "archive");
+        if (activeGroups.length) {
+          setYearLabel(activeGroups[0].annee_scolaire ?? yearLabel);
+        }
+
+        const rosters = await Promise.all(
+          activeGroups.map(async (group) => {
+            try {
+              const children = await getChildrenByGroup(group.id);
+              return { groupName: group.nom, children };
+            } catch (err) {
+              console.warn("Failed to load group roster", group.id, err);
+              return { groupName: group.nom, children: [] };
+            }
+          })
+        );
+
+        const flattened = rosters.flatMap((entry) =>
+          entry.children.map((child) => ({
+            id: child.id,
+            name: buildChildName(child.prenom, child.nom),
+            group: entry.groupName,
+          }))
+        );
+
+        const peiByChild = new Map(peiSummaries.map((pei) => [pei.enfant_id, pei]));
+
+        const todayChildCards: TodayChild[] = flattened.slice(0, 6).map((child) => ({
+          ...child,
+          focus: peiByChild.has(child.id) ? "PEI مفعّل" : "متابعة أولية",
+        }));
+
+        setStats({
+          groupsCount: activeGroups.length,
+          childrenCount: flattened.length,
+          todaySessions: 0,
+        });
+        setTodayChildren(todayChildCards);
+
+        const peiStatusMap: Record<string, PeiSummary["status"]> = {
+          ACTIF: "ACTIVE",
+          BROUILLON: "TO_REVIEW",
+          CLOTURE: "CLOSED",
+        };
+
+        setPeiItems(
+          peiSummaries.map((item) => ({
+            id: item.id,
+            childId: item.enfant_id,
+            childName: item.enfant_nom_complet ?? item.titre,
+            status: peiStatusMap[item.statut] ?? "TO_REVIEW",
+            nextReviewDate: item.date_fin_prevue,
+          }))
+        );
+
+        setObservations(
+          observationRows.map((row) => ({
+            id: row.id,
+            childId: row.enfant_id,
+            childName: buildChildName(row.enfant?.prenom, row.enfant?.nom),
+            date: row.date_observation?.slice(0, 10) ?? "",
+            completed: Boolean(row.contenu),
+          }))
+        );
+      } catch (err) {
+        console.error("Failed to load dashboard", err);
+        setError("تعذّر تحميل لوحة المتابعة. الرجاء المحاولة لاحقًا.");
+      } finally {
+        if (fromRefresh) {
+          setIsRefreshing(false);
+        } else {
+          setIsLoading(false);
+        }
+      }
+    },
+    [buildChildName, user?.id, yearLabel]
+  );
 
   useEffect(() => {
-    // TODO: replace with real API call (e.g. /educateur/dashboard)
-    setStats(MOCK_STATS);
-    setTodayChildren(MOCK_TODAY_CHILDREN);
-    setTodaySessions(MOCK_TODAY_SESSIONS);
-    // TODO: /educateur/pei/summary & /educateur/observations/summary
-    setPeiItems(MOCK_PEI);
-    setObservations(MOCK_OBSERVATIONS);
-  }, []);
+    loadDashboard();
+  }, [loadDashboard]);
+
+  const onRefresh = useCallback(() => {
+    loadDashboard(true);
+  }, [loadDashboard]);
 
   const educatorName =
     (user as any)?.fullName ||
@@ -154,10 +178,9 @@ export const EducatorDashboardScreen: React.FC = () => {
     (user as any)?.username ||
     "المربّي/ـة";
 
-  // later you can compute real date from new Date()
-  const currentYearLabel = "السنة الدراسية 2024 / 2025";
-
   const hasChildrenToday = todayChildren.length > 0;
+
+  const headerYearLabel = useMemo(() => yearLabel, [yearLabel]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -172,7 +195,7 @@ export const EducatorDashboardScreen: React.FC = () => {
             </Text>
           </View>
           <View style={styles.yearChip}>
-            <Text style={styles.yearChipText}>{currentYearLabel}</Text>
+            <Text style={styles.yearChipText}>{headerYearLabel}</Text>
           </View>
         </View>
 
@@ -180,7 +203,23 @@ export const EducatorDashboardScreen: React.FC = () => {
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
+          }
         >
+          {isLoading && (
+            <View style={styles.loadingBox}>
+              <ActivityIndicator color="#2563EB" />
+              <Text style={styles.loadingText}>جارٍ تحميل آخر المعطيات...</Text>
+            </View>
+          )}
+
+          {error && (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+
           {/* SUMMARY CARDS */}
           {stats && (
             <View style={styles.row}>
@@ -336,6 +375,7 @@ export const EducatorDashboardScreen: React.FC = () => {
                   onPress={() =>
                     navigation.navigate("EducatorChildTimeline", {
                       childId: c.id,
+                      peiId: peiItems.find((p) => p.childId === c.id)?.id,
                     })
                   }
                 >
@@ -358,7 +398,10 @@ export const EducatorDashboardScreen: React.FC = () => {
                     <TouchableOpacity
                       style={styles.actionButton}
                       onPress={() =>
-                        navigation.navigate("DailyNoteForm", { childId: c.id })
+                        navigation.navigate("DailyNoteForm", {
+                          childId: c.id,
+                          peiId: peiItems.find((p) => p.childId === c.id)?.id,
+                        })
                       }
                     >
                       <Text style={styles.actionEmoji}>📝</Text>
@@ -367,7 +410,10 @@ export const EducatorDashboardScreen: React.FC = () => {
                     <TouchableOpacity
                       style={styles.actionButton}
                       onPress={() =>
-                        navigation.navigate("ActivityForm", { childId: c.id })
+                        navigation.navigate("ActivityForm", {
+                          childId: c.id,
+                          peiId: peiItems.find((p) => p.childId === c.id)?.id,
+                        })
                       }
                     >
                       <Text style={styles.actionEmoji}>🎯</Text>
@@ -449,6 +495,27 @@ const styles = StyleSheet.create({
 
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: 24 },
+  loadingBox: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 12,
+  },
+  loadingText: { fontSize: 13, color: "#4B5563" },
+  errorBox: {
+    backgroundColor: "#FEF2F2",
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+    marginBottom: 12,
+  },
+  errorText: { fontSize: 13, color: "#B91C1C" },
 
   row: { flexDirection: "row", gap: 12, marginBottom: 12 },
 

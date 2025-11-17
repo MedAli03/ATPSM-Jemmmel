@@ -8,11 +8,16 @@ import {
   CreatePeiActivityPayload,
   CreatePeiPayload,
   Group,
+  MessageCursor,
+  MessageThreadSummary,
   NewPeiEvaluationPayload,
+  PeiActivitySummary,
   PeiDetails,
   PeiEvaluation,
   ProjetEducatifIndividuelSummary,
   SchoolYear,
+  ThreadMessage,
+  ThreadParticipantSummary,
   UpdatePeiPayload,
 } from "./types";
 
@@ -22,6 +27,7 @@ export interface ObservationInitialeDto {
   educateur_id: number;
   date_observation: string;
   contenu: string;
+  enfant?: { id: number; prenom?: string | null; nom?: string | null };
   created_at?: string;
   updated_at?: string;
 }
@@ -121,6 +127,59 @@ interface DailyNoteDto {
   educateur?: { prenom?: string | null; nom?: string | null };
 }
 
+interface RawThreadParticipant {
+  id: number;
+  name?: string | null;
+  role?: string | null;
+  avatarUrl?: string | null;
+  isCurrentUser?: boolean;
+}
+
+interface RawThreadMessage {
+  id: number;
+  threadId: number;
+  kind?: string | null;
+  text?: string | null;
+  createdAt: string;
+  sender?: { id: number; role?: string | null; name?: string | null } | null;
+  readBy?: number[];
+}
+
+interface RawThreadSummary {
+  id: number;
+  title?: string | null;
+  updatedAt?: string | null;
+  unreadCount?: number;
+  isGroup?: boolean;
+  archived?: boolean;
+  lastMessage?: RawThreadMessage | null;
+  participants?: RawThreadParticipant[];
+}
+
+interface ThreadListResponse {
+  data?: {
+    data: RawThreadSummary[];
+    page: number;
+    limit: number;
+    total: number;
+  };
+}
+
+interface ThreadResponse {
+  data?: RawThreadSummary;
+}
+
+interface ThreadMessagesResponse {
+  data?: {
+    data: RawThreadMessage[];
+    nextCursor: MessageCursor | null;
+  };
+}
+
+interface SendMessageResponse {
+  data?: RawThreadMessage;
+}
+
 let cachedActiveYear: SchoolYear | null = null;
 
 const getActiveSchoolYear = async (): Promise<SchoolYear> => {
@@ -156,6 +215,42 @@ const formatUserName = (user?: { prenom?: string | null; nom?: string | null }) 
   return parts.join(" ") || undefined;
 };
 
+const formatChildName = (child?: { prenom?: string | null; nom?: string | null }) =>
+  formatUserName(child) ?? `طفل #${child?.id ?? "-"}`;
+
+const mapThreadParticipant = (
+  participant: RawThreadParticipant,
+): ThreadParticipantSummary => ({
+  id: participant.id,
+  name: participant.name ?? null,
+  role: participant.role ?? null,
+  avatarUrl: participant.avatarUrl ?? null,
+  isCurrentUser: participant.isCurrentUser,
+});
+
+const mapThreadMessage = (message: RawThreadMessage): ThreadMessage => ({
+  id: message.id,
+  threadId: message.threadId,
+  kind: message.kind,
+  text: message.text,
+  createdAt: message.createdAt,
+  sender: message.sender
+    ? { id: message.sender.id, name: message.sender.name, role: message.sender.role }
+    : null,
+  readBy: message.readBy ?? [],
+});
+
+const mapThreadSummary = (thread: RawThreadSummary): MessageThreadSummary => ({
+  id: thread.id,
+  title: thread.title,
+  updatedAt: thread.updatedAt,
+  unreadCount: thread.unreadCount ?? 0,
+  isGroup: thread.isGroup,
+  archived: thread.archived,
+  lastMessage: thread.lastMessage ? mapThreadMessage(thread.lastMessage) : null,
+  participants: (thread.participants ?? []).map(mapThreadParticipant),
+});
+
 const normalizePeiSummary = (
   pei: RawPeiDto,
   year?: SchoolYear,
@@ -170,6 +265,8 @@ const normalizePeiSummary = (
     : `PEI #${pei.id}`;
   return {
     id: pei.id,
+    enfant_id: pei.enfant_id,
+    enfant_nom_complet: formatChildName(pei.enfant),
     titre: titleSource || `PEI #${pei.id}`,
     statut: statutMap[pei.statut] ?? "BROUILLON",
     date_debut: pei.date_creation,
@@ -178,7 +275,7 @@ const normalizePeiSummary = (
   };
 };
 
-export const getMyGroups = async (): Promise<Group[]> => {
+export const getMyGroups = async (options?: { includeHistory?: boolean }): Promise<Group[]> => {
   const activeYear = await getActiveSchoolYear();
   const response = await api.get<BooleanResponse<RawGroup[]>>("/groupes", {
     params: {
@@ -188,15 +285,36 @@ export const getMyGroups = async (): Promise<Group[]> => {
     },
   });
   const rows = response.data?.data ?? [];
-  return rows.map((group) => ({
+
+  const mapGroup = (group: RawGroup, fallbackYear?: string | null): Group => ({
     id: group.id,
     nom: group.nom,
     description: group.description ?? null,
     annee_id: group.annee_id,
-    annee_scolaire: activeYear.libelle,
+    annee_scolaire: fallbackYear ?? activeYear.libelle,
     statut: group.statut,
     nb_enfants: group.nb_enfants,
-  }));
+  });
+
+  const activeGroups = rows.map((group) => mapGroup(group));
+
+  if (!options?.includeHistory) {
+    return activeGroups;
+  }
+
+  const archivedResponse = await api.get<BooleanResponse<RawGroup[]>>("/groupes", {
+    params: {
+      statut: "archive",
+      page: 1,
+      limit: 50,
+    },
+  });
+  const archivedRows = archivedResponse.data?.data ?? [];
+  const archivedGroups = archivedRows.map((group) =>
+    mapGroup(group, group.annee_id === activeYear.id ? activeYear.libelle : `السنة #${group.annee_id}`)
+  );
+
+  return [...activeGroups, ...archivedGroups];
 };
 
 export const getChildrenByGroup = async (
@@ -244,6 +362,22 @@ export const getActivePeiForChild = async (
     return null;
   }
   return normalizePeiSummary(rows[0]);
+};
+
+export const listEducatorPeiSummaries = async (
+  educatorId: number,
+  options?: { anneeId?: number; limit?: number },
+): Promise<ProjetEducatifIndividuelSummary[]> => {
+  const response = await api.get<PeiListResponse>("/pei", {
+    params: {
+      educateur_id: educatorId,
+      annee_id: options?.anneeId,
+      page: 1,
+      pageSize: options?.limit ?? 20,
+    },
+  });
+  const rows = response.data?.data ?? [];
+  return rows.map((row) => normalizePeiSummary(row));
 };
 
 export const createPEI = async (payload: CreatePeiPayload): Promise<PeiDetails> => {
@@ -304,6 +438,31 @@ export const getPeiEvaluations = async (
   }));
 };
 
+export const getPeiActivities = async (
+  peiId: number,
+  options?: { page?: number; pageSize?: number },
+): Promise<PeiActivitySummary[]> => {
+  const response = await api.get<PaginatedResponse<ActivityDto>>(
+    `/pei/${peiId}/activites`,
+    {
+      params: {
+        page: options?.page ?? 1,
+        pageSize: options?.pageSize ?? 20,
+      },
+    },
+  );
+  const rows = response.data?.data ?? [];
+  return rows.map((activity) => ({
+    id: activity.id,
+    date: activity.date_activite,
+    titre: activity.titre,
+    description: activity.description,
+    objectifs: activity.objectifs,
+    type: activity.type,
+    educateur: formatUserName(activity.educateur),
+  }));
+};
+
 export const createPeiEvaluation = async (
   peiId: number,
   payload: NewPeiEvaluationPayload,
@@ -328,6 +487,20 @@ export const getLatestObservationInitiale = async (
 
   const rows = response.data?.rows ?? [];
   return rows.length > 0 ? rows[0] : null;
+};
+
+export const listRecentObservations = async (
+  filters: { educateurId?: number; enfantId?: number; limit?: number },
+): Promise<ObservationInitialeDto[]> => {
+  const response = await api.get<ObservationListResponse>("/observation", {
+    params: {
+      educateur_id: filters.educateurId,
+      enfant_id: filters.enfantId,
+      limit: filters.limit ?? 5,
+      page: 1,
+    },
+  });
+  return response.data?.rows ?? [];
 };
 
 export const createObservationInitiale = async (
@@ -396,12 +569,13 @@ const sortEvents = (events: ChildHistoryEvent[]) =>
 
 export const getChildHistory = async (
   childId: number,
+  options?: { peiId?: number },
 ): Promise<ChildHistoryEvent[]> => {
-  const activePei = await getActivePeiForChild(childId);
+  const activePei = options?.peiId ? { id: options.peiId } : await getActivePeiForChild(childId);
   if (!activePei) {
     return [];
   }
-  const peiId = activePei.id;
+  const peiId = options?.peiId ?? activePei.id;
 
   const [activitiesResp, evaluationsResp, notesResp] = await Promise.all([
     api.get<PaginatedResponse<ActivityDto>>(`/pei/${peiId}/activites`, {
@@ -422,4 +596,77 @@ export const getChildHistory = async (
   ];
 
   return sortEvents(events);
+};
+
+export const listMessageThreads = async (options?: {
+  page?: number;
+  limit?: number;
+  status?: string;
+}) => {
+  const response = await api.get<ThreadListResponse>("/messages/threads", {
+    params: {
+      page: options?.page,
+      limit: options?.limit,
+      status: options?.status,
+    },
+  });
+  const payload = response.data?.data;
+  return {
+    threads: (payload?.data ?? []).map(mapThreadSummary),
+    page: payload?.page ?? 1,
+    limit: payload?.limit ?? options?.limit ?? 20,
+    total: payload?.total ?? 0,
+  };
+};
+
+export const getThreadDetails = async (
+  threadId: number,
+): Promise<MessageThreadSummary> => {
+  const response = await api.get<ThreadResponse>(`/messages/threads/${threadId}`);
+  const thread = response.data?.data;
+  if (!thread) {
+    throw new Error("المحادثة غير متاحة حاليًا");
+  }
+  return mapThreadSummary(thread);
+};
+
+export const listThreadMessages = async (
+  threadId: number,
+  options?: { limit?: number; cursor?: MessageCursor | null },
+): Promise<{ messages: ThreadMessage[]; nextCursor: MessageCursor | null }> => {
+  const response = await api.get<ThreadMessagesResponse>(`/messages/threads/${threadId}/messages`, {
+    params: {
+      limit: options?.limit,
+      cursor: options?.cursor ? JSON.stringify(options.cursor) : undefined,
+    },
+  });
+  const payload = response.data?.data;
+  return {
+    messages: (payload?.data ?? []).map(mapThreadMessage),
+    nextCursor: payload?.nextCursor ?? null,
+  };
+};
+
+export const sendThreadMessage = async (
+  threadId: number,
+  payload: { text: string; attachments?: unknown[] },
+): Promise<ThreadMessage> => {
+  const response = await api.post<SendMessageResponse>(
+    `/messages/threads/${threadId}/messages`,
+    payload,
+  );
+  const message = response.data?.data;
+  if (!message) {
+    throw new Error("تعذّر إرسال الرسالة");
+  }
+  return mapThreadMessage(message);
+};
+
+export const markThreadAsRead = async (
+  threadId: number,
+  upToMessageId?: number | null,
+) => {
+  await api.post(`/messages/threads/${threadId}/read`, {
+    upToMessageId: upToMessageId ?? undefined,
+  });
 };
