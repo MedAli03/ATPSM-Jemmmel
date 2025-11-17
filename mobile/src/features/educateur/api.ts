@@ -184,7 +184,8 @@ interface SendMessageResponse {
 export class ForbiddenError extends Error {
   constructor(message?: string) {
     super(
-      message ?? "لا تملك صلاحية الوصول إلى هذه البيانات. الرجاء التواصل مع الإدارة.",
+      message ??
+        "لا تملك صلاحية الوصول إلى هذه البيانات. الرجاء التواصل مع الإدارة."
     );
     this.name = "ForbiddenError";
   }
@@ -192,11 +193,15 @@ export class ForbiddenError extends Error {
 
 const throwIfForbidden = (error: unknown, fallbackMessage?: string) => {
   if (axios.isAxiosError(error) && error.response?.status === 403) {
-    const responseData = error.response?.data as { message?: string } | undefined;
+    const responseData = error.response?.data as
+      | { message?: string }
+      | undefined;
     const backendMessage =
-      typeof responseData?.message === "string" ? responseData.message : undefined;
+      typeof responseData?.message === "string"
+        ? responseData.message
+        : undefined;
     throw new ForbiddenError(
-      backendMessage ?? fallbackMessage ?? "لا يمكنك الوصول إلى هذه البيانات.",
+      backendMessage ?? fallbackMessage ?? "لا يمكنك الوصول إلى هذه البيانات."
     );
   }
 };
@@ -207,7 +212,9 @@ const getActiveSchoolYear = async (): Promise<SchoolYear> => {
   if (cachedActiveYear) {
     return cachedActiveYear;
   }
-  const response = await api.get<BooleanResponse<SchoolYear | null>>("/annees-scolaires/active");
+  const response = await api.get<BooleanResponse<SchoolYear | null>>(
+    "/annees-scolaires/active"
+  );
   const year = response.data?.data;
   if (!year) {
     throw new Error("Aucune année scolaire active n'a été trouvée");
@@ -230,17 +237,22 @@ const truncate = (value?: string | null, max = 120) => {
   return `${value.slice(0, max)}…`;
 };
 
-const formatUserName = (user?: { prenom?: string | null; nom?: string | null }) => {
+const formatUserName = (user?: {
+  prenom?: string | null;
+  nom?: string | null;
+}) => {
   if (!user) return undefined;
   const parts = [user.prenom, user.nom].filter(Boolean);
   return parts.join(" ") || undefined;
 };
 
-const formatChildName = (child?: { prenom?: string | null; nom?: string | null }) =>
-  formatUserName(child) ?? `طفل #${child?.id ?? "-"}`;
+const formatChildName = (child?: {
+  prenom?: string | null;
+  nom?: string | null;
+}) => formatUserName(child) ?? `طفل #${child?.nom ?? "-"}`;
 
 const mapThreadParticipant = (
-  participant: RawThreadParticipant,
+  participant: RawThreadParticipant
 ): ThreadParticipantSummary => ({
   id: participant.id,
   name: participant.name ?? null,
@@ -256,7 +268,11 @@ const mapThreadMessage = (message: RawThreadMessage): ThreadMessage => ({
   text: message.text,
   createdAt: message.createdAt,
   sender: message.sender
-    ? { id: message.sender.id, name: message.sender.name, role: message.sender.role }
+    ? {
+        id: message.sender.id,
+        name: message.sender.name,
+        role: message.sender.role,
+      }
     : null,
   readBy: message.readBy ?? [],
 });
@@ -274,7 +290,7 @@ const mapThreadSummary = (thread: RawThreadSummary): MessageThreadSummary => ({
 
 const normalizePeiSummary = (
   pei: RawPeiDto,
-  year?: SchoolYear,
+  year?: SchoolYear
 ): ProjetEducatifIndividuelSummary => {
   const statutMap: Record<string, ProjetEducatifIndividuelSummary["statut"]> = {
     actif: "ACTIF",
@@ -296,7 +312,9 @@ const normalizePeiSummary = (
   };
 };
 
-export const getMyGroups = async (options?: { includeHistory?: boolean }): Promise<Group[]> => {
+export const getMyGroups = async (options?: {
+  includeHistory?: boolean;
+}): Promise<Group[]> => {
   try {
     const activeYear = await getActiveSchoolYear();
     const response = await api.get<BooleanResponse<RawGroup[]>>("/groupes", {
@@ -308,7 +326,10 @@ export const getMyGroups = async (options?: { includeHistory?: boolean }): Promi
     });
     const rows = response.data?.data ?? [];
 
-    const mapGroup = (group: RawGroup, fallbackYear?: string | null): Group => ({
+    const mapGroup = (
+      group: RawGroup,
+      fallbackYear?: string | null
+    ): Group => ({
       id: group.id,
       nom: group.nom,
       description: group.description ?? null,
@@ -324,19 +345,24 @@ export const getMyGroups = async (options?: { includeHistory?: boolean }): Promi
       return activeGroups;
     }
 
-    const archivedResponse = await api.get<BooleanResponse<RawGroup[]>>("/groupes", {
-      params: {
-        statut: "archive",
-        page: 1,
-        limit: 50,
-      },
-    });
+    const archivedResponse = await api.get<BooleanResponse<RawGroup[]>>(
+      "/groupes",
+      {
+        params: {
+          statut: "archive",
+          page: 1,
+          limit: 50,
+        },
+      }
+    );
     const archivedRows = archivedResponse.data?.data ?? [];
     const archivedGroups = archivedRows.map((group) =>
       mapGroup(
         group,
-        group.annee_id === activeYear.id ? activeYear.libelle : `السنة #${group.annee_id}`,
-      ),
+        group.annee_id === activeYear.id
+          ? activeYear.libelle
+          : `السنة #${group.annee_id}`
+      )
     );
 
     return [...activeGroups, ...archivedGroups];
@@ -348,20 +374,23 @@ export const getMyGroups = async (options?: { includeHistory?: boolean }): Promi
 
 export const getChildrenByGroup = async (
   groupId: number,
-  options?: { anneeId?: number; page?: number; limit?: number },
+  options?: { anneeId?: number; page?: number; limit?: number }
 ): Promise<ChildSummary[]> => {
   if (!groupId) {
     return [];
   }
   try {
     const anneeId = await ensureActiveYearId(options?.anneeId);
-    const response = await api.get<GroupChildrenResponse>(`/groupes/${groupId}/inscriptions`, {
-      params: {
-        anneeId,
-        page: options?.page ?? 1,
-        limit: options?.limit ?? 50,
-      },
-    });
+    const response = await api.get<GroupChildrenResponse>(
+      `/groupes/${groupId}/inscriptions`,
+      {
+        params: {
+          anneeId,
+          page: options?.page ?? 1,
+          limit: options?.limit ?? 50,
+        },
+      }
+    );
     const items = response.data?.data?.items ?? [];
     return items.map((item) => ({
       id: item.enfant_id,
@@ -375,9 +404,13 @@ export const getChildrenByGroup = async (
   }
 };
 
-export const getChildDetails = async (childId: number): Promise<ChildDetails> => {
+export const getChildDetails = async (
+  childId: number
+): Promise<ChildDetails> => {
   try {
-    const response = await api.get<BooleanResponse<ChildDetails>>(`/enfants/${childId}`);
+    const response = await api.get<BooleanResponse<ChildDetails>>(
+      `/enfants/${childId}`
+    );
     return response.data.data;
   } catch (error) {
     throwIfForbidden(error, "لا يمكنك عرض ملف طفل خارج مجموعاتك.");
@@ -386,7 +419,7 @@ export const getChildDetails = async (childId: number): Promise<ChildDetails> =>
 };
 
 export const getActivePeiForChild = async (
-  childId: number,
+  childId: number
 ): Promise<ProjetEducatifIndividuelSummary | null> => {
   try {
     const response = await api.get<PeiListResponse>("/pei", {
@@ -410,7 +443,7 @@ export const getActivePeiForChild = async (
 
 export const listEducatorPeiSummaries = async (
   educatorId: number,
-  options?: { anneeId?: number; limit?: number },
+  options?: { anneeId?: number; limit?: number }
 ): Promise<ProjetEducatifIndividuelSummary[]> => {
   try {
     const response = await api.get<PeiListResponse>("/pei", {
@@ -429,7 +462,9 @@ export const listEducatorPeiSummaries = async (
   }
 };
 
-export const createPEI = async (payload: CreatePeiPayload): Promise<PeiDetails> => {
+export const createPEI = async (
+  payload: CreatePeiPayload
+): Promise<PeiDetails> => {
   const response = await api.post<PeiDetails>("/pei", payload);
   return response.data;
 };
@@ -446,7 +481,7 @@ export const getPEI = async (peiId: number): Promise<PeiDetails> => {
 
 export const updatePEI = async (
   peiId: number,
-  payload: UpdatePeiPayload,
+  payload: UpdatePeiPayload
 ): Promise<PeiDetails> => {
   const response = await api.put<PeiDetails>(`/pei/${peiId}`, payload);
   return response.data;
@@ -454,7 +489,7 @@ export const updatePEI = async (
 
 export const addPEIActivity = async (
   peiId: number,
-  payload: CreatePeiActivityPayload,
+  payload: CreatePeiActivityPayload
 ) => {
   const response = await api.post(`/pei/${peiId}/activites`, payload);
   return response.data;
@@ -462,7 +497,7 @@ export const addPEIActivity = async (
 
 export const addDailyNote = async (
   childId: number,
-  payload: CreateDailyNotePayload,
+  payload: CreateDailyNotePayload
 ) => {
   const { peiId, ...rest } = payload;
   const response = await api.post(`/pei/${peiId}/daily-notes`, {
@@ -473,14 +508,14 @@ export const addDailyNote = async (
 };
 
 export const getPeiEvaluations = async (
-  peiId: number,
+  peiId: number
 ): Promise<PeiEvaluation[]> => {
   try {
     const response = await api.get<PaginatedResponse<EvaluationDto>>(
       `/pei/${peiId}/evaluations`,
       {
         params: { page: 1, pageSize: 20 },
-      },
+      }
     );
     const rows = response.data?.data ?? [];
     return rows.map((evaluation) => ({
@@ -499,7 +534,7 @@ export const getPeiEvaluations = async (
 
 export const getPeiActivities = async (
   peiId: number,
-  options?: { page?: number; pageSize?: number },
+  options?: { page?: number; pageSize?: number }
 ): Promise<PeiActivitySummary[]> => {
   try {
     const response = await api.get<PaginatedResponse<ActivityDto>>(
@@ -509,7 +544,7 @@ export const getPeiActivities = async (
           page: options?.page ?? 1,
           pageSize: options?.pageSize ?? 20,
         },
-      },
+      }
     );
     const rows = response.data?.data ?? [];
     return rows.map((activity) => ({
@@ -529,17 +564,17 @@ export const getPeiActivities = async (
 
 export const createPeiEvaluation = async (
   peiId: number,
-  payload: NewPeiEvaluationPayload,
+  payload: NewPeiEvaluationPayload
 ): Promise<PeiEvaluation> => {
   const response = await api.post<PeiEvaluation>(
     `/pei/${peiId}/evaluations`,
-    payload,
+    payload
   );
   return response.data;
 };
 
 export const getLatestObservationInitiale = async (
-  enfantId: number,
+  enfantId: number
 ): Promise<ObservationInitialeDto | null> => {
   const response = await api.get<ObservationListResponse>("/observation", {
     params: {
@@ -553,9 +588,11 @@ export const getLatestObservationInitiale = async (
   return rows.length > 0 ? rows[0] : null;
 };
 
-export const listRecentObservations = async (
-  filters: { educateurId?: number; enfantId?: number; limit?: number },
-): Promise<ObservationInitialeDto[]> => {
+export const listRecentObservations = async (filters: {
+  educateurId?: number;
+  enfantId?: number;
+  limit?: number;
+}): Promise<ObservationInitialeDto[]> => {
   const response = await api.get<ObservationListResponse>("/observation", {
     params: {
       educateur_id: filters.educateurId,
@@ -568,22 +605,22 @@ export const listRecentObservations = async (
 };
 
 export const createObservationInitiale = async (
-  payload: ObservationInitialePayload,
+  payload: ObservationInitialePayload
 ): Promise<ObservationInitialeDto> => {
   const response = await api.post<BooleanResponse<ObservationInitialeDto>>(
     "/observation",
-    payload,
+    payload
   );
   return response.data.data;
 };
 
 export const updateObservationInitiale = async (
   observationId: number,
-  payload: Partial<Omit<ObservationInitialePayload, "enfant_id">>,
+  payload: Partial<Omit<ObservationInitialePayload, "enfant_id">>
 ): Promise<ObservationInitialeDto> => {
   const response = await api.put<BooleanResponse<ObservationInitialeDto>>(
     `/observation/${observationId}`,
-    payload,
+    payload
   );
   return response.data.data;
 };
@@ -601,11 +638,16 @@ const mapActivityToHistory = (activity: ActivityDto): ChildHistoryEvent => ({
   },
 });
 
-const mapEvaluationToHistory = (evaluation: EvaluationDto): ChildHistoryEvent => ({
+const mapEvaluationToHistory = (
+  evaluation: EvaluationDto
+): ChildHistoryEvent => ({
   id: `evaluation-${evaluation.id}`,
   type: "evaluation",
   date: evaluation.date_evaluation,
-  title: evaluation.score != null ? `Évaluation (${evaluation.score})` : "Évaluation",
+  title:
+    evaluation.score != null
+      ? `Évaluation (${evaluation.score})`
+      : "Évaluation",
   description: evaluation.notes ?? undefined,
   meta: {
     score: evaluation.score,
@@ -633,10 +675,12 @@ const sortEvents = (events: ChildHistoryEvent[]) =>
 
 export const getChildHistory = async (
   childId: number,
-  options?: { peiId?: number },
+  options?: { peiId?: number }
 ): Promise<ChildHistoryEvent[]> => {
   try {
-    const activePei = options?.peiId ? { id: options.peiId } : await getActivePeiForChild(childId);
+    const activePei = options?.peiId
+      ? { id: options.peiId }
+      : await getActivePeiForChild(childId);
     if (!activePei) {
       return [];
     }
@@ -655,9 +699,9 @@ export const getChildHistory = async (
     ]);
 
     const events: ChildHistoryEvent[] = [
-      ...((activitiesResp.data?.data ?? []).map(mapActivityToHistory)),
-      ...((evaluationsResp.data?.data ?? []).map(mapEvaluationToHistory)),
-      ...((notesResp.data?.data ?? []).map(mapDailyNoteToHistory)),
+      ...(activitiesResp.data?.data ?? []).map(mapActivityToHistory),
+      ...(evaluationsResp.data?.data ?? []).map(mapEvaluationToHistory),
+      ...(notesResp.data?.data ?? []).map(mapDailyNoteToHistory),
     ];
 
     return sortEvents(events);
@@ -689,9 +733,11 @@ export const listMessageThreads = async (options?: {
 };
 
 export const getThreadDetails = async (
-  threadId: number,
+  threadId: number
 ): Promise<MessageThreadSummary> => {
-  const response = await api.get<ThreadResponse>(`/messages/threads/${threadId}`);
+  const response = await api.get<ThreadResponse>(
+    `/messages/threads/${threadId}`
+  );
   const thread = response.data?.data;
   if (!thread) {
     throw new Error("المحادثة غير متاحة حاليًا");
@@ -701,14 +747,17 @@ export const getThreadDetails = async (
 
 export const listThreadMessages = async (
   threadId: number,
-  options?: { limit?: number; cursor?: MessageCursor | null },
+  options?: { limit?: number; cursor?: MessageCursor | null }
 ): Promise<{ messages: ThreadMessage[]; nextCursor: MessageCursor | null }> => {
-  const response = await api.get<ThreadMessagesResponse>(`/messages/threads/${threadId}/messages`, {
-    params: {
-      limit: options?.limit,
-      cursor: options?.cursor ? JSON.stringify(options.cursor) : undefined,
-    },
-  });
+  const response = await api.get<ThreadMessagesResponse>(
+    `/messages/threads/${threadId}/messages`,
+    {
+      params: {
+        limit: options?.limit,
+        cursor: options?.cursor ? JSON.stringify(options.cursor) : undefined,
+      },
+    }
+  );
   const payload = response.data?.data;
   return {
     messages: (payload?.data ?? []).map(mapThreadMessage),
@@ -718,11 +767,11 @@ export const listThreadMessages = async (
 
 export const sendThreadMessage = async (
   threadId: number,
-  payload: { text: string; attachments?: unknown[] },
+  payload: { text: string; attachments?: unknown[] }
 ): Promise<ThreadMessage> => {
   const response = await api.post<SendMessageResponse>(
     `/messages/threads/${threadId}/messages`,
-    payload,
+    payload
   );
   const message = response.data?.data;
   if (!message) {
@@ -733,7 +782,7 @@ export const sendThreadMessage = async (
 
 export const markThreadAsRead = async (
   threadId: number,
-  upToMessageId?: number | null,
+  upToMessageId?: number | null
 ) => {
   await api.post(`/messages/threads/${threadId}/read`, {
     upToMessageId: upToMessageId ?? undefined,
