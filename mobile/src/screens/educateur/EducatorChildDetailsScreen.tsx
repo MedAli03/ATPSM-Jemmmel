@@ -337,14 +337,19 @@ export const EducatorChildDetailsScreen: React.FC = () => {
           {lastEvaluations.length === 0 ? (
             <Text style={styles.mutedText}>لا توجد تقييمات مسجّلة بعد.</Text>
           ) : (
-            lastEvaluations.map((e) => (
-              <View key={e.id} style={styles.itemRow}>
-                <Text style={styles.itemDate}>{formatDate(e.date)}</Text>
-                <Text style={styles.itemSummary}>
-                  {e.commentaire_global ?? "بدون ملاحظات"}
-                </Text>
-              </View>
-            ))
+            lastEvaluations.map((e) => {
+              const scoreText = e.score != null ? `درجة ${e.score}/100` : null;
+              const summaryText = e.notes ?? "لا توجد ملاحظات";
+              return (
+                <View key={e.id} style={styles.itemRow}>
+                  <Text style={styles.itemDate}>{formatDate(e.date)}</Text>
+                  <Text style={styles.itemSummary}>
+                    {scoreText ? `${scoreText} – ` : ""}
+                    {summaryText}
+                  </Text>
+                </View>
+              );
+            })
           )}
         </View>
 

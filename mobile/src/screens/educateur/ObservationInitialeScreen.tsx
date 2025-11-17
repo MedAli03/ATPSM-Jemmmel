@@ -92,6 +92,7 @@ export const ObservationInitialeScreen: React.FC = () => {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [showErrors, setShowErrors] = useState(false);
 
   const updateField = (key: keyof ObservationFormState, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -138,30 +139,33 @@ export const ObservationInitialeScreen: React.FC = () => {
     };
   }, [childId]);
 
-  const hasValidationErrors = useMemo(() => {
+  const fieldValidation = useMemo(() => {
     const date = form.date.trim();
     const needs = form.needs.trim();
     const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-    return !datePattern.test(date) || needs.length < 10;
+    return {
+      dateError: datePattern.test(date)
+        ? null
+        : "صيغة التاريخ يجب أن تكون على شكل YYYY-MM-DD.",
+      needsError:
+        needs.length >= 10 ? null : "وصف الاحتياجات يجب أن يحتوي على 10 أحرف على الأقل.",
+    };
   }, [form.date, form.needs]);
 
+  const hasValidationErrors = Boolean(fieldValidation.dateError || fieldValidation.needsError);
+
   const validateForm = () => {
-    const date = form.date.trim();
-    const needs = form.needs.trim();
-    const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-
-    if (!datePattern.test(date)) {
-      return "صيغة التاريخ يجب أن تكون على شكل YYYY-MM-DD.";
+    if (fieldValidation.dateError) {
+      return fieldValidation.dateError;
     }
-
-    if (needs.length < 10) {
-      return "وصف الاحتياجات يجب أن يحتوي على 10 أحرف على الأقل.";
+    if (fieldValidation.needsError) {
+      return fieldValidation.needsError;
     }
-
     return null;
   };
 
   const handleSave = async () => {
+    setShowErrors(true);
     const validationMessage = validateForm();
     if (validationMessage) {
       setValidationError(validationMessage);
@@ -243,13 +247,17 @@ export const ObservationInitialeScreen: React.FC = () => {
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>المعطيات العامة</Text>
 
-          <Text style={styles.label}>تاريخ الملاحظة (اختياري)</Text>
+          <Text style={styles.label}>تاريخ الملاحظة *</Text>
           <TextInput
             style={styles.input}
             placeholder="مثال: 2025-11-17"
             value={form.date}
             onChangeText={(text) => updateField("date", text)}
+            onFocus={() => setShowErrors(true)}
           />
+          {showErrors && fieldValidation.dateError ? (
+            <Text style={styles.inlineError}>{fieldValidation.dateError}</Text>
+          ) : null}
 
           <Text style={styles.label}>السياق</Text>
           <TextInput
@@ -333,7 +341,11 @@ export const ObservationInitialeScreen: React.FC = () => {
             multiline
             value={form.needs}
             onChangeText={(text) => updateField("needs", text)}
+            onFocus={() => setShowErrors(true)}
           />
+          {showErrors && fieldValidation.needsError ? (
+            <Text style={styles.inlineError}>{fieldValidation.needsError}</Text>
+          ) : null}
           <Text style={styles.requiredHint}>
             * هذا الحقل ضروري لأنه يؤثّر مباشرة في أهداف الـ PEI.
           </Text>
@@ -400,6 +412,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: "center",
     marginTop: 6,
+  },
+  inlineError: {
+    color: "#DC2626",
+    fontSize: 12,
+    marginTop: 4,
   },
 
   card: {

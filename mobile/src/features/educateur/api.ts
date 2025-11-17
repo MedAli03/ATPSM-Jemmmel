@@ -128,6 +128,14 @@ interface DailyNoteDto {
   educateur?: { prenom?: string | null; nom?: string | null };
 }
 
+const mapEvaluationDto = (evaluation: EvaluationDto): PeiEvaluation => ({
+  id: evaluation.id,
+  date: evaluation.date_evaluation,
+  score: evaluation.score ?? undefined,
+  notes: evaluation.notes ?? undefined,
+  created_by: formatUserName(evaluation.educateur),
+});
+
 interface RawThreadParticipant {
   id: number;
   name?: string | null;
@@ -483,14 +491,7 @@ export const getPeiEvaluations = async (
       },
     );
     const rows = response.data?.data ?? [];
-    return rows.map((evaluation) => ({
-      id: evaluation.id,
-      date: evaluation.date_evaluation,
-      periode: evaluation.date_evaluation,
-      commentaire_global: evaluation.notes ?? undefined,
-      note_globale: evaluation.score ?? undefined,
-      created_by: formatUserName(evaluation.educateur),
-    }));
+    return rows.map(mapEvaluationDto);
   } catch (error) {
     throwIfForbidden(error, "لا يمكنك الاطّلاع على تقييمات هذا الـ PEI.");
     throw error;
@@ -531,11 +532,11 @@ export const createPeiEvaluation = async (
   peiId: number,
   payload: NewPeiEvaluationPayload,
 ): Promise<PeiEvaluation> => {
-  const response = await api.post<PeiEvaluation>(
+  const response = await api.post<EvaluationDto>(
     `/pei/${peiId}/evaluations`,
     payload,
   );
-  return response.data;
+  return mapEvaluationDto(response.data);
 };
 
 export const getLatestObservationInitiale = async (

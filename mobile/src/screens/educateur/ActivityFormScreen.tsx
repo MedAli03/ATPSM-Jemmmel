@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -28,6 +28,39 @@ export const ActivityFormScreen: React.FC = () => {
   const [loadingPei, setLoadingPei] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [showErrors, setShowErrors] = useState(false);
+
+  const validateFields = () => {
+    const trimmedTitle = title.trim();
+    const trimmedObjective = objective.trim();
+    const trimmedDescription = description.trim();
+    const errors: Partial<Record<"title" | "objective" | "description" | "pei", string>> = {};
+
+    if (!trimmedTitle) {
+      errors.title = "هذا الحقل إجباري.";
+    } else if (trimmedTitle.length < 3) {
+      errors.title = "الرجاء إدخال عنوان لا يقل عن 3 أحرف.";
+    } else if (trimmedTitle.length > 150) {
+      errors.title = "العنوان يجب ألا يتجاوز 150 حرفًا.";
+    }
+
+    if (trimmedObjective && trimmedObjective.length < 3) {
+      errors.objective = "الهدف التربوي يجب أن يكون أكثر تحديدًا (3 أحرف على الأقل).";
+    }
+
+    if (trimmedDescription && trimmedDescription.length < 10) {
+      errors.description = "الرجاء تقديم وصف مكوّن من 10 أحرف على الأقل.";
+    }
+
+    if (!peiId) {
+      errors.pei = "لا يوجد PEI نشط، لا يمكن ربط النشاط.";
+    }
+
+    return errors;
+  };
+
+  const currentErrors = useMemo(() => validateFields(), [title, objective, description, peiId]);
+  const hasBlockingErrors = Object.keys(currentErrors).length > 0;
 
   useEffect(() => {
     if (initialPeiId) {
@@ -59,40 +92,20 @@ export const ActivityFormScreen: React.FC = () => {
   }, [childId, initialPeiId]);
 
   const handleSave = async () => {
+    setShowErrors(true);
+    const errors = validateFields();
+    if (Object.keys(errors).length > 0) {
+      const firstMessage =
+        errors.title || errors.objective || errors.description || errors.pei || "يرجى تصحيح الحقول المحددة.";
+      setFormError(firstMessage);
+      Alert.alert("تنبيه", firstMessage);
+      return;
+    }
+
     const trimmedTitle = title.trim();
     const trimmedObjective = objective.trim();
     const trimmedDescription = description.trim();
-
-    if (trimmedTitle.length < 3) {
-      const message = "الرجاء إدخال عنوان لا يقل عن 3 أحرف.";
-      setFormError(message);
-      Alert.alert("تنبيه", message);
-      return;
-    }
-
-    if (trimmedObjective && trimmedObjective.length < 3) {
-      const message = "الهدف التربوي يجب أن يكون أكثر تحديدًا.";
-      setFormError(message);
-      Alert.alert("تنبيه", message);
-      return;
-    }
-
-    if (trimmedDescription && trimmedDescription.length < 10) {
-      const message = "الرجاء تقديم وصف مكوّن من 10 أحرف على الأقل.";
-      setFormError(message);
-      Alert.alert("تنبيه", message);
-      return;
-    }
-
-    if (!peiId) {
-      const message = "لا يوجد PEI نشط، لا يمكن ربط النشاط.";
-      setFormError(message);
-      Alert.alert("تنبيه", message);
-      return;
-    }
-
     setFormError(null);
-
     setSaving(true);
     try {
       await addPEIActivity(peiId, {
@@ -101,6 +114,7 @@ export const ActivityFormScreen: React.FC = () => {
         description: trimmedDescription || undefined,
         date_activite: new Date().toISOString(),
         enfant_id: childId,
+        type: "autre",
       });
       Alert.alert("تمّ الحفظ", "تمّ حفظ النشاط بنجاح.", [
         { text: "حسنًا", onPress: () => navigation.goBack() },
@@ -130,7 +144,11 @@ export const ActivityFormScreen: React.FC = () => {
         placeholder="مثال: لعبة تصنيف الألوان"
         value={title}
         onChangeText={setTitle}
+        onFocus={() => setShowErrors(true)}
       />
+      {showErrors && currentErrors.title ? (
+        <Text style={styles.errorText}>{currentErrors.title}</Text>
+      ) : null}
 
       <Text style={styles.label}>الهدف التربوي</Text>
       <TextInput
@@ -138,7 +156,11 @@ export const ActivityFormScreen: React.FC = () => {
         placeholder="مثال: تنمية مهارات الانتباه والتركيز"
         value={objective}
         onChangeText={setObjective}
+        onFocus={() => setShowErrors(true)}
       />
+      {showErrors && currentErrors.objective ? (
+        <Text style={styles.errorText}>{currentErrors.objective}</Text>
+      ) : null}
 
       <Text style={styles.label}>وصف مختصر</Text>
       <TextInput
@@ -147,13 +169,22 @@ export const ActivityFormScreen: React.FC = () => {
         multiline
         value={description}
         onChangeText={setDescription}
+        onFocus={() => setShowErrors(true)}
       />
-      {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
+      {showErrors && currentErrors.description ? (
+        <Text style={styles.errorText}>{currentErrors.description}</Text>
+      ) : null}
+      {showErrors && currentErrors.pei ? (
+        <Text style={styles.errorText}>{currentErrors.pei}</Text>
+      ) : null}
+      {formError && !(showErrors && (currentErrors.title || currentErrors.objective || currentErrors.description || currentErrors.pei)) ? (
+        <Text style={styles.errorText}>{formError}</Text>
+      ) : null}
 
       <TouchableOpacity
         style={[styles.saveBtn, (saving || loadingPei) && styles.saveBtnDisabled]}
         onPress={handleSave}
-        disabled={saving || loadingPei}
+        disabled={saving || loadingPei || hasBlockingErrors}
       >
         <Text style={styles.saveText}>{saving ? "..." : "حفظ النشاط"}</Text>
       </TouchableOpacity>
