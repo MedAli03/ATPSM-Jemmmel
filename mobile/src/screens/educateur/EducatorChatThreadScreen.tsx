@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  ToastAndroid,
 } from "react-native";
 import { RouteProp, useRoute } from "@react-navigation/native";
 import { EducatorStackParamList } from "../../navigation/EducatorNavigator";
@@ -38,6 +39,36 @@ export const EducatorChatThreadScreen: React.FC = () => {
   const [nextCursor, setNextCursor] = useState<MessageCursor | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
   const [sendFeedback, setSendFeedback] = useState<string | null>(null);
+  const [inputTouched, setInputTouched] = useState(false);
+
+  const showSuccessToast = useCallback((message: string) => {
+    if (Platform.OS === "android") {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+      return;
+    }
+    Alert.alert("تم", message);
+  }, []);
+
+  const validateMessage = useCallback(
+    (value: string) => {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return "هذا الحقل إجباري.";
+      }
+      if (trimmed.length < 2) {
+        return "الرسالة قصيرة جدًا.";
+      }
+      if (trimmed.length > 2000) {
+        return "الرسالة طويلة جدًا، الحد الأقصى 2000 حرف.";
+      }
+      return null;
+    },
+    [],
+  );
+
+  const currentValidationError = validateMessage(input);
+  const inlineError = sendError ?? (inputTouched ? currentValidationError : null);
+  const disableSend = sending || Boolean(currentValidationError);
 
   const loadThread = useCallback(async () => {
     if (!threadId) return;
@@ -109,25 +140,22 @@ export const EducatorChatThreadScreen: React.FC = () => {
 
   const handleSend = useCallback(async () => {
     if (!threadId) return;
-    const trimmed = input.trim();
-    if (trimmed.length < 2) {
-      const message = "الرسالة قصيرة جدًا.";
-      setSendError(message);
-      return;
-    }
-    if (trimmed.length > 800) {
-      const message = "الرسالة طويلة جدًا، الرجاء الاختصار.";
-      setSendError(message);
+    setInputTouched(true);
+    const validationMessage = validateMessage(input);
+    if (validationMessage) {
+      setSendError(validationMessage);
       return;
     }
     setSendError(null);
     setSendFeedback(null);
     setSending(true);
     try {
-      const message = await sendThreadMessage(threadId, { text: trimmed });
+      const message = await sendThreadMessage(threadId, { text: input.trim() });
       setMessages((prev) => [...prev, message]);
       setInput("");
+      setInputTouched(false);
       setSendFeedback("تم إرسال الرسالة بنجاح.");
+      showSuccessToast("تم إرسال الرسالة");
     } catch (err) {
       console.error("Failed to send message", err);
       const message = err instanceof Error ? err.message : "تعذّر إرسال الرسالة.";
@@ -136,7 +164,7 @@ export const EducatorChatThreadScreen: React.FC = () => {
     } finally {
       setSending(false);
     }
-  }, [input, threadId]);
+  }, [input, showSuccessToast, threadId, validateMessage]);
 
   const isEducatorMessage = useCallback(
     (message: ThreadMessage) => message.sender?.role === "EDUCATEUR",
@@ -246,18 +274,32 @@ export const EducatorChatThreadScreen: React.FC = () => {
             <TextInput
               style={styles.input}
               placeholder={`رسالة حول الطفل ${childId ?? ""}...`}
+              placeholderTextColor="#9CA3AF"
               value={input}
-              onChangeText={setInput}
+              onChangeText={(value) => {
+                setInput(value);
+                if (!inputTouched) {
+                  setInputTouched(true);
+                }
+                if (sendError) {
+                  setSendError(null);
+                }
+              }}
+              onBlur={() => setInputTouched(true)}
+              multiline
+              textAlignVertical="top"
             />
             <TouchableOpacity
-              style={[styles.sendButton, (sending || !input.trim()) && styles.sendButtonDisabled]}
+              style={[styles.sendButton, disableSend && styles.sendButtonDisabled]}
               onPress={handleSend}
-              disabled={sending || !input.trim()}
+              disabled={disableSend}
             >
               <Text style={styles.sendText}>{sending ? "..." : "إرسال"}</Text>
             </TouchableOpacity>
           </View>
-          {sendError ? <Text style={styles.sendErrorText}>{sendError}</Text> : null}
+          {inlineError ? (
+            <Text style={styles.sendErrorText}>{inlineError}</Text>
+          ) : null}
           {sendFeedback ? <Text style={styles.sendSuccessText}>{sendFeedback}</Text> : null}
         </View>
     </KeyboardAvoidingView>

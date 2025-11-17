@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -17,6 +17,27 @@ export const DailyNoteFormScreen: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [showErrors, setShowErrors] = useState(false);
+
+  const validateFields = () => {
+    const trimmed = note.trim();
+    const errors: Partial<Record<"note" | "pei", string>> = {};
+
+    if (!trimmed) {
+      errors.note = "هذا الحقل إجباري.";
+    } else if (trimmed.length < 10) {
+      errors.note = "الرجاء إدخال ملاحظة أوضح (10 أحرف على الأقل).";
+    }
+
+    if (!peiId) {
+      errors.pei = "لا يوجد PEI نشط لهذا الطفل، لا يمكن ربط الملاحظة.";
+    }
+
+    return errors;
+  };
+
+  const currentErrors = useMemo(() => validateFields(), [note, peiId]);
+  const hasBlockingErrors = Object.keys(currentErrors).length > 0;
 
   useEffect(() => {
     if (initialPeiId) {
@@ -51,31 +72,17 @@ export const DailyNoteFormScreen: React.FC = () => {
   }, [childId, initialPeiId]);
 
   const handleSave = async () => {
+    setShowErrors(true);
+    const errors = validateFields();
+    if (Object.keys(errors).length > 0) {
+      const firstMessage = errors.note || errors.pei || "يرجى تصحيح الحقول المحددة.";
+      setFormError(firstMessage);
+      Alert.alert("تنبيه", firstMessage);
+      return;
+    }
+
     const trimmed = note.trim();
-
-    if (trimmed.length < 10) {
-      const message = "الرجاء إدخال ملاحظة أوضح (10 أحرف على الأقل).";
-      setFormError(message);
-      Alert.alert("تنبيه", message);
-      return;
-    }
-
-    if (trimmed.length > 800) {
-      const message = "الملاحظة طويلة جدًا، الرجاء الاختصار (أقل من 800 حرف).";
-      setFormError(message);
-      Alert.alert("تنبيه", message);
-      return;
-    }
-
-    if (!peiId) {
-      const message = "لا يوجد PEI نشط لهذا الطفل، لا يمكن ربط الملاحظة.";
-      setFormError(message);
-      Alert.alert("تنبيه", message);
-      return;
-    }
-
     setFormError(null);
-
     setSaving(true);
     try {
       await addDailyNote(childId, {
@@ -111,13 +118,28 @@ export const DailyNoteFormScreen: React.FC = () => {
         placeholder="اكتب هنا ملاحظة مختصرة حول سلوك الطفل، مشاركته، تفاعله..."
         multiline
         value={note}
-        onChangeText={setNote}
+        onChangeText={(value) => {
+          setNote(value);
+          if (!showErrors) {
+            return;
+          }
+          setFormError(null);
+        }}
+        onFocus={() => setShowErrors(true)}
       />
-      {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
+      {showErrors && currentErrors.note ? (
+        <Text style={styles.errorText}>{currentErrors.note}</Text>
+      ) : null}
+      {showErrors && currentErrors.pei ? (
+        <Text style={styles.errorText}>{currentErrors.pei}</Text>
+      ) : null}
+      {formError && !(showErrors && (currentErrors.note || currentErrors.pei)) ? (
+        <Text style={styles.errorText}>{formError}</Text>
+      ) : null}
       <TouchableOpacity
         style={[styles.saveBtn, (saving || loading) && styles.saveBtnDisabled]}
         onPress={handleSave}
-        disabled={saving || loading}
+        disabled={saving || loading || hasBlockingErrors}
       >
         <Text style={styles.saveText}>{saving ? "..." : "حفظ الملاحظة"}</Text>
       </TouchableOpacity>

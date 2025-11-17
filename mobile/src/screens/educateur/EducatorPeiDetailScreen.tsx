@@ -239,22 +239,20 @@ export const EducatorPeiDetailScreen: React.FC = () => {
                   <View key={ev.id} style={styles.evaluationCard}>
                     <View style={styles.evaluationHeaderRow}>
                       <View>
-                        <Text style={styles.evaluationPeriod}>
-                          {ev.periode || "تقييم"}
-                        </Text>
+                        <Text style={styles.evaluationPeriod}>تقييم</Text>
                         <Text style={styles.evaluationDate}>
                           بتاريخ: {formatDate(ev.date)}
                         </Text>
                       </View>
-                      {ev.note_globale != null && (
+                      {ev.score != null && (
                         <View style={styles.scoreBadge}>
-                          <Text style={styles.scoreLabel}>تقييم عام</Text>
-                          <Text style={styles.scoreValue}>{ev.note_globale}/5</Text>
+                          <Text style={styles.scoreLabel}>درجة</Text>
+                          <Text style={styles.scoreValue}>{ev.score}/100</Text>
                         </View>
                       )}
                     </View>
                     <Text style={styles.evaluationSummary}>
-                      {ev.commentaire_global ?? "لا توجد ملاحظات"}
+                      {ev.notes ?? "لا توجد ملاحظات"}
                     </Text>
                   </View>
                 ))

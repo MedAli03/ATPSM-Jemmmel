@@ -54,16 +54,15 @@ export interface PeiDetails extends ProjetEducatifIndividuelSummary {
 export interface PeiEvaluation {
   id: number;
   date: string;
-  periode: string;
-  commentaire_global?: string;
-  note_globale?: number;
+  score?: number;
+  notes?: string;
   created_by?: string;
 }
 
 export interface NewPeiEvaluationPayload {
-  periode: string;
-  commentaire_global?: string;
-  note_globale?: number;
+  date_evaluation: string;
+  score: number;
+  notes?: string;
 }
 
 export interface CreatePeiPayload {

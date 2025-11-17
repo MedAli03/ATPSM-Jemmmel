@@ -1,5 +1,5 @@
 // src/screens/educateur/PeiEvaluationsScreen.tsx
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -31,62 +31,79 @@ type Props = NativeStackScreenProps<EducatorStackParamList, "PeiEvaluations">;
 export const PeiEvaluationsScreen: React.FC<Props> = ({ route }) => {
   const { peiId, childName } = route.params;
   const { evaluations, loading, error, refetch } = usePeiEvaluations(peiId);
-  const [periode, setPeriode] = useState("");
-  const [commentaire, setCommentaire] = useState("");
-  const [note, setNote] = useState("");
+  const [evaluationDate, setEvaluationDate] = useState(
+    new Date().toISOString().slice(0, 10),
+  );
+  const [notes, setNotes] = useState("");
+  const [score, setScore] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [showErrors, setShowErrors] = useState(false);
 
-  const validateForm = () => {
-    const trimmedPeriode = periode.trim();
-    const trimmedComment = commentaire.trim();
-    const trimmedNote = note.trim();
+  const validateFields = () => {
+    const trimmedDate = evaluationDate.trim();
+    const trimmedNotes = notes.trim();
+    const trimmedScore = score.trim();
+    const errors: Partial<Record<"date" | "score" | "notes", string>> = {};
 
-    if (trimmedPeriode.length < 3) {
-      return "الرجاء تحديد الفترة بدقة (3 أحرف على الأقل).";
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmedDate)) {
+      errors.date = "صيغة التاريخ يجب أن تكون YYYY-MM-DD.";
     }
 
-    if (trimmedComment && trimmedComment.length < 10) {
-      return "الملاحظات العامة يجب أن تحتوي 10 أحرف على الأقل.";
-    }
-
-    if (trimmedNote) {
-      const numericNote = Number(trimmedNote);
-      if (Number.isNaN(numericNote)) {
-        return "الرجاء إدخال رقم صالح في خانة الدرجة.";
+    if (!trimmedScore) {
+      errors.score = "هذا الحقل إجباري.";
+    } else {
+      const numeric = Number(trimmedScore);
+      if (Number.isNaN(numeric)) {
+        errors.score = "الرجاء إدخال رقم صالح.";
+      } else if (!Number.isInteger(numeric)) {
+        errors.score = "الرجاء إدخال قيمة عددية صحيحة.";
+      } else if (numeric < 0 || numeric > 100) {
+        errors.score = "الدرجة يجب أن تكون بين 0 و100.";
       }
-      if (numericNote < 0 || numericNote > 100) {
-        return "الدرجة يجب أن تكون بين 0 و100.";
-      }
     }
 
-    return null;
+    if (trimmedNotes && trimmedNotes.length < 10) {
+      errors.notes = "الملاحظات العامة يجب أن تحتوي 10 أحرف على الأقل.";
+    }
+
+    return errors;
   };
 
+  const currentErrors = useMemo(() => validateFields(), [evaluationDate, score, notes]);
+  const hasBlockingErrors = Object.keys(currentErrors).length > 0;
+  const shouldShowServerError = formError && !hasBlockingErrors;
+
   const handleCreateEvaluation = async () => {
-    const validationMessage = validateForm();
-    if (validationMessage) {
+    setShowErrors(true);
+    const errors = validateFields();
+    if (Object.keys(errors).length > 0) {
+      const validationMessage =
+        errors.date || errors.score || errors.notes || "يرجى تصحيح الحقول المحددة.";
       setSuccessMessage(null);
       setFormError(validationMessage);
+      Alert.alert("تنبيه", validationMessage);
       return;
     }
     setSubmitting(true);
     try {
       await createPeiEvaluation(peiId, {
-        periode: periode.trim(),
-        commentaire_global: commentaire.trim() || undefined,
-        note_globale: note ? Number(note) : undefined,
+        date_evaluation: evaluationDate.trim(),
+        score: Number(score.trim()),
+        notes: notes.trim() || undefined,
       });
-      setPeriode("");
-      setCommentaire("");
-      setNote("");
+      setEvaluationDate(new Date().toISOString().slice(0, 10));
+      setNotes("");
+      setScore("");
       setFormError(null);
       setSuccessMessage("تم حفظ التقييم بنجاح.");
       Alert.alert("تم الحفظ", "تمت إضافة التقييم الجديد.");
       await refetch();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "حدث خطأ غير متوقع.");
+      const message = err instanceof Error ? err.message : "حدث خطأ غير متوقع.";
+      setFormError(message);
+      Alert.alert("خطأ", message);
       setSuccessMessage(null);
     } finally {
       setSubmitting(false);
@@ -97,14 +114,9 @@ export const PeiEvaluationsScreen: React.FC<Props> = ({ route }) => {
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <Text style={styles.cardTitle}>التاريخ: {formatDate(item.date)}</Text>
-        <Text style={styles.badge}>الفترة: {item.periode}</Text>
+        <Text style={styles.badge}>الدرجة: {item.score ?? "-"}/100</Text>
       </View>
-      {item.note_globale !== undefined ? (
-        <Text style={styles.cardNote}>التقييم العام: {item.note_globale}</Text>
-      ) : null}
-      {item.commentaire_global ? (
-        <Text style={styles.cardDescription}>{item.commentaire_global}</Text>
-      ) : null}
+      {item.notes ? <Text style={styles.cardDescription}>{item.notes}</Text> : null}
       {item.created_by ? (
         <Text style={styles.cardFooter}>المربي: {item.created_by}</Text>
       ) : null}
@@ -143,33 +155,47 @@ export const PeiEvaluationsScreen: React.FC<Props> = ({ route }) => {
             <Text style={styles.formTitle}>إضافة تقييم جديد</Text>
             <TextInput
               style={styles.input}
-              placeholder="الفترة (مثلاً: 3 أشهر)"
+              placeholder="تاريخ التقييم (YYYY-MM-DD)"
               placeholderTextColor="#9AA0B5"
-              value={periode}
-              onChangeText={setPeriode}
+              value={evaluationDate}
+              onChangeText={setEvaluationDate}
               textAlign="right"
+              onFocus={() => setShowErrors(true)}
             />
+            {showErrors && currentErrors.date ? (
+              <Text style={styles.errorText}>{currentErrors.date}</Text>
+            ) : null}
             <TextInput
               style={[styles.input, styles.multilineInput]}
               placeholder="ملاحظات عامة"
               placeholderTextColor="#9AA0B5"
-              value={commentaire}
-              onChangeText={setCommentaire}
+              value={notes}
+              onChangeText={setNotes}
               multiline
               numberOfLines={4}
               textAlign="right"
               textAlignVertical="top"
+              onFocus={() => setShowErrors(true)}
             />
+            {showErrors && currentErrors.notes ? (
+              <Text style={styles.errorText}>{currentErrors.notes}</Text>
+            ) : null}
             <TextInput
               style={styles.input}
-              placeholder="الدرجة العامة"
+              placeholder="الدرجة العامة (0-100)"
               placeholderTextColor="#9AA0B5"
-              value={note}
-              onChangeText={setNote}
+              value={score}
+              onChangeText={setScore}
               keyboardType="numeric"
               textAlign="right"
+              onFocus={() => setShowErrors(true)}
             />
-            {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
+            {showErrors && currentErrors.score ? (
+              <Text style={styles.errorText}>{currentErrors.score}</Text>
+            ) : null}
+            {shouldShowServerError ? (
+              <Text style={styles.errorText}>{formError}</Text>
+            ) : null}
             {successMessage ? (
               <Text style={styles.successText}>{successMessage}</Text>
             ) : null}
@@ -179,7 +205,7 @@ export const PeiEvaluationsScreen: React.FC<Props> = ({ route }) => {
             <TouchableOpacity
               style={[styles.button, submitting && styles.buttonDisabled]}
               onPress={handleCreateEvaluation}
-              disabled={submitting}
+              disabled={submitting || hasBlockingErrors}
               activeOpacity={0.85}
             >
               <Text style={styles.buttonText}>
@@ -303,12 +329,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     fontSize: 12,
     fontWeight: "600",
-  },
-  cardNote: {
-    fontWeight: "600",
-    color: "#1F2937",
-    marginBottom: 6,
-    textAlign: "right",
   },
   cardDescription: {
     color: "#4B5563",
