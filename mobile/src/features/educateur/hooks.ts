@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   getActivePeiForChild,
-  getGroupChildren,
+  getChildrenByGroup,
   getMyGroups,
   getPeiEvaluations,
 } from "./api";
@@ -56,7 +56,7 @@ export const useGroupChildren = (groupId: number) => {
     }
     setLoading(true);
     try {
-      const data = await getGroupChildren(groupId);
+      const data = await getChildrenByGroup(groupId);
       setChildren(data);
       setError(null);
     } catch (err) {
