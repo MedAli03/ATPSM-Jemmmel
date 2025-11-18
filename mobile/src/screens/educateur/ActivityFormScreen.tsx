@@ -12,6 +12,7 @@ import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { EducatorStackParamList } from "../../navigation/EducatorNavigator";
 import { ForbiddenError, addPEIActivity, getActivePeiForChild } from "../../features/educateur/api";
+import { showErrorMessage, showSuccessMessage } from "../../utils/feedback";
 
 type Route = RouteProp<EducatorStackParamList, "ActivityForm">;
 type Nav = NativeStackNavigationProp<EducatorStackParamList>;
@@ -148,14 +149,18 @@ export const ActivityFormScreen: React.FC = () => {
         date_activite: new Date().toISOString(),
         enfant_id: childId,
       });
-      Alert.alert("تمّ الحفظ", "تمّ حفظ النشاط بنجاح.", [
-        { text: "حسنًا", onPress: () => navigation.goBack() },
-      ]);
+      showSuccessMessage("تم حفظ النشاط بنجاح");
+      navigation.goBack();
     } catch (err) {
       console.error("Failed to save activity", err);
       const fallback = "تعذّر حفظ النشاط. حاول مجددًا.";
-      const message = err instanceof ForbiddenError ? err.message : err instanceof Error ? err.message : fallback;
-      Alert.alert("خطأ", message);
+      const message =
+        err instanceof ForbiddenError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : fallback;
+      showErrorMessage(message);
     } finally {
       setSaving(false);
     }

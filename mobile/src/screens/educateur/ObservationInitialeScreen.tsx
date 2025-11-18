@@ -19,6 +19,7 @@ import {
   ObservationInitialeDto,
   updateObservationInitiale,
 } from "../../features/educateur/api";
+import { showErrorMessage, showSuccessMessage } from "../../utils/feedback";
 
 type Route = RouteProp<EducatorStackParamList, "ObservationInitiale">;
 type Nav = NativeStackNavigationProp<EducatorStackParamList>;
@@ -208,17 +209,13 @@ export const ObservationInitialeScreen: React.FC = () => {
       }
 
       setObservation(next);
-      Alert.alert("تمّ الحفظ", "تمّ حفظ الملاحظة الأولية بنجاح.", [
-        {
-          text: "حسنًا",
-          onPress: () => navigation.goBack(),
-        },
-      ]);
+      showSuccessMessage("تم حفظ الملاحظة الأولية بنجاح");
+      navigation.goBack();
     } catch (err) {
       console.error("Failed to save observation_initiale", err);
       const message = err instanceof Error ? err.message : "تعذّر حفظ الملاحظة. الرجاء المحاولة من جديد.";
       setValidationError(message);
-      Alert.alert("خطأ", message);
+      showErrorMessage(message);
     } finally {
       setIsSaving(false);
     }

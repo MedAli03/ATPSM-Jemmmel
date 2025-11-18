@@ -16,6 +16,7 @@ import { createPeiEvaluation } from "../../features/educateur/api";
 import { usePeiEvaluations } from "../../features/educateur/hooks";
 import { PeiEvaluation } from "../../features/educateur/types";
 import { EducatorStackParamList } from "../../navigation/EducatorNavigator";
+import { showErrorMessage, showSuccessMessage } from "../../utils/feedback";
 
 const PRIMARY = "#2563EB";
 
@@ -127,14 +128,14 @@ export const PeiEvaluationsScreen: React.FC<Props> = ({ route }) => {
       setFieldErrors({});
       setFormError(null);
       setSuccessMessage("تم حفظ التقييم بنجاح.");
-      Alert.alert("تم الحفظ", "تمت إضافة التقييم الجديد.");
+      showSuccessMessage("تم حفظ التقييم بنجاح");
       await refetch();
     } catch (err) {
       const fallback = "حدث خطأ غير متوقع.";
       const message = err instanceof Error ? err.message : fallback;
       setFormError(message);
       setSuccessMessage(null);
-      Alert.alert("خطأ", message);
+      showErrorMessage(message);
     } finally {
       setSubmitting(false);
     }

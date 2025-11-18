@@ -4,6 +4,7 @@ import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { EducatorStackParamList } from "../../navigation/EducatorNavigator";
 import { ForbiddenError, addDailyNote, getActivePeiForChild } from "../../features/educateur/api";
+import { showErrorMessage, showSuccessMessage } from "../../utils/feedback";
 
 type Route = RouteProp<EducatorStackParamList, "DailyNoteForm">;
 type Nav = NativeStackNavigationProp<EducatorStackParamList>;
@@ -95,14 +96,18 @@ export const DailyNoteFormScreen: React.FC = () => {
         date_note: new Date().toISOString(),
         contenu: trimmed,
       });
-      Alert.alert("تمّ الحفظ", "تمّ حفظ الملاحظة بنجاح.", [
-        { text: "حسنًا", onPress: () => navigation.goBack() },
-      ]);
+      showSuccessMessage("تم حفظ الملاحظة بنجاح");
+      navigation.goBack();
     } catch (err) {
       console.error("Failed to save daily note", err);
       const defaultMessage = "تعذّر حفظ الملاحظة. حاول مرة أخرى.";
-      const message = err instanceof ForbiddenError ? err.message : err instanceof Error ? err.message : defaultMessage;
-      Alert.alert("خطأ", message);
+      const message =
+        err instanceof ForbiddenError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : defaultMessage;
+      showErrorMessage(message);
     } finally {
       setSaving(false);
     }
