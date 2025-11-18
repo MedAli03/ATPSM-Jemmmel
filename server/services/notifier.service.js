@@ -282,10 +282,16 @@ async function notifyOnEducatorAssignedToGroup({ educateur_id, groupe_id, annee_
 // -------------------------------
 
 async function notifyOnPeiAwaitingValidation(pei, t = null) {
+  const enfant = await Enfant.findByPk(pei.enfant_id, {
+    attributes: ["prenom", "nom"],
+    transaction: t,
+  });
+  const fullName = [enfant?.prenom, enfant?.nom].filter(Boolean).join(" ").trim();
+  const childLabel = fullName || `#${pei.enfant_id}`;
   const payload = {
-    type: "pei_en_attente_validation",
-    titre: "PEI en attente de validation",
-    corps: `Un PEI pour l'enfant #${pei.enfant_id} nécessite une validation.`,
+    type: "PEI_EN_ATTENTE_VALIDATION",
+    titre: "مشروع تربوي في انتظار المصادقة",
+    corps: `مشروع تربوي جديد في انتظار المصادقة للطفل ${childLabel}.`,
     icon: "clipboard-check",
     data: { enfant_id: pei.enfant_id, pei_id: pei.id, educateur_id: pei.educateur_id },
   };
