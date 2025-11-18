@@ -11,25 +11,46 @@ import {
 type MessageCursor = { id: string; createdAt: string } | null;
 
 export const getMyChildren = async (): Promise<Child[]> => {
-  const response = await api.get<Child[]>("/enfants/me/enfants");
-  return response.data;
+  const response = await api.get<{ rows?: Child[]; data?: Child[] }>(
+    "/enfants/me/enfants",
+  );
+  if (Array.isArray(response.data?.rows)) {
+    return response.data.rows;
+  }
+  if (Array.isArray(response.data?.data)) {
+    return response.data.data;
+  }
+  return [];
 };
 
 export const getChildById = async (childId: number): Promise<Child> => {
-  const response = await api.get<Child>(`/enfants/${childId}`);
-  return response.data;
+  const response = await api.get<{ ok?: boolean; data?: Child }>(`/enfants/${childId}`);
+  if (response.data?.data) {
+    return response.data.data;
+  }
+  return response.data as unknown as Child;
 };
 
 export const getChildTimeline = async (childId: number): Promise<TimelineItem[]> => {
-  const response = await api.get<TimelineItem[]>(`/enfants/${childId}/timeline`);
-  return response.data;
+  const response = await api.get<{ ok?: boolean; data?: TimelineItem[] }>(
+    `/enfants/${childId}/timeline`,
+  );
+  if (Array.isArray(response.data?.data)) {
+    return response.data.data;
+  }
+  return [];
 };
 
 export const getParentThreads = async (): Promise<MessageThread[]> => {
-  const response = await api.get<{ data: { data: MessageThread[] } }>("/messages/threads");
+  const response = await api.get<{ data: { data?: MessageThread[] } | MessageThread[] }>(
+    "/messages/threads",
+  );
   const payload = response.data?.data;
-  if (payload && Array.isArray(payload.data)) {
-    return payload.data;
+  if (payload && Array.isArray((payload as any).data)) {
+    return (payload as { data: MessageThread[] }).data;
+  }
+  if (Array.isArray(payload)) {
+    return payload;
   }
   return [];
 };
@@ -48,7 +69,11 @@ export const getThreadMessages = async (
     `/messages/threads/${threadId}/messages`,
     { params },
   );
-  return response.data.data ?? { data: [], nextCursor: null };
+  const payload = response.data?.data;
+  if (payload?.data) {
+    return payload;
+  }
+  return { data: [], nextCursor: null };
 };
 
 export const sendThreadMessage = async (
@@ -72,10 +97,11 @@ export const markThreadRead = async (
 };
 
 export const getParentNotifications = async (): Promise<ParentNotification[]> => {
-  const response = await api.get<{ data: { data: ParentNotification[] } }>("/notifications/me");
-  const payload = response.data?.data;
-  if (payload && Array.isArray(payload.data)) {
-    return payload.data;
+  const response = await api.get<{ ok?: boolean; data?: ParentNotification[] }>(
+    "/notifications/me",
+  );
+  if (Array.isArray(response.data?.data)) {
+    return response.data.data;
   }
   return [];
 };
