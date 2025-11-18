@@ -208,7 +208,7 @@ const throwIfForbidden = (error: unknown, fallbackMessage?: string) => {
 
 let cachedActiveYear: SchoolYear | null = null;
 
-const getActiveSchoolYear = async (): Promise<SchoolYear> => {
+export const getActiveSchoolYear = async (): Promise<SchoolYear> => {
   if (cachedActiveYear) {
     return cachedActiveYear;
   }
