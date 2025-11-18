@@ -39,6 +39,37 @@ export const EducatorChatThreadScreen: React.FC = () => {
   const [sendError, setSendError] = useState<string | null>(null);
   const [sendFeedback, setSendFeedback] = useState<string | null>(null);
 
+  const getMessageValidationError = useCallback((value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return "هذا الحقل إجباري";
+    }
+    if (trimmed.length < 2) {
+      return "النص قصير جدًا";
+    }
+    if (trimmed.length > 2000) {
+      return "النص طويل جدًا";
+    }
+    return null;
+  }, []);
+
+  const pendingInputError = useMemo(
+    () => getMessageValidationError(input),
+    [getMessageValidationError, input]
+  );
+
+  const validateForm = useCallback(() => {
+    const error = getMessageValidationError(input);
+    if (error) {
+      setSendError(error);
+      return false;
+    }
+    setSendError(null);
+    return true;
+  }, [getMessageValidationError, input]);
+
+  const isSendDisabled = sending || Boolean(pendingInputError);
+
   const loadThread = useCallback(async () => {
     if (!threadId) return;
     setLoading(true);
@@ -109,18 +140,10 @@ export const EducatorChatThreadScreen: React.FC = () => {
 
   const handleSend = useCallback(async () => {
     if (!threadId) return;
+    if (!validateForm()) {
+      return;
+    }
     const trimmed = input.trim();
-    if (trimmed.length < 2) {
-      const message = "الرسالة قصيرة جدًا.";
-      setSendError(message);
-      return;
-    }
-    if (trimmed.length > 800) {
-      const message = "الرسالة طويلة جدًا، الرجاء الاختصار.";
-      setSendError(message);
-      return;
-    }
-    setSendError(null);
     setSendFeedback(null);
     setSending(true);
     try {
@@ -136,7 +159,7 @@ export const EducatorChatThreadScreen: React.FC = () => {
     } finally {
       setSending(false);
     }
-  }, [input, threadId]);
+  }, [input, threadId, validateForm]);
 
   const isEducatorMessage = useCallback(
     (message: ThreadMessage) => message.sender?.role === "EDUCATEUR",
@@ -247,12 +270,18 @@ export const EducatorChatThreadScreen: React.FC = () => {
               style={styles.input}
               placeholder={`رسالة حول الطفل ${childId ?? ""}...`}
               value={input}
-              onChangeText={setInput}
+              onChangeText={(text) => {
+                setInput(text);
+                if (sendError) {
+                  setSendError(null);
+                }
+              }}
+              maxLength={2000}
             />
             <TouchableOpacity
-              style={[styles.sendButton, (sending || !input.trim()) && styles.sendButtonDisabled]}
+              style={[styles.sendButton, isSendDisabled && styles.sendButtonDisabled]}
               onPress={handleSend}
-              disabled={sending || !input.trim()}
+              disabled={isSendDisabled}
             >
               <Text style={styles.sendText}>{sending ? "..." : "إرسال"}</Text>
             </TouchableOpacity>

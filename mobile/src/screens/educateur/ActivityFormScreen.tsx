@@ -27,7 +27,12 @@ export const ActivityFormScreen: React.FC = () => {
   const [peiId, setPeiId] = useState<number | null>(initialPeiId ?? null);
   const [loadingPei, setLoadingPei] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{
+    title?: string;
+    objective?: string;
+    description?: string;
+    pei?: string;
+  }>({});
 
   useEffect(() => {
     if (initialPeiId) {
@@ -58,40 +63,81 @@ export const ActivityFormScreen: React.FC = () => {
     };
   }, [childId, initialPeiId]);
 
-  const handleSave = async () => {
+  useEffect(() => {
+    if (!peiId) return;
+    setFieldErrors((prev) => {
+      if (!prev.pei) return prev;
+      const next = { ...prev };
+      delete next.pei;
+      return next;
+    });
+  }, [peiId]);
+
+  const buildValidationErrors = () => {
     const trimmedTitle = title.trim();
     const trimmedObjective = objective.trim();
     const trimmedDescription = description.trim();
+    const errors: {
+      title?: string;
+      objective?: string;
+      description?: string;
+      pei?: string;
+    } = {};
 
-    if (trimmedTitle.length < 3) {
-      const message = "الرجاء إدخال عنوان لا يقل عن 3 أحرف.";
-      setFormError(message);
-      Alert.alert("تنبيه", message);
-      return;
+    if (!trimmedTitle) {
+      errors.title = "هذا الحقل إجباري";
+    } else if (trimmedTitle.length < 3) {
+      errors.title = "العنوان قصير جدًا";
+    } else if (trimmedTitle.length > 150) {
+      errors.title = "العنوان طويل جدًا (150 حرفًا كحدّ أقصى)";
     }
 
     if (trimmedObjective && trimmedObjective.length < 3) {
-      const message = "الهدف التربوي يجب أن يكون أكثر تحديدًا.";
-      setFormError(message);
-      Alert.alert("تنبيه", message);
-      return;
+      errors.objective = "الهدف يحتاج إلى 3 أحرف على الأقل";
     }
 
-    if (trimmedDescription && trimmedDescription.length < 10) {
-      const message = "الرجاء تقديم وصف مكوّن من 10 أحرف على الأقل.";
-      setFormError(message);
-      Alert.alert("تنبيه", message);
-      return;
+    if (trimmedDescription) {
+      if (trimmedDescription.length < 10) {
+        errors.description = "الوصف قصير جدًا";
+      } else if (trimmedDescription.length > 2000) {
+        errors.description = "الوصف طويل جدًا";
+      }
     }
 
     if (!peiId) {
-      const message = "لا يوجد PEI نشط، لا يمكن ربط النشاط.";
-      setFormError(message);
-      Alert.alert("تنبيه", message);
+      errors.pei = "لا يوجد PEI نشط، لا يمكن ربط النشاط.";
+    }
+
+    return errors;
+  };
+
+  const validateForm = () => {
+    const errors = buildValidationErrors();
+    setFieldErrors(errors);
+    const hasErrors = Object.keys(errors).length > 0;
+    if (hasErrors) {
+      Alert.alert("تنبيه", "يرجى تصحيح الحقول المحددة.");
+    }
+    return !hasErrors;
+  };
+
+  const clearFieldError = (key: keyof typeof fieldErrors) => {
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const handleSave = async () => {
+    if (!validateForm()) {
       return;
     }
 
-    setFormError(null);
+    const trimmedTitle = title.trim();
+    const trimmedObjective = objective.trim();
+    const trimmedDescription = description.trim();
 
     setSaving(true);
     try {
@@ -109,12 +155,13 @@ export const ActivityFormScreen: React.FC = () => {
       console.error("Failed to save activity", err);
       const fallback = "تعذّر حفظ النشاط. حاول مجددًا.";
       const message = err instanceof ForbiddenError ? err.message : err instanceof Error ? err.message : fallback;
-      setFormError(message);
       Alert.alert("خطأ", message);
     } finally {
       setSaving(false);
     }
   };
+
+  const isSubmitDisabled = saving || loadingPei || Object.keys(buildValidationErrors()).length > 0;
 
   return (
     <View style={styles.container}>
@@ -129,16 +176,28 @@ export const ActivityFormScreen: React.FC = () => {
         style={styles.input}
         placeholder="مثال: لعبة تصنيف الألوان"
         value={title}
-        onChangeText={setTitle}
+        onChangeText={(text) => {
+          clearFieldError("title");
+          setTitle(text);
+        }}
       />
+      {fieldErrors.title ? (
+        <Text style={styles.errorText}>{fieldErrors.title}</Text>
+      ) : null}
 
       <Text style={styles.label}>الهدف التربوي</Text>
       <TextInput
         style={styles.input}
         placeholder="مثال: تنمية مهارات الانتباه والتركيز"
         value={objective}
-        onChangeText={setObjective}
+        onChangeText={(text) => {
+          clearFieldError("objective");
+          setObjective(text);
+        }}
       />
+      {fieldErrors.objective ? (
+        <Text style={styles.errorText}>{fieldErrors.objective}</Text>
+      ) : null}
 
       <Text style={styles.label}>وصف مختصر</Text>
       <TextInput
@@ -146,14 +205,22 @@ export const ActivityFormScreen: React.FC = () => {
         placeholder="شرح خطوات النشاط، الوسائل المستعملة، أسلوب التعزيز..."
         multiline
         value={description}
-        onChangeText={setDescription}
+        onChangeText={(text) => {
+          clearFieldError("description");
+          setDescription(text);
+        }}
       />
-      {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
+      {fieldErrors.description ? (
+        <Text style={styles.errorText}>{fieldErrors.description}</Text>
+      ) : null}
+      {fieldErrors.pei ? (
+        <Text style={styles.errorText}>{fieldErrors.pei}</Text>
+      ) : null}
 
       <TouchableOpacity
-        style={[styles.saveBtn, (saving || loadingPei) && styles.saveBtnDisabled]}
+        style={[styles.saveBtn, isSubmitDisabled && styles.saveBtnDisabled]}
         onPress={handleSave}
-        disabled={saving || loadingPei}
+        disabled={isSubmitDisabled}
       >
         <Text style={styles.saveText}>{saving ? "..." : "حفظ النشاط"}</Text>
       </TouchableOpacity>

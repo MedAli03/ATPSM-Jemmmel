@@ -1,5 +1,5 @@
 // src/screens/educateur/PeiEvaluationsScreen.tsx
-import React, { useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -31,56 +31,100 @@ type Props = NativeStackScreenProps<EducatorStackParamList, "PeiEvaluations">;
 export const PeiEvaluationsScreen: React.FC<Props> = ({ route }) => {
   const { peiId, childName } = route.params;
   const { evaluations, loading, error, refetch } = usePeiEvaluations(peiId);
-  const [periode, setPeriode] = useState("");
-  const [commentaire, setCommentaire] = useState("");
-  const [note, setNote] = useState("");
+  const [dateEvaluation, setDateEvaluation] = useState(
+    new Date().toISOString().slice(0, 10)
+  );
+  const [score, setScore] = useState("");
+  const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{ date?: string; score?: string; notes?: string }>({});
 
-  const validateForm = () => {
-    const trimmedPeriode = periode.trim();
-    const trimmedComment = commentaire.trim();
-    const trimmedNote = note.trim();
+  const buildValidationErrors = useCallback(() => {
+    const trimmedDate = dateEvaluation.trim();
+    const trimmedNotes = notes.trim();
+    const trimmedScore = score.trim();
+    const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+    const errors: { date?: string; score?: string; notes?: string } = {};
 
-    if (trimmedPeriode.length < 3) {
-      return "الرجاء تحديد الفترة بدقة (3 أحرف على الأقل).";
+    if (!trimmedDate) {
+      errors.date = "هذا الحقل إجباري";
+    } else if (!datePattern.test(trimmedDate)) {
+      errors.date = "تنسيق غير صحيح";
     }
 
-    if (trimmedComment && trimmedComment.length < 10) {
-      return "الملاحظات العامة يجب أن تحتوي 10 أحرف على الأقل.";
-    }
-
-    if (trimmedNote) {
-      const numericNote = Number(trimmedNote);
-      if (Number.isNaN(numericNote)) {
-        return "الرجاء إدخال رقم صالح في خانة الدرجة.";
+    if (!trimmedScore) {
+      errors.score = "هذا الحقل إجباري";
+    } else {
+      const numericScore = Number(trimmedScore);
+      if (Number.isNaN(numericScore)) {
+        errors.score = "الرجاء إدخال رقم صالح";
+      } else if (numericScore < 0 || numericScore > 100) {
+        errors.score = "الدرجة يجب أن تكون بين 0 و100";
       }
-      if (numericNote < 0 || numericNote > 100) {
-        return "الدرجة يجب أن تكون بين 0 و100.";
-      }
     }
 
-    return null;
+    if (trimmedNotes && trimmedNotes.length < 10) {
+      errors.notes = "النص قصير جدًا";
+    } else if (trimmedNotes.length > 1000) {
+      errors.notes = "النص طويل جدًا";
+    }
+
+    return errors;
+  }, [dateEvaluation, score, notes]);
+
+  const hasPendingErrors = useMemo(
+    () => Object.keys(buildValidationErrors()).length > 0,
+    [buildValidationErrors]
+  );
+
+  const validateForm = useCallback(() => {
+    const errors = buildValidationErrors();
+    setFieldErrors(errors);
+    const hasErrors = Object.keys(errors).length > 0;
+    if (hasErrors) {
+      setFormError("يرجى تصحيح الحقول المطلوبة.");
+    } else {
+      setFormError(null);
+    }
+    return !hasErrors;
+  }, [buildValidationErrors]);
+
+  const clearFieldError = (key: keyof typeof fieldErrors) => {
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+    if (formError) {
+      setFormError(null);
+    }
+    if (successMessage) {
+      setSuccessMessage(null);
+    }
   };
 
   const handleCreateEvaluation = async () => {
-    const validationMessage = validateForm();
-    if (validationMessage) {
+    if (!validateForm()) {
       setSuccessMessage(null);
-      setFormError(validationMessage);
       return;
     }
     setSubmitting(true);
     try {
+      const trimmedDate = dateEvaluation.trim();
+      const trimmedNotes = notes.trim();
+      const numericScore = Number(score.trim());
       await createPeiEvaluation(peiId, {
-        periode: periode.trim(),
-        commentaire_global: commentaire.trim() || undefined,
-        note_globale: note ? Number(note) : undefined,
+        date_evaluation: `${trimmedDate}T00:00:00.000Z`,
+        score: numericScore,
+        notes: trimmedNotes || undefined,
       });
-      setPeriode("");
-      setCommentaire("");
-      setNote("");
+      setDateEvaluation(new Date().toISOString().slice(0, 10));
+      setScore("");
+      setNotes("");
+      setFieldErrors({});
       setFormError(null);
       setSuccessMessage("تم حفظ التقييم بنجاح.");
       Alert.alert("تم الحفظ", "تمت إضافة التقييم الجديد.");
@@ -97,7 +141,7 @@ export const PeiEvaluationsScreen: React.FC<Props> = ({ route }) => {
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <Text style={styles.cardTitle}>التاريخ: {formatDate(item.date)}</Text>
-        <Text style={styles.badge}>الفترة: {item.periode}</Text>
+        <Text style={styles.badge}>آخر تقييم: {formatDate(item.periode)}</Text>
       </View>
       {item.note_globale !== undefined ? (
         <Text style={styles.cardNote}>التقييم العام: {item.note_globale}</Text>
@@ -143,32 +187,50 @@ export const PeiEvaluationsScreen: React.FC<Props> = ({ route }) => {
             <Text style={styles.formTitle}>إضافة تقييم جديد</Text>
             <TextInput
               style={styles.input}
-              placeholder="الفترة (مثلاً: 3 أشهر)"
+              placeholder="تاريخ التقييم (YYYY-MM-DD)"
               placeholderTextColor="#9AA0B5"
-              value={periode}
-              onChangeText={setPeriode}
+              value={dateEvaluation}
+              onChangeText={(text) => {
+                clearFieldError("date");
+                setDateEvaluation(text);
+              }}
               textAlign="right"
             />
+            {fieldErrors.date ? (
+              <Text style={styles.errorText}>{fieldErrors.date}</Text>
+            ) : null}
             <TextInput
               style={[styles.input, styles.multilineInput]}
-              placeholder="ملاحظات عامة"
+              placeholder="ملاحظات عامة (اختياري)"
               placeholderTextColor="#9AA0B5"
-              value={commentaire}
-              onChangeText={setCommentaire}
+              value={notes}
+              onChangeText={(text) => {
+                clearFieldError("notes");
+                setNotes(text);
+              }}
               multiline
               numberOfLines={4}
               textAlign="right"
               textAlignVertical="top"
             />
+            {fieldErrors.notes ? (
+              <Text style={styles.errorText}>{fieldErrors.notes}</Text>
+            ) : null}
             <TextInput
               style={styles.input}
-              placeholder="الدرجة العامة"
+              placeholder="الدرجة العامة (0 - 100)"
               placeholderTextColor="#9AA0B5"
-              value={note}
-              onChangeText={setNote}
+              value={score}
+              onChangeText={(text) => {
+                clearFieldError("score");
+                setScore(text);
+              }}
               keyboardType="numeric"
               textAlign="right"
             />
+            {fieldErrors.score ? (
+              <Text style={styles.errorText}>{fieldErrors.score}</Text>
+            ) : null}
             {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
             {successMessage ? (
               <Text style={styles.successText}>{successMessage}</Text>
@@ -177,9 +239,9 @@ export const PeiEvaluationsScreen: React.FC<Props> = ({ route }) => {
               <Text style={styles.errorText}>{error}</Text>
             ) : null}
             <TouchableOpacity
-              style={[styles.button, submitting && styles.buttonDisabled]}
+              style={[styles.button, (submitting || hasPendingErrors) && styles.buttonDisabled]}
               onPress={handleCreateEvaluation}
-              disabled={submitting}
+              disabled={submitting || hasPendingErrors}
               activeOpacity={0.85}
             >
               <Text style={styles.buttonText}>

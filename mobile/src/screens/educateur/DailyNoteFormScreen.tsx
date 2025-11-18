@@ -16,7 +16,7 @@ export const DailyNoteFormScreen: React.FC = () => {
   const [peiId, setPeiId] = useState<number | null>(initialPeiId ?? null);
   const [loading, setLoading] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [fieldError, setFieldError] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialPeiId) {
@@ -50,31 +50,43 @@ export const DailyNoteFormScreen: React.FC = () => {
     };
   }, [childId, initialPeiId]);
 
-  const handleSave = async () => {
+  useEffect(() => {
+    if (peiId && fieldError === "لا يوجد PEI نشط لهذا الطفل") {
+      setFieldError(null);
+    }
+  }, [peiId, fieldError]);
+
+  const validateForm = () => {
     const trimmed = note.trim();
+    let errorMessage: string | null = null;
 
-    if (trimmed.length < 10) {
-      const message = "الرجاء إدخال ملاحظة أوضح (10 أحرف على الأقل).";
-      setFormError(message);
-      Alert.alert("تنبيه", message);
+    if (!trimmed) {
+      errorMessage = "هذا الحقل إجباري";
+    } else if (trimmed.length < 5) {
+      errorMessage = "النص قصير جدًا";
+    } else if (trimmed.length > 800) {
+      errorMessage = "الملاحظة طويلة جدًا";
+    }
+
+    if (!peiId && !errorMessage) {
+      errorMessage = "لا يوجد PEI نشط لهذا الطفل";
+    }
+
+    setFieldError(errorMessage);
+
+    if (errorMessage) {
+      Alert.alert("تنبيه", errorMessage);
+    }
+
+    return !errorMessage;
+  };
+
+  const handleSave = async () => {
+    if (!validateForm()) {
       return;
     }
 
-    if (trimmed.length > 800) {
-      const message = "الملاحظة طويلة جدًا، الرجاء الاختصار (أقل من 800 حرف).";
-      setFormError(message);
-      Alert.alert("تنبيه", message);
-      return;
-    }
-
-    if (!peiId) {
-      const message = "لا يوجد PEI نشط لهذا الطفل، لا يمكن ربط الملاحظة.";
-      setFormError(message);
-      Alert.alert("تنبيه", message);
-      return;
-    }
-
-    setFormError(null);
+    const trimmed = note.trim();
 
     setSaving(true);
     try {
@@ -90,12 +102,20 @@ export const DailyNoteFormScreen: React.FC = () => {
       console.error("Failed to save daily note", err);
       const defaultMessage = "تعذّر حفظ الملاحظة. حاول مرة أخرى.";
       const message = err instanceof ForbiddenError ? err.message : err instanceof Error ? err.message : defaultMessage;
-      setFormError(message);
       Alert.alert("خطأ", message);
     } finally {
       setSaving(false);
     }
   };
+
+  const trimmedNote = note.trim();
+  const isSubmitDisabled =
+    saving ||
+    loading ||
+    !peiId ||
+    !trimmedNote ||
+    trimmedNote.length < 5 ||
+    trimmedNote.length > 800;
 
   return (
     <View style={styles.container}>
@@ -111,13 +131,18 @@ export const DailyNoteFormScreen: React.FC = () => {
         placeholder="اكتب هنا ملاحظة مختصرة حول سلوك الطفل، مشاركته، تفاعله..."
         multiline
         value={note}
-        onChangeText={setNote}
+        onChangeText={(text) => {
+          if (fieldError) {
+            setFieldError(null);
+          }
+          setNote(text);
+        }}
       />
-      {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
+      {fieldError ? <Text style={styles.errorText}>{fieldError}</Text> : null}
       <TouchableOpacity
-        style={[styles.saveBtn, (saving || loading) && styles.saveBtnDisabled]}
+        style={[styles.saveBtn, isSubmitDisabled && styles.saveBtnDisabled]}
         onPress={handleSave}
-        disabled={saving || loading}
+        disabled={isSubmitDisabled}
       >
         <Text style={styles.saveText}>{saving ? "..." : "حفظ الملاحظة"}</Text>
       </TouchableOpacity>

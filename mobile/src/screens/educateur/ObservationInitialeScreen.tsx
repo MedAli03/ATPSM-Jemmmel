@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -92,9 +92,17 @@ export const ObservationInitialeScreen: React.FC = () => {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{ date?: string; needs?: string }>({});
 
   const updateField = (key: keyof ObservationFormState, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+    if (fieldErrors[key as keyof typeof fieldErrors]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[key as keyof typeof fieldErrors];
+        return next;
+      });
+    }
   };
 
   useEffect(() => {
@@ -138,38 +146,47 @@ export const ObservationInitialeScreen: React.FC = () => {
     };
   }, [childId]);
 
-  const hasValidationErrors = useMemo(() => {
+  const buildValidationErrors = useCallback(() => {
     const date = form.date.trim();
     const needs = form.needs.trim();
     const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-    return !datePattern.test(date) || needs.length < 10;
+    const errors: { date?: string; needs?: string } = {};
+
+    if (!date) {
+      errors.date = "هذا الحقل إجباري";
+    } else if (!datePattern.test(date)) {
+      errors.date = "تنسيق غير صحيح";
+    }
+
+    if (!needs) {
+      errors.needs = "هذا الحقل إجباري";
+    } else if (needs.length < 10) {
+      errors.needs = "النص قصير جدًا";
+    }
+
+    return errors;
   }, [form.date, form.needs]);
 
+  const hasValidationErrors = useMemo(
+    () => Object.keys(buildValidationErrors()).length > 0,
+    [buildValidationErrors]
+  );
+
   const validateForm = () => {
-    const date = form.date.trim();
-    const needs = form.needs.trim();
-    const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-
-    if (!datePattern.test(date)) {
-      return "صيغة التاريخ يجب أن تكون على شكل YYYY-MM-DD.";
+    const errors = buildValidationErrors();
+    setFieldErrors(errors);
+    const hasErrors = Object.keys(errors).length > 0;
+    setValidationError(hasErrors ? "يرجى تصحيح الحقول المحددة." : null);
+    if (hasErrors) {
+      Alert.alert("تنبيه", "يرجى تصحيح الحقول المحددة.");
     }
-
-    if (needs.length < 10) {
-      return "وصف الاحتياجات يجب أن يحتوي على 10 أحرف على الأقل.";
-    }
-
-    return null;
+    return !hasErrors;
   };
 
   const handleSave = async () => {
-    const validationMessage = validateForm();
-    if (validationMessage) {
-      setValidationError(validationMessage);
-      Alert.alert("تنبيه", validationMessage);
+    if (!validateForm()) {
       return;
     }
-
-    setValidationError(null);
 
     setIsSaving(true);
 
@@ -243,13 +260,16 @@ export const ObservationInitialeScreen: React.FC = () => {
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>المعطيات العامة</Text>
 
-          <Text style={styles.label}>تاريخ الملاحظة (اختياري)</Text>
+          <Text style={styles.label}>تاريخ الملاحظة *</Text>
           <TextInput
             style={styles.input}
             placeholder="مثال: 2025-11-17"
             value={form.date}
             onChangeText={(text) => updateField("date", text)}
           />
+          {fieldErrors.date ? (
+            <Text style={styles.fieldError}>{fieldErrors.date}</Text>
+          ) : null}
 
           <Text style={styles.label}>السياق</Text>
           <TextInput
@@ -337,6 +357,9 @@ export const ObservationInitialeScreen: React.FC = () => {
           <Text style={styles.requiredHint}>
             * هذا الحقل ضروري لأنه يؤثّر مباشرة في أهداف الـ PEI.
           </Text>
+          {fieldErrors.needs ? (
+            <Text style={styles.fieldError}>{fieldErrors.needs}</Text>
+          ) : null}
         </View>
 
         {/* ACTIONS */}
@@ -385,6 +408,12 @@ const styles = StyleSheet.create({
     color: "#B91C1C",
     textAlign: "center",
     fontSize: 13,
+  },
+  fieldError: {
+    color: "#DC2626",
+    fontSize: 12,
+    marginTop: 4,
+    textAlign: "right",
   },
   title: { fontSize: 18, fontWeight: "700", color: "#111827" },
   childIdText: { fontSize: 13, color: "#4B5563", marginTop: 4 },

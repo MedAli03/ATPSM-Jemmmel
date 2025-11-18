@@ -23,28 +23,34 @@ export const LoginScreen: React.FC = () => {
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
 
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const trimmedEmailValue = email.trim();
+  const trimmedPasswordValue = password.trim();
+  const canSubmit =
+    emailRegex.test(trimmedEmailValue) && trimmedPasswordValue.length >= 6;
+
   const validateForm = () => {
     let isValid = true;
     setEmailError("");
     setPasswordError("");
 
-    const trimmedEmail = email.trim();
+    const trimmedEmail = trimmedEmailValue;
+    const trimmedPassword = trimmedPasswordValue;
 
     if (!trimmedEmail) {
       setEmailError("يرجى إدخال البريد الإلكتروني.");
       isValid = false;
     } else {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(trimmedEmail)) {
         setEmailError("صيغة البريد الإلكتروني غير صحيحة.");
         isValid = false;
       }
     }
 
-    if (!password) {
+    if (!trimmedPassword) {
       setPasswordError("يرجى إدخال كلمة المرور.");
       isValid = false;
-    } else if (password.length < 6) {
+    } else if (trimmedPassword.length < 6) {
       setPasswordError("يجب أن تحتوي كلمة المرور على 6 أحرف على الأقل.");
       isValid = false;
     }
@@ -61,7 +67,7 @@ export const LoginScreen: React.FC = () => {
 
     setLoading(true);
     try {
-      await login(email.trim(), password);
+      await login(email.trim(), password.trim());
     } catch (error: any) {
       console.error("Login failed", error);
 
@@ -169,9 +175,9 @@ export const LoginScreen: React.FC = () => {
 
           {/* Login button */}
           <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
+            style={[styles.button, (!canSubmit || loading) && styles.buttonDisabled]}
             onPress={handleLogin}
-            disabled={loading}
+            disabled={loading || !canSubmit}
             activeOpacity={0.9}
           >
             {loading ? (

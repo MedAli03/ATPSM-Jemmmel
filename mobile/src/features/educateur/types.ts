@@ -61,9 +61,9 @@ export interface PeiEvaluation {
 }
 
 export interface NewPeiEvaluationPayload {
-  periode: string;
-  commentaire_global?: string;
-  note_globale?: number;
+  date_evaluation: string;
+  score: number;
+  notes?: string;
 }
 
 export interface CreatePeiPayload {
