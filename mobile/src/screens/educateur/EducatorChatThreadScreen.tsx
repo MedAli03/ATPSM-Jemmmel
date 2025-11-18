@@ -21,6 +21,7 @@ import {
   sendThreadMessage,
 } from "../../features/educateur/api";
 import { MessageCursor, MessageThreadSummary, ThreadMessage } from "../../features/educateur/types";
+import { showSuccessMessage } from "../../utils/feedback";
 
 type Route = RouteProp<EducatorStackParamList, "EducatorChatThread">;
 
@@ -151,6 +152,7 @@ export const EducatorChatThreadScreen: React.FC = () => {
       setMessages((prev) => [...prev, message]);
       setInput("");
       setSendFeedback("تم إرسال الرسالة بنجاح.");
+      showSuccessMessage("تم إرسال الرسالة");
     } catch (err) {
       console.error("Failed to send message", err);
       const message = err instanceof Error ? err.message : "تعذّر إرسال الرسالة.";

@@ -130,8 +130,11 @@ export const PeiEvaluationsScreen: React.FC<Props> = ({ route }) => {
       Alert.alert("تم الحفظ", "تمت إضافة التقييم الجديد.");
       await refetch();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "حدث خطأ غير متوقع.");
+      const fallback = "حدث خطأ غير متوقع.";
+      const message = err instanceof Error ? err.message : fallback;
+      setFormError(message);
       setSuccessMessage(null);
+      Alert.alert("خطأ", message);
     } finally {
       setSubmitting(false);
     }

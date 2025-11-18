@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { useAuth } from "../../features/auth/AuthContext";
+import { showSuccessMessage } from "../../utils/feedback";
 
 export const LoginScreen: React.FC = () => {
   const { login } = useAuth();
@@ -68,6 +69,7 @@ export const LoginScreen: React.FC = () => {
     setLoading(true);
     try {
       await login(email.trim(), password.trim());
+      showSuccessMessage("تم تسجيل الدخول بنجاح");
     } catch (error: any) {
       console.error("Login failed", error);
 
