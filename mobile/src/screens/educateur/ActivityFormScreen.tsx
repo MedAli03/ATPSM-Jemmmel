@@ -13,6 +13,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { EducatorStackParamList } from "../../navigation/EducatorNavigator";
 import { ForbiddenError, addPEIActivity, getActivePeiForChild } from "../../features/educateur/api";
 import { showErrorMessage, showSuccessMessage } from "../../utils/feedback";
+import { validateStringFields } from "../../utils/validation";
 
 type Route = RouteProp<EducatorStackParamList, "ActivityForm">;
 type Nav = NativeStackNavigationProp<EducatorStackParamList>;
@@ -75,35 +76,46 @@ export const ActivityFormScreen: React.FC = () => {
   }, [peiId]);
 
   const buildValidationErrors = () => {
-    const trimmedTitle = title.trim();
-    const trimmedObjective = objective.trim();
-    const trimmedDescription = description.trim();
+    const textErrors = validateStringFields([
+      {
+        key: "title",
+        value: title,
+        required: true,
+        minLength: 3,
+        maxLength: 150,
+        messages: {
+          minLength: "العنوان قصير جدًا",
+          maxLength: "العنوان طويل جدًا (150 حرفًا كحدّ أقصى)",
+        },
+      },
+      {
+        key: "objective",
+        value: objective,
+        minLength: 3,
+        maxLength: 150,
+        messages: {
+          minLength: "الهدف يحتاج إلى 3 أحرف على الأقل",
+          maxLength: "الهدف طويل جدًا",
+        },
+      },
+      {
+        key: "description",
+        value: description,
+        minLength: 10,
+        maxLength: 2000,
+        messages: {
+          minLength: "الوصف قصير جدًا",
+          maxLength: "الوصف طويل جدًا",
+        },
+      },
+    ]);
+
     const errors: {
       title?: string;
       objective?: string;
       description?: string;
       pei?: string;
-    } = {};
-
-    if (!trimmedTitle) {
-      errors.title = "هذا الحقل إجباري";
-    } else if (trimmedTitle.length < 3) {
-      errors.title = "العنوان قصير جدًا";
-    } else if (trimmedTitle.length > 150) {
-      errors.title = "العنوان طويل جدًا (150 حرفًا كحدّ أقصى)";
-    }
-
-    if (trimmedObjective && trimmedObjective.length < 3) {
-      errors.objective = "الهدف يحتاج إلى 3 أحرف على الأقل";
-    }
-
-    if (trimmedDescription) {
-      if (trimmedDescription.length < 10) {
-        errors.description = "الوصف قصير جدًا";
-      } else if (trimmedDescription.length > 2000) {
-        errors.description = "الوصف طويل جدًا";
-      }
-    }
+    } = { ...textErrors };
 
     if (!peiId) {
       errors.pei = "لا يوجد PEI نشط، لا يمكن ربط النشاط.";

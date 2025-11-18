@@ -20,6 +20,7 @@ import {
   updateObservationInitiale,
 } from "../../features/educateur/api";
 import { showErrorMessage, showSuccessMessage } from "../../utils/feedback";
+import { validateStringFields } from "../../utils/validation";
 
 type Route = RouteProp<EducatorStackParamList, "ObservationInitiale">;
 type Nav = NativeStackNavigationProp<EducatorStackParamList>;
@@ -148,24 +149,26 @@ export const ObservationInitialeScreen: React.FC = () => {
   }, [childId]);
 
   const buildValidationErrors = useCallback(() => {
-    const date = form.date.trim();
-    const needs = form.needs.trim();
-    const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-    const errors: { date?: string; needs?: string } = {};
-
-    if (!date) {
-      errors.date = "هذا الحقل إجباري";
-    } else if (!datePattern.test(date)) {
-      errors.date = "تنسيق غير صحيح";
-    }
-
-    if (!needs) {
-      errors.needs = "هذا الحقل إجباري";
-    } else if (needs.length < 10) {
-      errors.needs = "النص قصير جدًا";
-    }
-
-    return errors;
+    return validateStringFields([
+      {
+        key: "date",
+        value: form.date,
+        required: true,
+        pattern: /^\d{4}-\d{2}-\d{2}$/,
+        messages: {
+          pattern: "تنسيق غير صحيح",
+        },
+      },
+      {
+        key: "needs",
+        value: form.needs,
+        required: true,
+        minLength: 10,
+        messages: {
+          minLength: "النص قصير جدًا",
+        },
+      },
+    ]);
   }, [form.date, form.needs]);
 
   const hasValidationErrors = useMemo(

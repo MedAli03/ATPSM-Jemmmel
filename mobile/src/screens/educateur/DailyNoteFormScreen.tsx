@@ -5,6 +5,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { EducatorStackParamList } from "../../navigation/EducatorNavigator";
 import { ForbiddenError, addDailyNote, getActivePeiForChild } from "../../features/educateur/api";
 import { showErrorMessage, showSuccessMessage } from "../../utils/feedback";
+import { validateStringFields } from "../../utils/validation";
 
 type Route = RouteProp<EducatorStackParamList, "DailyNoteForm">;
 type Nav = NativeStackNavigationProp<EducatorStackParamList>;
@@ -58,16 +59,21 @@ export const DailyNoteFormScreen: React.FC = () => {
   }, [peiId, fieldError]);
 
   const validateForm = () => {
-    const trimmed = note.trim();
-    let errorMessage: string | null = null;
+    const errors = validateStringFields([
+      {
+        key: "note",
+        value: note,
+        required: true,
+        minLength: 5,
+        maxLength: 800,
+        messages: {
+          minLength: "النص قصير جدًا",
+          maxLength: "الملاحظة طويلة جدًا",
+        },
+      },
+    ]);
 
-    if (!trimmed) {
-      errorMessage = "هذا الحقل إجباري";
-    } else if (trimmed.length < 5) {
-      errorMessage = "النص قصير جدًا";
-    } else if (trimmed.length > 800) {
-      errorMessage = "الملاحظة طويلة جدًا";
-    }
+    let errorMessage = errors.note ?? null;
 
     if (!peiId && !errorMessage) {
       errorMessage = "لا يوجد PEI نشط لهذا الطفل";

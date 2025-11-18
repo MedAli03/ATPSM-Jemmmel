@@ -17,6 +17,7 @@ import { usePeiEvaluations } from "../../features/educateur/hooks";
 import { PeiEvaluation } from "../../features/educateur/types";
 import { EducatorStackParamList } from "../../navigation/EducatorNavigator";
 import { showErrorMessage, showSuccessMessage } from "../../utils/feedback";
+import { validateStringFields } from "../../utils/validation";
 
 const PRIMARY = "#2563EB";
 
@@ -43,17 +44,33 @@ export const PeiEvaluationsScreen: React.FC<Props> = ({ route }) => {
   const [fieldErrors, setFieldErrors] = useState<{ date?: string; score?: string; notes?: string }>({});
 
   const buildValidationErrors = useCallback(() => {
-    const trimmedDate = dateEvaluation.trim();
-    const trimmedNotes = notes.trim();
-    const trimmedScore = score.trim();
-    const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-    const errors: { date?: string; score?: string; notes?: string } = {};
+    const stringErrors = validateStringFields([
+      {
+        key: "date",
+        value: dateEvaluation,
+        required: true,
+        pattern: /^\d{4}-\d{2}-\d{2}$/,
+        messages: {
+          pattern: "تنسيق غير صحيح",
+        },
+      },
+      {
+        key: "notes",
+        value: notes,
+        minLength: 10,
+        maxLength: 1000,
+        messages: {
+          minLength: "النص قصير جدًا",
+          maxLength: "النص طويل جدًا",
+        },
+      },
+    ]);
 
-    if (!trimmedDate) {
-      errors.date = "هذا الحقل إجباري";
-    } else if (!datePattern.test(trimmedDate)) {
-      errors.date = "تنسيق غير صحيح";
-    }
+    const errors: { date?: string; score?: string; notes?: string } = {
+      ...stringErrors,
+    };
+
+    const trimmedScore = score.trim();
 
     if (!trimmedScore) {
       errors.score = "هذا الحقل إجباري";
@@ -64,12 +81,6 @@ export const PeiEvaluationsScreen: React.FC<Props> = ({ route }) => {
       } else if (numericScore < 0 || numericScore > 100) {
         errors.score = "الدرجة يجب أن تكون بين 0 و100";
       }
-    }
-
-    if (trimmedNotes && trimmedNotes.length < 10) {
-      errors.notes = "النص قصير جدًا";
-    } else if (trimmedNotes.length > 1000) {
-      errors.notes = "النص طويل جدًا";
     }
 
     return errors;
