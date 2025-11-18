@@ -32,9 +32,13 @@ exports.deleteById = (id, t = null) =>
 
 exports.list = async (filters = {}, pagination = {}, t = null) => {
   const where = {};
-  const { enfant_id, educateur_id, date_debut, date_fin } = filters;
+  const { enfant_id, enfant_ids, educateur_id, date_debut, date_fin } = filters;
 
-  if (enfant_id) where.enfant_id = enfant_id;
+  if (Array.isArray(enfant_ids) && enfant_ids.length > 0) {
+    where.enfant_id = { [Op.in]: enfant_ids };
+  } else if (enfant_id) {
+    where.enfant_id = enfant_id;
+  }
   if (educateur_id) where.educateur_id = educateur_id;
   if (date_debut || date_fin) {
     where.date_observation = {};

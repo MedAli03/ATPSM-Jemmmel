@@ -4,7 +4,7 @@ const service = require("../services/observation_initiale.service");
 
 exports.list = async (req, res, next) => {
   try {
-    const data = await service.list(req.query);
+    const data = await service.list(req.query, req.user);
     res.json({ ok: true, ...data });
   } catch (err) {
     next(err);
@@ -13,7 +13,7 @@ exports.list = async (req, res, next) => {
 
 exports.get = async (req, res, next) => {
   try {
-    const data = await service.get(req.params.id);
+    const data = await service.get(req.params.id, req.user);
     res.json({ ok: true, data });
   } catch (err) {
     next(err);

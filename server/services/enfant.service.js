@@ -5,9 +5,18 @@ const SALT_ROUNDS = 10;
 
 const { sequelize, Enfant, Utilisateur, ParentsFiche } = require("../models");
 const repo = require("../repos/enfant.repo");
+const educatorAccess = require("./educateur_access.service");
 
-exports.list = (q) =>
-  repo.findAll({ q: q.q }, { page: q.page, limit: q.limit });
+exports.list = async (q, currentUser) => {
+  if (currentUser?.role === "EDUCATEUR") {
+    return educatorAccess.listChildrenForEducateurCurrentYear(currentUser.id, {
+      search: q.q,
+      page: q.page,
+      limit: q.limit,
+    });
+  }
+  return repo.findAll({ q: q.q }, { page: q.page, limit: q.limit });
+};
 
 exports.get = async (id, currentUser) => {
   const enfant = await repo.findById(id);
@@ -24,6 +33,9 @@ exports.get = async (id, currentUser) => {
     const e = new Error("Accès refusé");
     e.status = 403;
     throw e;
+  }
+  if (currentUser?.role === "EDUCATEUR") {
+    await educatorAccess.assertCanAccessChild(currentUser.id, id);
   }
   return enfant;
 };

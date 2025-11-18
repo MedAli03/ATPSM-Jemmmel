@@ -8,7 +8,8 @@ const {
 } = require("../models");
 const repo = require("../repos/pei.repo");
 const notifier = require("./notifier.service");
-const { DatabaseError } = require("sequelize");
+const { DatabaseError, Op } = require("sequelize");
+const educatorAccess = require("./educateur_access.service");
 
 const PEI_STATUS = {
   PENDING: "EN_ATTENTE_VALIDATION",
@@ -17,7 +18,7 @@ const PEI_STATUS = {
   REFUSED: "REFUSE",
 };
 
-exports.list = async (q) => {
+exports.list = async (q, currentUser) => {
   const page = Math.max(1, Number(q.page || 1));
   const pageSize = Math.min(100, Math.max(1, Number(q.pageSize || 20)));
   const where = {};
@@ -26,10 +27,27 @@ exports.list = async (q) => {
   if (q.annee_id) where.annee_id = Number(q.annee_id);
   if (q.statut) where.statut = q.statut;
 
+  if (currentUser?.role === "EDUCATEUR") {
+    const { enfantIds } = await educatorAccess.listAccessibleChildIds(
+      currentUser.id
+    );
+    if (!enfantIds.length) {
+      return { rows: [], count: 0 };
+    }
+    if (where.enfant_id != null) {
+      const targetId = Number(where.enfant_id);
+      if (!enfantIds.includes(targetId)) {
+        return { rows: [], count: 0 };
+      }
+    } else {
+      where.enfant_id = { [Op.in]: enfantIds };
+    }
+  }
+
   return repo.findAndCount({ page, pageSize, where });
 };
 
-exports.get = async (id) => {
+exports.get = async (id, currentUser) => {
   const peiId = Number(id);
   if (!Number.isFinite(peiId) || peiId <= 0) {
     const e = new Error("Identifiant de PEI invalide");
@@ -42,6 +60,9 @@ exports.get = async (id) => {
       const e = new Error("PEI introuvable");
       e.status = 404;
       throw e;
+    }
+    if (currentUser?.role === "EDUCATEUR") {
+      await educatorAccess.assertCanAccessChild(currentUser.id, pei.enfant_id);
     }
     return pei;
   } catch (error) {
