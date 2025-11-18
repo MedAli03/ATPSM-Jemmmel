@@ -22,7 +22,13 @@ exports.list = async (q) => {
 };
 
 exports.get = async (id) => {
-  const pei = await repo.findByIdFull(id);
+  const peiId = Number(id);
+  if (!Number.isFinite(peiId) || peiId <= 0) {
+    const e = new Error("Identifiant de PEI invalide");
+    e.status = 400;
+    throw e;
+  }
+  const pei = await repo.findByIdFull(peiId);
   if (!pei) {
     const e = new Error("PEI introuvable");
     e.status = 404;

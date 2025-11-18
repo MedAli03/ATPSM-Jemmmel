@@ -7,6 +7,7 @@ import {
     SafeAreaView,
     TouchableOpacity,
     ActivityIndicator,
+    Alert,
 } from "react-native";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -43,6 +44,12 @@ export const EducatorPeiDetailScreen: React.FC = () => {
     let isMounted = true;
 
     const loadPei = async () => {
+      if (!peiId) {
+        setLoading(false);
+        setError("لا يمكن تحميل بيانات الـ PEI بدون معرّف صالح.");
+        Alert.alert("تنبيه", "لا يمكن تحميل بيانات الـ PEI بدون معرّف صالح.");
+        return;
+      }
       setLoading(true);
       setError(null);
       try {
@@ -58,7 +65,10 @@ export const EducatorPeiDetailScreen: React.FC = () => {
       } catch (err) {
         console.error("Failed to load PEI details", err);
         if (isMounted) {
-          setError("تعذّر تحميل بيانات الـ PEI. حاول لاحقًا.");
+          const fallback = "تعذّر تحميل بيانات الـ PEI. حاول لاحقًا.";
+          const message = err instanceof Error ? err.message : fallback;
+          setError(message);
+          Alert.alert("تنبيه", message);
         }
       } finally {
         if (isMounted) {

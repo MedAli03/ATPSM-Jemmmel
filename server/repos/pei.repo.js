@@ -43,7 +43,7 @@ exports.findByIdFull = (id) =>
       },
       {
         model: ActiviteProjet,
-        as: "activities",
+        as: "activites",
         attributes: ["id", "titre", "date_activite", "type"],
       },
       {

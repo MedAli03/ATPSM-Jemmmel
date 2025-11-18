@@ -469,7 +469,10 @@ export const createPEI = async (
   return response.data;
 };
 
-export const getPEI = async (peiId: number): Promise<PeiDetails> => {
+export const getPEI = async (peiId?: number | null): Promise<PeiDetails> => {
+  if (!peiId || !Number.isFinite(peiId)) {
+    throw new Error("معرّف الـ PEI غير صالح");
+  }
   try {
     const response = await api.get<PeiDetails>(`/pei/${peiId}`);
     return response.data;

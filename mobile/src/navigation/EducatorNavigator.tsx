@@ -22,7 +22,7 @@ export type EducatorStackParamList = {
   ActivityForm: { childId: number; peiId?: number };
   EducatorChatThread: { threadId?: number; childId?: number };
   ObservationInitiale: { childId: number };
-  EducatorPeiDetail: { childId: number; peiId: number };
+  EducatorPeiDetail: { childId: number; peiId?: number };
 };
 
 export type EducatorTabParamList = {
