@@ -8,7 +8,7 @@ const {
 } = require("../models");
 const repo = require("../repos/pei.repo");
 const notifier = require("./notifier.service");
-const { Op, DatabaseError } = require("sequelize");
+const { DatabaseError } = require("sequelize");
 
 const PEI_STATUS = {
   PENDING: "EN_ATTENTE_VALIDATION",
@@ -65,7 +65,7 @@ async function verifyEducateurEnfantSameGroupe(
   });
   if (!inscription) return false;
   const affectation = await AffectationEducateur.findOne({
-    where: { annee_id, groupe_id: inscription.groupe_id },
+    where: { annee_id, groupe_id: inscription.groupe_id, est_active: true },
   });
   return !!(affectation && affectation.educateur_id === Number(educateur_id));
 }
@@ -111,7 +111,7 @@ exports.create = async (dto) => {
       throw e;
     }
 
-    const payload = { ...dto, statut: PEI_STATUS.PENDING };
+    const payload = { ...dto, statut: PEI_STATUS.PENDING, est_actif: null };
     const created = await repo.create(payload, t);
     const plain = created.get({ plain: true });
 
@@ -161,7 +161,16 @@ exports.update = async (id, dto, userId) => {
 
     const updated = await repo.updateById(
       id,
-      { ...dto, date_derniere_maj: new Date() },
+      {
+        ...dto,
+        est_actif:
+          dto.statut === PEI_STATUS.VALID
+            ? true
+            : dto.statut
+            ? null
+            : current.est_actif,
+        date_derniere_maj: new Date(),
+      },
       t
     );
 
@@ -193,7 +202,11 @@ exports.close = async (id, userId) => {
 
     const updated = await repo.updateById(
       id,
-      { statut: PEI_STATUS.CLOSED, date_derniere_maj: new Date() },
+      {
+        statut: PEI_STATUS.CLOSED,
+        est_actif: null,
+        date_derniere_maj: new Date(),
+      },
       t
     );
     await repo.addHistory(
@@ -243,14 +256,22 @@ exports.validate = async (id, userId) => {
     if (active && active.id !== current.id) {
       await repo.updateById(
         active.id,
-        { statut: PEI_STATUS.CLOSED, date_derniere_maj: new Date() },
+        {
+          statut: PEI_STATUS.CLOSED,
+          est_actif: null,
+          date_derniere_maj: new Date(),
+        },
         t
       );
     }
 
     const updated = await repo.updateById(
       id,
-      { statut: PEI_STATUS.VALID, date_derniere_maj: new Date() },
+      {
+        statut: PEI_STATUS.VALID,
+        est_actif: true,
+        date_derniere_maj: new Date(),
+      },
       t
     );
     const plain = updated.get({ plain: true });

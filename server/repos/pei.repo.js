@@ -58,7 +58,7 @@ exports.findByIdFull = async (id) => {
 
 exports.findActiveByEnfantYear = ({ enfant_id, annee_id }, t = null) =>
   PEI.findOne({
-    where: { enfant_id, annee_id, statut: "VALIDE" },
+    where: { enfant_id, annee_id, statut: "VALIDE", est_actif: true },
     transaction: t,
   });
 
