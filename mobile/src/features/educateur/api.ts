@@ -312,6 +312,14 @@ const normalizePeiSummary = (
   };
 };
 
+const normalizePeiDetails = (pei: RawPeiDto): PeiDetails => ({
+  ...normalizePeiSummary(pei),
+  educateur_id: pei.educateur_id,
+  annee_id: pei.annee_id,
+  date_derniere_maj: pei.date_derniere_maj,
+  objectifs: pei.objectifs ?? null,
+});
+
 export const getMyGroups = async (options?: {
   includeHistory?: boolean;
 }): Promise<Group[]> => {
@@ -465,8 +473,8 @@ export const listEducatorPeiSummaries = async (
 export const createPEI = async (
   payload: CreatePeiPayload
 ): Promise<PeiDetails> => {
-  const response = await api.post<PeiDetails>("/pei", payload);
-  return response.data;
+  const response = await api.post<RawPeiDto>("/pei", payload);
+  return normalizePeiDetails(response.data);
 };
 
 export const getPEI = async (peiId?: number | null): Promise<PeiDetails> => {
@@ -474,8 +482,8 @@ export const getPEI = async (peiId?: number | null): Promise<PeiDetails> => {
     throw new Error("معرّف الـ PEI غير صالح");
   }
   try {
-    const response = await api.get<PeiDetails>(`/pei/${peiId}`);
-    return response.data;
+    const response = await api.get<RawPeiDto>(`/pei/${peiId}`);
+    return normalizePeiDetails(response.data);
   } catch (error) {
     throwIfForbidden(error, "لا يمكنك عرض هذا المشروع التربوي.");
     throw error;

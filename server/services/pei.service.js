@@ -7,7 +7,7 @@ const {
   AffectationEducateur,
 } = require("../models");
 const repo = require("../repos/pei.repo");
-const { Op } = require("sequelize");
+const { Op, DatabaseError } = require("sequelize");
 
 exports.list = async (q) => {
   const page = Math.max(1, Number(q.page || 1));
@@ -28,13 +28,22 @@ exports.get = async (id) => {
     e.status = 400;
     throw e;
   }
-  const pei = await repo.findByIdFull(peiId);
-  if (!pei) {
-    const e = new Error("PEI introuvable");
-    e.status = 404;
-    throw e;
+  try {
+    const pei = await repo.findByIdFull(peiId);
+    if (!pei) {
+      const e = new Error("PEI introuvable");
+      e.status = 404;
+      throw e;
+    }
+    return pei;
+  } catch (error) {
+    if (error instanceof DatabaseError) {
+      const e = new Error("Erreur lors du chargement du PEI");
+      e.status = 500;
+      throw e;
+    }
+    throw error;
   }
-  return pei;
 };
 
 // Vérifie que l'éducateur est bien affecté au groupe de l'enfant pour l'année

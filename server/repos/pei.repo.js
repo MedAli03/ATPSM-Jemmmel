@@ -27,8 +27,8 @@ exports.findAndCount = async ({ page, pageSize, where }) => {
   return { rows, count };
 };
 
-exports.findByIdFull = (id) =>
-  PEI.findByPk(id, {
+exports.findByIdFull = async (id) => {
+  const pei = await PEI.findByPk(id, {
     include: [
       { model: Enfant, as: "enfant", attributes: ["id", "nom", "prenom"] },
       {
@@ -53,6 +53,8 @@ exports.findByIdFull = (id) =>
       },
     ],
   });
+  return pei ? pei.get({ plain: true }) : null;
+};
 
 exports.findActiveByEnfantYear = ({ enfant_id, annee_id }) =>
   PEI.findOne({ where: { enfant_id, annee_id, statut: "actif" } });

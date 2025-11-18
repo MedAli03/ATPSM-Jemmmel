@@ -84,6 +84,18 @@ export const EducatorPeiDetailScreen: React.FC = () => {
     };
   }, [peiId]);
 
+  if (!peiId) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>
+            لا يمكن فتح تفاصيل الـ PEI بدون تحديد المعرّف.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   const renderStatusLabel = (status?: PeiDetails["statut"]) => {
     switch (status) {
       case "ACTIF":

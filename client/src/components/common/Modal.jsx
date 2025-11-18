@@ -43,7 +43,11 @@ export default function Modal({
       containerRef.current?.querySelector?.(
         'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
       );
-    el?.focus?.();
+    if (el && typeof el.focus === "function") {
+      el.focus();
+    } else if (containerRef.current && typeof containerRef.current.focus === "function") {
+      containerRef.current.focus();
+    }
   }, [open, initialFocusRef]);
 
   if (!open) return null;
@@ -69,6 +73,7 @@ export default function Modal({
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
       <div
         ref={containerRef}
+        tabIndex={-1}
         className={`relative flex w-full ${maxW} max-h-[90vh] flex-col overflow-hidden rounded-2xl bg-white shadow-lg`}
       >
         {(title || description) && (
