@@ -53,6 +53,20 @@ export const ChildPeiScreen: React.FC<Props> = ({ route, navigation }) => {
     );
   }
 
+  const renderStatus = () => {
+    switch (pei.statut) {
+      case "VALIDE":
+        return "نشطة";
+      case "CLOTURE":
+        return "مغلقة";
+      case "REFUSE":
+        return "مرفوضة";
+      case "EN_ATTENTE_VALIDATION":
+      default:
+        return "بانتظار المصادقة";
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.screenTitle}>الخطة التربوية الفردية</Text>
@@ -62,7 +76,7 @@ export const ChildPeiScreen: React.FC<Props> = ({ route, navigation }) => {
         <Text style={styles.value}>{pei.titre}</Text>
 
         <Text style={styles.label}>الحالة</Text>
-        <Text style={styles.value}>{pei.statut === "ACTIF" ? "نشطة" : "مغلقة"}</Text>
+        <Text style={styles.value}>{renderStatus()}</Text>
 
         <Text style={styles.label}>تاريخ البداية</Text>
         <Text style={styles.value}>{formatDate(pei.date_debut)}</Text>

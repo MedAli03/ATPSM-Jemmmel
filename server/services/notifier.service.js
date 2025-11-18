@@ -281,6 +281,21 @@ async function notifyOnEducatorAssignedToGroup({ educateur_id, groupe_id, annee_
 // 5) PEI (Projet Éducatif Individuel)
 // -------------------------------
 
+async function notifyOnPeiAwaitingValidation(pei, t = null) {
+  const payload = {
+    type: "pei_en_attente_validation",
+    titre: "PEI en attente de validation",
+    corps: `Un PEI pour l'enfant #${pei.enfant_id} nécessite une validation.`,
+    icon: "clipboard-check",
+    data: { enfant_id: pei.enfant_id, pei_id: pei.id, educateur_id: pei.educateur_id },
+  };
+  const [directeurs = 0, presidents = 0] = await Promise.all([
+    toRoles("DIRECTEUR", payload, t),
+    toRoles("PRESIDENT", payload, t),
+  ]);
+  return directeurs + presidents;
+}
+
 async function notifyOnPEICreated(pei, t = null) {
   // parent + éducateur
   const parentIds = await parentOfChild(pei.enfant_id, t);
@@ -473,7 +488,8 @@ module.exports = {
   notifyOnChildAssignedToGroup,
   notifyOnEducatorAssignedToGroup,
 
-  // 5. PEI
+// 5. PEI
+  notifyOnPeiAwaitingValidation,
   notifyOnPEICreated,
   notifyOnPEIUpdated,
   notifyOnPEIClosed,

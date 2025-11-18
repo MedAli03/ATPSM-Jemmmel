@@ -18,7 +18,7 @@ module.exports = {
         annee_id: annee.id,
         date_creation: "2025-09-10",
         objectifs: "Améliorer la communication fonctionnelle et l’autonomie.",
-        statut: "actif",
+        statut: "VALIDE",
         precedent_projet_id: null,
         date_derniere_maj: now,
         created_at: now,

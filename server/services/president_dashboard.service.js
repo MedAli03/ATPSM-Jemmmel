@@ -69,6 +69,13 @@ async function groupsSummary({ anneeId }) {
   return { total, actifs, archives };
 }
 
+const PEI_STATS_DEFAULT = {
+  EN_ATTENTE_VALIDATION: 0,
+  VALIDE: 0,
+  CLOTURE: 0,
+  REFUSE: 0,
+};
+
 async function peiStats({ anneeId }) {
   const where = {};
   if (anneeId) where.annee_id = anneeId;
@@ -85,8 +92,11 @@ async function peiStats({ anneeId }) {
   });
 
   // normalize
-  const map = { brouillon: 0, actif: 0, clos: 0 };
-  for (const r of rows) map[r.statut] = Number(r.count) || 0;
+  const map = { ...PEI_STATS_DEFAULT };
+  for (const r of rows) {
+    if (map[r.statut] === undefined) continue;
+    map[r.statut] = Number(r.count) || 0;
+  }
 
   return map;
 }

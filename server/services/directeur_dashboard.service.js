@@ -123,8 +123,15 @@ async function counters({ anneeId, groupeId, educateurId }) {
   return { nbEnfants, nbEducateurs, nbParents, nbGroupesActifs, anneeActive };
 }
 
+const PEI_STATS_DEFAULT = {
+  EN_ATTENTE_VALIDATION: 0,
+  VALIDE: 0,
+  CLOTURE: 0,
+  REFUSE: 0,
+};
+
 /**
- * Répartition PEI par statut (brouillon/actif/clos) dans le périmètre
+ * Répartition PEI par statut (en attente / validé / clôturé / refusé) dans le périmètre
  */
 async function peiStats({ anneeId, groupeId, educateurId }) {
   const { enfantIds, educateurIds } = await computeScope({
@@ -135,11 +142,11 @@ async function peiStats({ anneeId, groupeId, educateurId }) {
   const where = {};
   if (anneeId) where.annee_id = anneeId;
   if (enfantIds) {
-    if (enfantIds.length === 0) return { brouillon: 0, actif: 0, clos: 0 };
+    if (enfantIds.length === 0) return { ...PEI_STATS_DEFAULT };
     where.enfant_id = { [Op.in]: enfantIds };
   }
   if (educateurIds) {
-    if (educateurIds.length === 0) return { brouillon: 0, actif: 0, clos: 0 };
+    if (educateurIds.length === 0) return { ...PEI_STATS_DEFAULT };
     where.educateur_id = { [Op.in]: educateurIds };
   }
 
@@ -153,8 +160,11 @@ async function peiStats({ anneeId, groupeId, educateurId }) {
     raw: true,
   });
 
-  const map = { brouillon: 0, actif: 0, clos: 0 };
-  for (const r of rows) map[r.statut] = Number(r.count) || 0;
+  const map = { ...PEI_STATS_DEFAULT };
+  for (const r of rows) {
+    if (map[r.statut] === undefined) continue;
+    map[r.statut] = Number(r.count) || 0;
+  }
   return map;
 }
 

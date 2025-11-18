@@ -56,8 +56,17 @@ exports.findByIdFull = async (id) => {
   return pei ? pei.get({ plain: true }) : null;
 };
 
-exports.findActiveByEnfantYear = ({ enfant_id, annee_id }) =>
-  PEI.findOne({ where: { enfant_id, annee_id, statut: "actif" } });
+exports.findActiveByEnfantYear = ({ enfant_id, annee_id }, t = null) =>
+  PEI.findOne({
+    where: { enfant_id, annee_id, statut: "VALIDE" },
+    transaction: t,
+  });
+
+exports.findPendingByEnfantYear = ({ enfant_id, annee_id }, t = null) =>
+  PEI.findOne({
+    where: { enfant_id, annee_id, statut: "EN_ATTENTE_VALIDATION" },
+    transaction: t,
+  });
 
 exports.create = (payload, t) => PEI.create(payload, { transaction: t });
 

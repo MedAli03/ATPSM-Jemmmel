@@ -7,7 +7,15 @@ const {
   AffectationEducateur,
 } = require("../models");
 const repo = require("../repos/pei.repo");
+const notifier = require("./notifier.service");
 const { Op, DatabaseError } = require("sequelize");
+
+const PEI_STATUS = {
+  PENDING: "EN_ATTENTE_VALIDATION",
+  VALID: "VALIDE",
+  CLOSED: "CLOTURE",
+  REFUSED: "REFUSE",
+};
 
 exports.list = async (q) => {
   const page = Math.max(1, Number(q.page || 1));
@@ -91,34 +99,37 @@ exports.create = async (dto) => {
   }
 
   return sequelize.transaction(async (t) => {
-    if (dto.statut === "actif") {
-      const active = await repo.findActiveByEnfantYear({
-        enfant_id: dto.enfant_id,
-        annee_id: dto.annee_id,
-      });
-      if (active) {
-        const e = new Error(
-          "Un PEI actif existe déjà pour cet enfant et cette année"
-        );
-        e.status = 409;
-        throw e;
-      }
+    const existingPending = await repo.findPendingByEnfantYear(
+      { enfant_id: dto.enfant_id, annee_id: dto.annee_id },
+      t
+    );
+    if (existingPending) {
+      const e = new Error(
+        "Un PEI est déjà en attente de validation pour cet enfant et cette année"
+      );
+      e.status = 409;
+      throw e;
     }
-    const created = await repo.create(dto, t);
+
+    const payload = { ...dto, statut: PEI_STATUS.PENDING };
+    const created = await repo.create(payload, t);
+    const plain = created.get({ plain: true });
 
     await repo.addHistory(
       {
-        projet_id: created.id,
+        projet_id: plain.id,
         educateur_id: dto.educateur_id,
         date_modification: new Date(),
         ancien_objectifs: "",
-        ancien_statut: "brouillon",
+        ancien_statut: PEI_STATUS.PENDING,
         raison_modification: "Création du PEI",
       },
       t
     );
 
-    return created;
+    await notifier.notifyOnPeiAwaitingValidation(plain, t);
+
+    return plain;
   });
 };
 
@@ -131,12 +142,11 @@ exports.update = async (id, dto, userId) => {
       throw e;
     }
 
-    // si on passe en "actif", vérifier unicité (enfant, année)
-    if (dto.statut === "actif" && current.statut !== "actif") {
+    if (dto.statut === PEI_STATUS.VALID && current.statut !== PEI_STATUS.VALID) {
       const active = await repo.findActiveByEnfantYear({
         enfant_id: current.enfant_id,
         annee_id: current.annee_id,
-      });
+      }, t);
       if (active && active.id !== current.id) {
         const e = new Error(
           "Un autre PEI actif existe déjà pour cet enfant et cette année"
@@ -179,11 +189,11 @@ exports.close = async (id, userId) => {
       e.status = 404;
       throw e;
     }
-    if (current.statut === "clos") return current;
+    if (current.statut === PEI_STATUS.CLOSED) return current;
 
     const updated = await repo.updateById(
       id,
-      { statut: "clos", date_derniere_maj: new Date() },
+      { statut: PEI_STATUS.CLOSED, date_derniere_maj: new Date() },
       t
     );
     await repo.addHistory(
@@ -199,4 +209,70 @@ exports.close = async (id, userId) => {
     );
     return updated;
   });
+};
+
+exports.validate = async (id, userId) => {
+  return sequelize.transaction(async (t) => {
+    const current = await PEI.findByPk(id, { transaction: t });
+    if (!current) {
+      const e = new Error("PEI introuvable");
+      e.status = 404;
+      throw e;
+    }
+    if (current.statut === PEI_STATUS.CLOSED) {
+      const e = new Error("Impossible de valider un PEI clôturé");
+      e.status = 400;
+      throw e;
+    }
+    if (current.statut === PEI_STATUS.VALID) {
+      return current.get({ plain: true });
+    }
+    if (
+      current.statut !== PEI_STATUS.PENDING &&
+      current.statut !== PEI_STATUS.REFUSED
+    ) {
+      const e = new Error("Ce PEI ne peut pas être validé");
+      e.status = 400;
+      throw e;
+    }
+
+    const active = await repo.findActiveByEnfantYear(
+      { enfant_id: current.enfant_id, annee_id: current.annee_id },
+      t
+    );
+    if (active && active.id !== current.id) {
+      await repo.updateById(
+        active.id,
+        { statut: PEI_STATUS.CLOSED, date_derniere_maj: new Date() },
+        t
+      );
+    }
+
+    const updated = await repo.updateById(
+      id,
+      { statut: PEI_STATUS.VALID, date_derniere_maj: new Date() },
+      t
+    );
+    const plain = updated.get({ plain: true });
+
+    await repo.addHistory(
+      {
+        projet_id: id,
+        educateur_id: userId,
+        date_modification: new Date(),
+        ancien_objectifs: current.objectifs || "",
+        ancien_statut: current.statut,
+        raison_modification: "Validation du PEI",
+      },
+      t
+    );
+
+    await notifier.notifyOnPEICreated(plain, t);
+
+    return plain;
+  });
+};
+
+exports.listPending = async (q) => {
+  return exports.list({ ...q, statut: PEI_STATUS.PENDING });
 };

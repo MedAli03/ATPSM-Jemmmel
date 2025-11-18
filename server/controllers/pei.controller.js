@@ -19,6 +19,17 @@ exports.get = async (req, res, next) => {
   }
 };
 
+exports.listPending = async (req, res, next) => {
+  try {
+    const { rows, count } = await service.listPending(req.query);
+    const page = Number(req.query.page || 1);
+    const pageSize = Number(req.query.pageSize || 20);
+    res.json({ data: rows, page, pageSize, total: count });
+  } catch (e) {
+    next(e);
+  }
+};
+
 exports.create = async (req, res, next) => {
   try {
     res.status(201).json(await service.create(req.body));
@@ -38,6 +49,14 @@ exports.update = async (req, res, next) => {
 exports.close = async (req, res, next) => {
   try {
     res.json(await service.close(req.params.id, req.user.id));
+  } catch (e) {
+    next(e);
+  }
+};
+
+exports.validate = async (req, res, next) => {
+  try {
+    res.json(await service.validate(req.params.id, req.user.id));
   } catch (e) {
     next(e);
   }

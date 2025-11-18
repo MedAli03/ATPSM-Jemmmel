@@ -88,7 +88,14 @@ interface RawPeiDto {
   enfant_id: number;
   educateur_id: number;
   annee_id: number;
-  statut: "brouillon" | "actif" | "clos";
+  statut:
+    | "EN_ATTENTE_VALIDATION"
+    | "VALIDE"
+    | "CLOTURE"
+    | "REFUSE"
+    | "brouillon"
+    | "actif"
+    | "clos";
   date_creation: string;
   date_derniere_maj?: string;
   objectifs?: string | null;
@@ -293,9 +300,13 @@ const normalizePeiSummary = (
   year?: SchoolYear
 ): ProjetEducatifIndividuelSummary => {
   const statutMap: Record<string, ProjetEducatifIndividuelSummary["statut"]> = {
-    actif: "ACTIF",
+    actif: "VALIDE",
+    VALIDE: "VALIDE",
     clos: "CLOTURE",
-    brouillon: "BROUILLON",
+    CLOTURE: "CLOTURE",
+    brouillon: "EN_ATTENTE_VALIDATION",
+    EN_ATTENTE_VALIDATION: "EN_ATTENTE_VALIDATION",
+    REFUSE: "REFUSE",
   };
   const titleSource = pei.enfant
     ? `PEI - ${pei.enfant.prenom ?? ""} ${pei.enfant.nom ?? ""}`.trim()
@@ -305,7 +316,7 @@ const normalizePeiSummary = (
     enfant_id: pei.enfant_id,
     enfant_nom_complet: formatChildName(pei.enfant),
     titre: titleSource || `PEI #${pei.id}`,
-    statut: statutMap[pei.statut] ?? "BROUILLON",
+    statut: statutMap[pei.statut] ?? "EN_ATTENTE_VALIDATION",
     date_debut: pei.date_creation,
     objectifs_resume: truncate(pei.objectifs, 160),
     date_fin_prevue: year?.date_fin,
@@ -433,7 +444,7 @@ export const getActivePeiForChild = async (
     const response = await api.get<PeiListResponse>("/pei", {
       params: {
         enfant_id: childId,
-        statut: "actif",
+        statut: "VALIDE",
         page: 1,
         pageSize: 1,
       },
@@ -443,6 +454,24 @@ export const getActivePeiForChild = async (
       return null;
     }
     return normalizePeiSummary(rows[0]);
+  } catch (error) {
+    throwIfForbidden(error, "لا يمكنك الوصول إلى هذا الـ PEI.");
+    throw error;
+  }
+};
+
+export const getLatestPeiForChild = async (
+  childId: number
+): Promise<PeiDetails | null> => {
+  try {
+    const response = await api.get<PeiListResponse>("/pei", {
+      params: { enfant_id: childId, page: 1, pageSize: 1 },
+    });
+    const rows = response.data?.data ?? [];
+    if (!rows.length) {
+      return null;
+    }
+    return normalizePeiDetails(rows[0]);
   } catch (error) {
     throwIfForbidden(error, "لا يمكنك الوصول إلى هذا الـ PEI.");
     throw error;

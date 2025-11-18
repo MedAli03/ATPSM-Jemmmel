@@ -18,6 +18,7 @@ import {
   getActiveSchoolYear,
   getActivePeiForChild,
   getChildDetails,
+  getLatestPeiForChild,
   getLatestObservationInitiale,
   getPEI,
   getPeiActivities,
@@ -84,7 +85,9 @@ export const EducatorChildDetailsScreen: React.FC = () => {
           setActivities(acts.slice(0, 3));
         } else {
           setActivePeiId(null);
-          setPeiDetails(null);
+          const latestPei = await getLatestPeiForChild(childId).catch(() => null);
+          if (!isMounted) return;
+          setPeiDetails(latestPei);
           setEvaluations([]);
           setActivities([]);
         }
@@ -119,12 +122,15 @@ export const EducatorChildDetailsScreen: React.FC = () => {
   const renderPeiStatusLabel = () => {
     if (!peiDetails) return "لا يوجد";
     switch (peiDetails.statut) {
-      case "ACTIF":
-        return "PEI مفعّل";
+      case "VALIDE":
+        return "PEI مصادق عليه";
       case "CLOTURE":
         return "PEI مغلق";
+      case "REFUSE":
+        return "PEI مرفوض";
+      case "EN_ATTENTE_VALIDATION":
       default:
-        return "في انتظار مراجعة";
+        return "بانتظار المصادقة";
     }
   };
 
@@ -143,9 +149,9 @@ export const EducatorChildDetailsScreen: React.FC = () => {
   const allergies = child?.allergies ?? "غير مصرح";
   const needs = child?.besoins_specifiques ?? child?.description ?? "لم يتم تحديد احتياجات بعد";
   const peiStatusStyle = peiDetails
-    ? peiDetails.statut === "ACTIF"
+    ? peiDetails.statut === "VALIDE"
       ? styles.peiStatusActive
-      : peiDetails.statut === "CLOTURE"
+      : peiDetails.statut === "CLOTURE" || peiDetails.statut === "REFUSE"
       ? styles.peiStatusClosed
       : styles.peiStatusToReview
     : styles.peiStatusClosed;
@@ -157,18 +163,30 @@ export const EducatorChildDetailsScreen: React.FC = () => {
         completed: Boolean(observation.contenu),
       }
     : { exists: false, date: "", completed: false };
+  const hasPendingPei = peiDetails?.statut === "EN_ATTENTE_VALIDATION";
   const canGeneratePei = Boolean(
-    observationInfo.exists && !activePeiId && user?.id && !peiCreationLoading
+    observationInfo.exists &&
+      !activePeiId &&
+      user?.id &&
+      !peiCreationLoading &&
+      !hasPendingPei
   );
   const generationHelperText = !observationInfo.exists
     ? "يجب إكمال الملاحظة الأوّلية قبل إنشاء الـ PEI"
     : activePeiId
     ? "يوجد مشروع تربوي نشط لهذا الطفل."
+    : hasPendingPei
+    ? "هناك مشروع بانتظار مصادقة الإدارة."
     : !user?.id
     ? "يجب تسجيل الدخول كمربٍّ لإنشاء الـ PEI."
     : null;
   const handleGeneratePei = async () => {
-    if (!observationInfo.exists || activePeiId || peiCreationLoading) {
+    if (
+      !observationInfo.exists ||
+      activePeiId ||
+      peiCreationLoading ||
+      hasPendingPei
+    ) {
       return;
     }
     if (!user) {
@@ -184,9 +202,7 @@ export const EducatorChildDetailsScreen: React.FC = () => {
         educateur_id: user.id,
         annee_id: activeYear.id,
         date_creation: new Date().toISOString(),
-        statut: "brouillon",
       });
-      setActivePeiId(newPei.id);
       setPeiDetails(newPei);
       showSuccessMessage("تم إنشاء الـ PEI بنجاح");
       navigation.navigate("EducatorPeiDetail", { childId, peiId: newPei.id });

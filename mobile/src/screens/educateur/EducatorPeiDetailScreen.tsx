@@ -98,14 +98,15 @@ export const EducatorPeiDetailScreen: React.FC = () => {
 
   const renderStatusLabel = (status?: PeiDetails["statut"]) => {
     switch (status) {
-      case "ACTIF":
-        return "PEI مفعّل";
+      case "VALIDE":
+        return "PEI مصادق عليه";
       case "CLOTURE":
         return "PEI مغلق";
-      case "BROUILLON":
-        return "PEI في طور الإعداد";
+      case "REFUSE":
+        return "PEI مرفوض";
+      case "EN_ATTENTE_VALIDATION":
       default:
-        return "PEI";
+        return "PEI بانتظار المصادقة";
     }
   };
 
@@ -117,9 +118,9 @@ export const EducatorPeiDetailScreen: React.FC = () => {
   const objectiveLines = pei?.objectifs
     ? pei.objectifs.split(/\n+/).map((line) => line.trim()).filter(Boolean)
     : [];
-  const statusStyle = pei?.statut === "ACTIF"
+  const statusStyle = pei?.statut === "VALIDE"
     ? styles.statusActive
-    : pei?.statut === "CLOTURE"
+    : pei?.statut === "CLOTURE" || pei?.statut === "REFUSE"
     ? styles.statusClosed
     : styles.statusToReview;
   const showLoader = loading && !pei;
