@@ -14,8 +14,6 @@ import { EducatorStackParamList } from "../../navigation/EducatorNavigator";
 import { useAuth } from "../../features/auth/AuthContext";
 import {
   ForbiddenError,
-  createPEI,
-  getActiveSchoolYear,
   getActivePeiForChild,
   getChildDetails,
   getLatestPeiForChild,
@@ -31,7 +29,7 @@ import {
   PeiDetails,
   PeiEvaluation,
 } from "../../features/educateur/types";
-import { showErrorMessage, showSuccessMessage } from "../../utils/feedback";
+import { showErrorMessage } from "../../utils/feedback";
 
 type Route = RouteProp<EducatorStackParamList, "EducatorChildDetails">;
 type Nav = NativeStackNavigationProp<EducatorStackParamList>;
@@ -50,8 +48,6 @@ export const EducatorChildDetailsScreen: React.FC = () => {
   const [activePeiId, setActivePeiId] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [peiCreationLoading, setPeiCreationLoading] = useState(false);
-  const [peiCreationError, setPeiCreationError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -165,11 +161,7 @@ export const EducatorChildDetailsScreen: React.FC = () => {
     : { exists: false, date: "", completed: false };
   const hasPendingPei = peiDetails?.statut === "EN_ATTENTE_VALIDATION";
   const canGeneratePei = Boolean(
-    observationInfo.exists &&
-      !activePeiId &&
-      user?.id &&
-      !peiCreationLoading &&
-      !hasPendingPei
+    observationInfo.exists && !activePeiId && user?.id && !hasPendingPei
   );
   const generationHelperText = !observationInfo.exists
     ? "يجب إكمال الملاحظة الأوّلية قبل إنشاء الـ PEI"
@@ -180,46 +172,14 @@ export const EducatorChildDetailsScreen: React.FC = () => {
     : !user?.id
     ? "يجب تسجيل الدخول كمربٍّ لإنشاء الـ PEI."
     : null;
-  const handleGeneratePei = async () => {
-    if (
-      !observationInfo.exists ||
-      activePeiId ||
-      peiCreationLoading ||
-      hasPendingPei
-    ) {
+  const handleGeneratePei = () => {
+    if (!canGeneratePei) {
+      if (!user) {
+        showErrorMessage("لا يمكن إنشاء الـ PEI من دون تسجيل الدخول كمربٍّ.");
+      }
       return;
     }
-    if (!user) {
-      showErrorMessage("لا يمكن إنشاء الـ PEI من دون تسجيل الدخول كمربٍّ.");
-      return;
-    }
-    setPeiCreationError(null);
-    setPeiCreationLoading(true);
-    try {
-      const activeYear = await getActiveSchoolYear();
-      const newPei = await createPEI({
-        enfant_id: childId,
-        educateur_id: user.id,
-        annee_id: activeYear.id,
-        date_creation: new Date().toISOString(),
-      });
-      setPeiDetails(newPei);
-      showSuccessMessage("تم إنشاء الـ PEI بنجاح");
-      navigation.navigate("EducatorPeiDetail", { childId, peiId: newPei.id });
-    } catch (err) {
-      console.error("Failed to create PEI", err);
-      const fallback = "حدث خطأ أثناء إنشاء الـ PEI";
-      const message =
-        err instanceof ForbiddenError
-          ? err.message
-          : err instanceof Error && err.message
-          ? err.message
-          : fallback;
-      setPeiCreationError(message);
-      showErrorMessage(message);
-    } finally {
-      setPeiCreationLoading(false);
-    }
+    navigation.navigate("EducatorPeiCreate", { childId });
   };
   const peiStats = peiDetails
     ? {
@@ -356,24 +316,17 @@ export const EducatorChildDetailsScreen: React.FC = () => {
         <TouchableOpacity
           style={[
             styles.generatePeiButton,
-            (!canGeneratePei || peiCreationLoading) && styles.generatePeiButtonDisabled,
+            !canGeneratePei && styles.generatePeiButtonDisabled,
           ]}
           disabled={!canGeneratePei}
           onPress={handleGeneratePei}
         >
-          {peiCreationLoading ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={styles.generatePeiButtonText}>
-              إنشاء مشروع تربوي فردي (PEI)
-            </Text>
-          )}
+          <Text style={styles.generatePeiButtonText}>
+            إنشاء مشروع تربوي فردي (PEI)
+          </Text>
         </TouchableOpacity>
         {generationHelperText ? (
           <Text style={styles.generationHelper}>{generationHelperText}</Text>
-        ) : null}
-        {peiCreationError ? (
-          <Text style={styles.inlineError}>{peiCreationError}</Text>
         ) : null}
       </View>
 
