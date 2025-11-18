@@ -56,14 +56,15 @@ export const ChildPeiScreen: React.FC<Props> = ({ route, navigation }) => {
   const renderStatus = () => {
     switch (pei.statut) {
       case "VALIDE":
-        return "نشطة";
+        return "PEI مُصادَق عليه";
+      case "EN_ATTENTE_VALIDATION":
+        return "في انتظار المصادقة";
       case "CLOTURE":
         return "مغلقة";
       case "REFUSE":
         return "مرفوضة";
-      case "EN_ATTENTE_VALIDATION":
       default:
-        return "بانتظار المصادقة";
+        return "حالة غير معروفة";
     }
   };
 

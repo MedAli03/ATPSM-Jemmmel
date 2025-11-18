@@ -119,14 +119,15 @@ export const EducatorChildDetailsScreen: React.FC = () => {
     if (!peiDetails) return "لا يوجد";
     switch (peiDetails.statut) {
       case "VALIDE":
-        return "PEI مصادق عليه";
+        return "PEI مُصادَق عليه";
+      case "EN_ATTENTE_VALIDATION":
+        return "في انتظار المصادقة";
       case "CLOTURE":
         return "PEI مغلق";
       case "REFUSE":
         return "PEI مرفوض";
-      case "EN_ATTENTE_VALIDATION":
       default:
-        return "بانتظار المصادقة";
+        return "حالة غير معروفة";
     }
   };
 
@@ -151,6 +152,8 @@ export const EducatorChildDetailsScreen: React.FC = () => {
       ? styles.peiStatusClosed
       : styles.peiStatusToReview
     : styles.peiStatusClosed;
+  const activePeiDetails = peiDetails?.statut === "VALIDE" ? peiDetails : null;
+  const pendingPeiDetails = peiDetails?.statut === "EN_ATTENTE_VALIDATION" ? peiDetails : null;
   const formatDate = (value?: string | null) => (value ? value.slice(0, 10) : "غير متاح");
   const observationInfo = observation
     ? {
@@ -159,7 +162,7 @@ export const EducatorChildDetailsScreen: React.FC = () => {
         completed: Boolean(observation.contenu),
       }
     : { exists: false, date: "", completed: false };
-  const hasPendingPei = peiDetails?.statut === "EN_ATTENTE_VALIDATION";
+  const hasPendingPei = Boolean(pendingPeiDetails);
   const canGeneratePei = Boolean(
     observationInfo.exists && !activePeiId && user?.id && !hasPendingPei
   );
@@ -181,12 +184,12 @@ export const EducatorChildDetailsScreen: React.FC = () => {
     }
     navigation.navigate("EducatorPeiCreate", { childId });
   };
-  const peiStats = peiDetails
+  const peiStats = activePeiDetails
     ? {
-        lastUpdate: peiDetails.date_derniere_maj ?? peiDetails.date_debut,
-        nextReview: peiDetails.date_fin_prevue ?? undefined,
-        objectivesCount: peiDetails.objectifs
-          ? peiDetails.objectifs.split(/\n+/).filter((line) => line.trim().length > 0).length
+        lastUpdate: activePeiDetails.date_derniere_maj ?? activePeiDetails.date_debut,
+        nextReview: activePeiDetails.date_fin_prevue ?? undefined,
+        objectivesCount: activePeiDetails.objectifs
+          ? activePeiDetails.objectifs.split(/\n+/).filter((line) => line.trim().length > 0).length
           : 0,
         activitiesCount: activities.length,
       }
@@ -330,6 +333,35 @@ export const EducatorChildDetailsScreen: React.FC = () => {
         ) : null}
       </View>
 
+      {pendingPeiDetails ? (
+        <View style={[styles.card, styles.pendingPeiCard]}>
+          <View style={styles.pendingHeaderRow}>
+            <Text style={styles.pendingTitle}>⚠️ مشروع في انتظار المصادقة</Text>
+            <View style={[styles.peiStatusChip, styles.peiStatusToReview]}>
+              <Text style={styles.peiStatusText}>في انتظار المصادقة</Text>
+            </View>
+          </View>
+          <Text style={styles.pendingSubtitle}>
+            تم إرسال هذا المشروع إلى الإدارة وينتظر الموافقة قبل أن يصبح فعالًا للطفل.
+          </Text>
+          <View style={styles.pendingInfoRow}>
+            <Text style={styles.pendingLabel}>العنوان</Text>
+            <Text style={styles.pendingValue}>{pendingPeiDetails.titre}</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.pendingActionBtn}
+            onPress={() =>
+              navigation.navigate("EducatorPeiDetail", {
+                childId,
+                peiId: pendingPeiDetails.id,
+              })
+            }
+          >
+            <Text style={styles.pendingActionText}>عرض تفاصيل المشروع</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
       {/* PEI SUMMARY */}
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>PEI الحالي</Text>
@@ -337,46 +369,66 @@ export const EducatorChildDetailsScreen: React.FC = () => {
           Projet Éducatif Individuel · الأهداف والأنشطة والتقييمات.
         </Text>
 
-        <View style={styles.peiRow}>
-          <View style={styles.peiColumn}>
-            <Text style={styles.peiLabel}>آخر تحديث</Text>
-            <Text style={styles.peiValue}>
-              {peiStats?.lastUpdate ? formatDate(peiStats.lastUpdate) : "غير متاح"}
-            </Text>
-          </View>
-          <View style={styles.peiColumn}>
-            <Text style={styles.peiLabel}>مراجعة قادمة</Text>
-            <Text style={styles.peiValue}>
-              {peiStats?.nextReview ? formatDate(peiStats.nextReview) : "غير محدد"}
-            </Text>
-          </View>
-        </View>
+        {peiStats ? (
+          <>
+            <View style={styles.peiRow}>
+              <View style={styles.peiColumn}>
+                <Text style={styles.peiLabel}>آخر تحديث</Text>
+                <Text style={styles.peiValue}>
+                  {peiStats.lastUpdate ? formatDate(peiStats.lastUpdate) : "غير متاح"}
+                </Text>
+              </View>
+              <View style={styles.peiColumn}>
+                <Text style={styles.peiLabel}>مراجعة قادمة</Text>
+                <Text style={styles.peiValue}>
+                  {peiStats.nextReview ? formatDate(peiStats.nextReview) : "غير محدد"}
+                </Text>
+              </View>
+            </View>
 
-        <View style={styles.peiRow}>
-          <View style={styles.peiColumn}>
-            <Text style={styles.peiLabel}>عدد الأهداف</Text>
-            <Text style={styles.peiValue}>{peiStats?.objectivesCount ?? 0}</Text>
+            <View style={styles.peiRow}>
+              <View style={styles.peiColumn}>
+                <Text style={styles.peiLabel}>عدد الأهداف</Text>
+                <Text style={styles.peiValue}>{peiStats.objectivesCount ?? 0}</Text>
+              </View>
+              <View style={styles.peiColumn}>
+                <Text style={styles.peiLabel}>عدد الأنشطة</Text>
+                <Text style={styles.peiValue}>{peiStats.activitiesCount ?? 0}</Text>
+              </View>
+            </View>
+          </>
+        ) : (
+          <View style={styles.noActivePeiBox}>
+            <Text style={styles.mutedText}>لا يوجد PEI مُصادَق عليه حاليًا.</Text>
+            {pendingPeiDetails ? (
+              <Text style={[styles.mutedText, styles.noActivePeiHelper]}>
+                يوجد مشروع بانتظار المصادقة قبل أن يصبح نشطًا.
+              </Text>
+            ) : null}
           </View>
-          <View style={styles.peiColumn}>
-            <Text style={styles.peiLabel}>عدد الأنشطة</Text>
-            <Text style={styles.peiValue}>{peiStats?.activitiesCount ?? 0}</Text>
-          </View>
-        </View>
+        )}
 
         <View style={styles.peiActionsRow}>
           <TouchableOpacity
-            style={[styles.peiActionBtn, !activePeiId && styles.peiActionBtnDisabled]}
-            disabled={!activePeiId}
+            style={[
+              styles.peiActionBtn,
+              !activePeiDetails && styles.peiActionBtnDisabled,
+            ]}
+            disabled={!activePeiDetails}
             onPress={() =>
-              activePeiId &&
+              activePeiDetails &&
               navigation.navigate("EducatorPeiDetail", {
                 childId,
-                peiId: activePeiId,
+                peiId: activePeiDetails.id,
               })
             }
           >
             <Text style={styles.peiActionText}>
-              {activePeiId ? "عرض تفاصيل الـ PEI" : "لا يوجد PEI نشط"}
+              {activePeiDetails
+                ? "عرض تفاصيل الـ PEI"
+                : pendingPeiDetails
+                ? "بانتظار المصادقة"
+                : "لا يوجد PEI نشط"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -582,6 +634,13 @@ const styles = StyleSheet.create({
   peiColumn: { flex: 1 },
   peiLabel: { fontSize: 12, color: "#6B7280" },
   peiValue: { fontSize: 14, color: "#111827", marginTop: 2 },
+  noActivePeiBox: {
+    marginTop: 10,
+    paddingVertical: 8,
+  },
+  noActivePeiHelper: {
+    marginTop: 4,
+  },
   peiActionsRow: { flexDirection: "row", marginTop: 12 },
   peiActionBtn: {
     flex: 1,
@@ -630,6 +689,52 @@ const styles = StyleSheet.create({
   },
   quickEmoji: { fontSize: 20 },
   quickLabel: { fontSize: 12, color: "#111827", marginTop: 4 },
+  pendingPeiCard: {
+    borderColor: "#FCD34D",
+    borderWidth: 1,
+  },
+  pendingHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  pendingTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#92400E",
+  },
+  pendingSubtitle: {
+    marginTop: 8,
+    fontSize: 13,
+    color: "#B45309",
+    lineHeight: 20,
+  },
+  pendingInfoRow: {
+    marginTop: 12,
+  },
+  pendingLabel: {
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  pendingValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#111827",
+    marginTop: 4,
+  },
+  pendingActionBtn: {
+    marginTop: 14,
+    borderRadius: 999,
+    paddingVertical: 10,
+    alignItems: "center",
+    backgroundColor: "#FEF3C7",
+  },
+  pendingActionText: {
+    color: "#92400E",
+    fontWeight: "700",
+    fontSize: 13,
+  },
   generatePeiButton: {
     marginTop: 12,
     backgroundColor: "#2563EB",
