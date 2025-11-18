@@ -264,7 +264,7 @@ const NavBar = () => {
                     <button
                       type="button"
                       className={dropdownClasses}
-                      aria-haspopup="true"
+                      aria-haspopup={true}
                       aria-expanded={expandedDropdown === link._key}
                       onClick={() => toggleDropdown(link._key)}
                     >
@@ -409,7 +409,7 @@ const NavBar = () => {
           </div>
         </div>
       </header>
-      <div className="h-[6.5rem] lg:h-[8.5rem]" aria-hidden="true" />
+      <div className="h-[6.5rem] lg:h-[8.5rem]" aria-hidden={true} />
     </>
   );
 };

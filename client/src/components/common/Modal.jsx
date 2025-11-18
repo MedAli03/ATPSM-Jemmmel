@@ -68,7 +68,7 @@ export default function Modal({
       className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6 sm:py-10"
       dir="rtl"
       role="dialog"
-      aria-modal="true"
+      aria-modal={true}
     >
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
       <div
