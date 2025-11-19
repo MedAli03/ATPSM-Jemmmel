@@ -3,16 +3,36 @@
 const PEI_TABLE = "pei_versions";
 
 async function ensureVersionNumbers(queryInterface) {
-  await queryInterface.sequelize.query(
-    `WITH ranked AS (
-       SELECT id,
-              ROW_NUMBER() OVER (PARTITION BY enfant_id, annee_id ORDER BY effective_start, id) AS rn
+  const transaction = await queryInterface.sequelize.transaction();
+
+  try {
+    const [rows] = await queryInterface.sequelize.query(
+      `SELECT id, enfant_id, annee_id, COALESCE(effective_start, created_at) AS ordering_date
        FROM ${PEI_TABLE}
-     )
-     UPDATE ${PEI_TABLE} pv
-     JOIN ranked r ON r.id = pv.id
-     SET pv.version_number = r.rn`
-  );
+       ORDER BY enfant_id, annee_id, ordering_date, id`,
+      { transaction }
+    );
+
+    const counters = new Map();
+
+    for (const row of rows) {
+      const key = `${row.enfant_id || "null"}-${row.annee_id || "null"}`;
+      const nextValue = (counters.get(key) || 0) + 1;
+      counters.set(key, nextValue);
+
+      await queryInterface.bulkUpdate(
+        PEI_TABLE,
+        { version_number: nextValue },
+        { id: row.id },
+        { transaction }
+      );
+    }
+
+    await transaction.commit();
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
 }
 
 async function migrateObjectifs(queryInterface) {
