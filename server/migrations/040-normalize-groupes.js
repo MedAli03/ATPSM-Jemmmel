@@ -144,7 +144,7 @@ module.exports = {
         await queryInterface.changeColumn(
           TABLE_INSCRIPTIONS,
           "date_entree",
-          { type: Sequelize.DATE, allowNull: true },
+          { type: Sequelize.DATE, allowNull: true, defaultValue: null },
           { transaction }
         );
       }
