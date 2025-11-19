@@ -88,7 +88,14 @@ interface RawPeiDto {
   enfant_id: number;
   educateur_id: number;
   annee_id: number;
-  statut: "brouillon" | "actif" | "clos";
+  statut:
+    | "EN_ATTENTE_VALIDATION"
+    | "VALIDE"
+    | "CLOTURE"
+    | "REFUSE"
+    | "brouillon"
+    | "actif"
+    | "clos";
   date_creation: string;
   date_derniere_maj?: string;
   objectifs?: string | null;
@@ -208,7 +215,7 @@ const throwIfForbidden = (error: unknown, fallbackMessage?: string) => {
 
 let cachedActiveYear: SchoolYear | null = null;
 
-const getActiveSchoolYear = async (): Promise<SchoolYear> => {
+export const getActiveSchoolYear = async (): Promise<SchoolYear> => {
   if (cachedActiveYear) {
     return cachedActiveYear;
   }
@@ -293,9 +300,13 @@ const normalizePeiSummary = (
   year?: SchoolYear
 ): ProjetEducatifIndividuelSummary => {
   const statutMap: Record<string, ProjetEducatifIndividuelSummary["statut"]> = {
-    actif: "ACTIF",
+    actif: "VALIDE",
+    VALIDE: "VALIDE",
     clos: "CLOTURE",
-    brouillon: "BROUILLON",
+    CLOTURE: "CLOTURE",
+    brouillon: "EN_ATTENTE_VALIDATION",
+    EN_ATTENTE_VALIDATION: "EN_ATTENTE_VALIDATION",
+    REFUSE: "REFUSE",
   };
   const titleSource = pei.enfant
     ? `PEI - ${pei.enfant.prenom ?? ""} ${pei.enfant.nom ?? ""}`.trim()
@@ -305,12 +316,20 @@ const normalizePeiSummary = (
     enfant_id: pei.enfant_id,
     enfant_nom_complet: formatChildName(pei.enfant),
     titre: titleSource || `PEI #${pei.id}`,
-    statut: statutMap[pei.statut] ?? "BROUILLON",
+    statut: statutMap[pei.statut] ?? "EN_ATTENTE_VALIDATION",
     date_debut: pei.date_creation,
     objectifs_resume: truncate(pei.objectifs, 160),
     date_fin_prevue: year?.date_fin,
   };
 };
+
+const normalizePeiDetails = (pei: RawPeiDto): PeiDetails => ({
+  ...normalizePeiSummary(pei),
+  educateur_id: pei.educateur_id,
+  annee_id: pei.annee_id,
+  date_derniere_maj: pei.date_derniere_maj,
+  objectifs: pei.objectifs ?? null,
+});
 
 export const getMyGroups = async (options?: {
   includeHistory?: boolean;
@@ -425,7 +444,7 @@ export const getActivePeiForChild = async (
     const response = await api.get<PeiListResponse>("/pei", {
       params: {
         enfant_id: childId,
-        statut: "actif",
+        statut: "VALIDE",
         page: 1,
         pageSize: 1,
       },
@@ -435,6 +454,24 @@ export const getActivePeiForChild = async (
       return null;
     }
     return normalizePeiSummary(rows[0]);
+  } catch (error) {
+    throwIfForbidden(error, "لا يمكنك الوصول إلى هذا الـ PEI.");
+    throw error;
+  }
+};
+
+export const getLatestPeiForChild = async (
+  childId: number
+): Promise<PeiDetails | null> => {
+  try {
+    const response = await api.get<PeiListResponse>("/pei", {
+      params: { enfant_id: childId, page: 1, pageSize: 1 },
+    });
+    const rows = response.data?.data ?? [];
+    if (!rows.length) {
+      return null;
+    }
+    return normalizePeiDetails(rows[0]);
   } catch (error) {
     throwIfForbidden(error, "لا يمكنك الوصول إلى هذا الـ PEI.");
     throw error;
@@ -465,14 +502,17 @@ export const listEducatorPeiSummaries = async (
 export const createPEI = async (
   payload: CreatePeiPayload
 ): Promise<PeiDetails> => {
-  const response = await api.post<PeiDetails>("/pei", payload);
-  return response.data;
+  const response = await api.post<RawPeiDto>("/pei", payload);
+  return normalizePeiDetails(response.data);
 };
 
-export const getPEI = async (peiId: number): Promise<PeiDetails> => {
+export const getPEI = async (peiId?: number | null): Promise<PeiDetails> => {
+  if (!peiId || !Number.isFinite(peiId)) {
+    throw new Error("معرّف الـ PEI غير صالح");
+  }
   try {
-    const response = await api.get<PeiDetails>(`/pei/${peiId}`);
-    return response.data;
+    const response = await api.get<RawPeiDto>(`/pei/${peiId}`);
+    return normalizePeiDetails(response.data);
   } catch (error) {
     throwIfForbidden(error, "لا يمكنك عرض هذا المشروع التربوي.");
     throw error;

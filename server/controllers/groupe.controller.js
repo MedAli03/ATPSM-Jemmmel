@@ -67,7 +67,7 @@ exports.listInscriptions = async (req, res, next) => {
       annee_id: Number(anneeId),
       page,
       limit,
-    });
+    }, req.user);
     res.json({ ok: true, data });
   } catch (e) { next(e); }
 };

@@ -57,7 +57,7 @@ const Contact = () => {
             onSubmit={handleSubmit}
             className="relative overflow-hidden rounded-4xl border border-slate-100 bg-white p-8 shadow-xl"
           >
-            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500 via-indigo-400 to-sky-400" aria-hidden="true" />
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500 via-indigo-400 to-sky-400" aria-hidden={true} />
             <div className="grid gap-6 md:grid-cols-2">
               <div className="text-right">
                 <label htmlFor="contact-name" className="text-sm font-semibold text-slate-700">

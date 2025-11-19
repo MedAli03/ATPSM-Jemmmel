@@ -307,6 +307,8 @@ Thread.hasMany(Message, { as: "messages", foreignKey: "thread_id" });
 Message.belongsTo(Thread, { as: "thread", foreignKey: "thread_id" });
 
 Thread.belongsTo(Message, { as: "lastMessage", foreignKey: "last_message_id" });
+Thread.belongsTo(Enfant, { as: "child", foreignKey: "enfant_id" });
+Enfant.hasMany(Thread, { as: "threads", foreignKey: "enfant_id" });
 
 Message.belongsTo(Utilisateur, { as: "sender", foreignKey: "sender_id" });
 Utilisateur.hasMany(Message, { as: "messages_envoyes", foreignKey: "sender_id" });

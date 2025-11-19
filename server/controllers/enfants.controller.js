@@ -31,7 +31,7 @@ exports.list = async (req, res, next) => {
       error.status = 422;
       return next(error);
     }
-    const data = await svc.list(value);
+    const data = await svc.list(value, req.user);
     res.json({ ok: true, ...data });
   } catch (e) {
     next(e);

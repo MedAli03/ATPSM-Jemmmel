@@ -310,7 +310,6 @@ const LoginPage = () => {
                   alignItems: "center",
                   textAlign: "center",
                 }}
-                aria-hidden
               >
                 <Box
                   sx={{
@@ -324,7 +323,7 @@ const LoginPage = () => {
                     mb: 3,
                   }}
                 >
-                  <AdminPanelSettings sx={{ fontSize: 50 }} />
+                  <AdminPanelSettings sx={{ fontSize: 50 }} aria-hidden />
                 </Box>
 
                 <Typography variant="h5" fontWeight="bold" mb={2}>
@@ -344,6 +343,7 @@ const LoginPage = () => {
                       ml: 1,
                       opacity: 0.7,
                     }}
+                    aria-hidden
                   />
                   <Typography variant="body2">نظام آمن ومحمي</Typography>
                 </Box>
@@ -357,6 +357,7 @@ const LoginPage = () => {
                       ml: 1,
                       opacity: 0.7,
                     }}
+                    aria-hidden
                   />
                   <Typography variant="body2">واجهة سهلة الاستخدام</Typography>
                 </Box>
@@ -370,6 +371,7 @@ const LoginPage = () => {
                       ml: 1,
                       opacity: 0.7,
                     }}
+                    aria-hidden
                   />
                   <Typography variant="body2">تحكم كامل في البيانات</Typography>
                 </Box>

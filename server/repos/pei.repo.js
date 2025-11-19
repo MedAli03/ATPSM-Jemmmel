@@ -27,8 +27,8 @@ exports.findAndCount = async ({ page, pageSize, where }) => {
   return { rows, count };
 };
 
-exports.findByIdFull = (id) =>
-  PEI.findByPk(id, {
+exports.findByIdFull = async (id) => {
+  const pei = await PEI.findByPk(id, {
     include: [
       { model: Enfant, as: "enfant", attributes: ["id", "nom", "prenom"] },
       {
@@ -43,7 +43,7 @@ exports.findByIdFull = (id) =>
       },
       {
         model: ActiviteProjet,
-        as: "activities",
+        as: "activites",
         attributes: ["id", "titre", "date_activite", "type"],
       },
       {
@@ -53,9 +53,20 @@ exports.findByIdFull = (id) =>
       },
     ],
   });
+  return pei ? pei.get({ plain: true }) : null;
+};
 
-exports.findActiveByEnfantYear = ({ enfant_id, annee_id }) =>
-  PEI.findOne({ where: { enfant_id, annee_id, statut: "actif" } });
+exports.findActiveByEnfantYear = ({ enfant_id, annee_id }, t = null) =>
+  PEI.findOne({
+    where: { enfant_id, annee_id, statut: "VALIDE", est_actif: true },
+    transaction: t,
+  });
+
+exports.findPendingByEnfantYear = ({ enfant_id, annee_id }, t = null) =>
+  PEI.findOne({
+    where: { enfant_id, annee_id, statut: "EN_ATTENTE_VALIDATION" },
+    transaction: t,
+  });
 
 exports.create = (payload, t) => PEI.create(payload, { transaction: t });
 

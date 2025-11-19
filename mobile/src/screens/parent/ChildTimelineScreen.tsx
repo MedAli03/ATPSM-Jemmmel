@@ -1,66 +1,68 @@
-import React from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import React, { useCallback } from "react";
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl } from "react-native";
 import { RouteProp, useRoute } from "@react-navigation/native";
 import { ParentStackParamList } from "../../navigation/ParentNavigator";
+import { useChildTimeline } from "../../features/parent/hooks";
 
 type TimelineRoute = RouteProp<ParentStackParamList, "ChildTimeline">;
-
-const MOCK_EVENTS = [
-  {
-    id: 1,
-    date: "2025-11-15",
-    type: "note",
-    title: "ملاحظة يومية",
-    content: "Ahmed a bien participé à l’activité de communication visuelle.",
-  },
-  {
-    id: 2,
-    date: "2025-11-10",
-    type: "activity",
-    title: "نشاط تربوي",
-    content: "Atelier motricité fine avec cubes de couleurs.",
-  },
-  {
-    id: 3,
-    date: "2025-11-01",
-    type: "pei",
-    title: "تحديث PEI",
-    content: "Objectifs de communication ajustés suite aux progrès constatés.",
-  },
-];
 
 export const ChildTimelineScreen: React.FC = () => {
   const { params } = useRoute<TimelineRoute>();
   const { childId } = params;
-
-  // TODO: fetch notes/activités/PEI events for childId
-  const events = MOCK_EVENTS;
+  const { events, isLoading, isError, error, refetch } = useChildTimeline(childId);
+  const onRefresh = useCallback(() => {
+    refetch();
+  }, [refetch]);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={isLoading && events.length > 0} onRefresh={onRefresh} />}
+    >
       <Text style={styles.headerTitle}>تابع يوم الطفل · {childId}</Text>
       <Text style={styles.headerSubtitle}>
         ملاحظات، أنشطة، و تحديثات المشروع التربوي (PEI)
       </Text>
 
-      {events.map((e, index) => (
-        <View key={e.id} style={styles.timelineItem}>
-          <View style={styles.timelineLine} />
-          <View style={styles.bullet} />
-          <View style={styles.card}>
-            <Text style={styles.date}>{e.date}</Text>
-            <Text style={styles.title}>{e.title}</Text>
-            <Text style={styles.type}>
-              {e.type === "note"
-                ? "ملاحظة يومية"
-                : e.type === "activity"
-                ? "نشاط"
-                : "PEI"}
-            </Text>
-            <Text style={styles.contentText}>{e.content}</Text>
-          </View>
+      {isError && (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>{error ?? "تعذّر تحميل الأحداث."}</Text>
         </View>
-      ))}
+      )}
+
+      {isLoading && events.length === 0 ? (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator color="#2563EB" />
+          <Text style={styles.loadingText}>جارٍ تحميل الأحداث...</Text>
+        </View>
+      ) : events.length === 0 ? (
+        <View style={styles.emptyBox}>
+          <Text style={styles.emptyTitle}>لا توجد أحداث بعد لهذا الطفل.</Text>
+          <Text style={styles.emptyText}>ستظهر هنا الملاحظات والأنشطة والتقييمات المعتمدة.</Text>
+        </View>
+      ) : (
+        events.map((e) => (
+          <View key={e.id} style={styles.timelineItem}>
+            <View style={styles.timelineLine} />
+            <View style={styles.bullet} />
+            <View style={styles.card}>
+              <Text style={styles.date}>{e.date?.slice(0, 10)}</Text>
+              <Text style={styles.title}>{e.title}</Text>
+              <Text style={styles.type}>
+                {e.type === "daily_note"
+                  ? "ملاحظة يومية"
+                  : e.type === "activity"
+                  ? "نشاط"
+                  : e.type === "evaluation"
+                  ? "تقييم PEI"
+                  : "PEI"}
+              </Text>
+              {e.description ? <Text style={styles.contentText}>{e.description}</Text> : null}
+            </View>
+          </View>
+        ))
+      )}
     </ScrollView>
   );
 };
@@ -75,6 +77,26 @@ const styles = StyleSheet.create({
     color: "#111827",
   },
   headerSubtitle: { fontSize: 13, color: "#6B7280", marginBottom: 16 },
+  errorBox: {
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    marginBottom: 12,
+  },
+  errorText: { color: "#B91C1C", textAlign: "right" },
+  loadingBox: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
+  loadingText: { color: "#374151" },
+  emptyBox: {
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#FFF",
+  },
+  emptyTitle: { fontSize: 15, fontWeight: "600", color: "#111827", marginBottom: 6 },
+  emptyText: { fontSize: 13, color: "#6B7280" },
   timelineItem: { flexDirection: "row", marginBottom: 16 },
   timelineLine: {
     width: 2,

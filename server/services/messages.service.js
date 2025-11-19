@@ -11,6 +11,7 @@ const {
   Attachment,
   MessageAttachment,
   Utilisateur,
+  Enfant,
 } = require("../models");
 const ApiError = require("../utils/api-error");
 
@@ -177,6 +178,11 @@ async function listThreads(userId, params = {}) {
         },
       ],
     },
+    {
+      model: Enfant,
+      as: "child",
+      attributes: ["id", "prenom", "nom"],
+    },
   ];
 
   if (q) {
@@ -204,6 +210,13 @@ async function listThreads(userId, params = {}) {
         archived: Boolean(thread.archived),
         updatedAt: thread.updated_at,
         unreadCount: unreadMap.get(Number(thread.id)) || 0,
+        child: thread.child
+          ? {
+              id: Number(thread.child.id),
+              prenom: thread.child.prenom,
+              nom: thread.child.nom,
+            }
+          : null,
         lastMessage: last ? buildMessagePayload(last) : null,
         participants: thread.participants
           .map((participant) => buildParticipantPayload(participant, userId))
@@ -252,6 +265,11 @@ async function getThread(userId, threadId, role) {
           },
         ],
       },
+      {
+        model: Enfant,
+        as: "child",
+        attributes: ["id", "prenom", "nom"],
+      },
     ],
   });
   if (!thread) {
@@ -266,6 +284,13 @@ async function getThread(userId, threadId, role) {
     archived: Boolean(thread.archived),
     updatedAt: thread.updated_at,
     unreadCount: unreadMap.get(Number(thread.id)) || 0,
+    child: thread.child
+      ? {
+          id: Number(thread.child.id),
+          prenom: thread.child.prenom,
+          nom: thread.child.nom,
+        }
+      : null,
     lastMessage: last ? buildMessagePayload(last) : null,
     participants: thread.participants
       .map((participant) => buildParticipantPayload(participant, userId))
@@ -333,7 +358,13 @@ async function listMessages(userId, threadId, params = {}) {
   return { data: sanitized, nextCursor };
 }
 
-async function createThread({ actorId, participantIds = [], title = null, isGroup = false }) {
+async function createThread({
+  actorId,
+  participantIds = [],
+  title = null,
+  isGroup = false,
+  childId = null,
+}) {
   const uniqueIds = Array.from(new Set([actorId, ...participantIds.map(Number)])).filter(Boolean);
   if (uniqueIds.length < 2) {
     throw new ApiError({
@@ -357,6 +388,7 @@ async function createThread({ actorId, participantIds = [], title = null, isGrou
       {
         title,
         is_group: Boolean(isGroup),
+        enfant_id: childId || null,
       },
       { transaction }
     );

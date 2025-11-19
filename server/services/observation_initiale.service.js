@@ -1,33 +1,47 @@
 "use strict";
 
 const repo = require("../repos/observation_initiale.repo");
+const educatorAccess = require("./educateur_access.service");
 
 /**
  * List with filters & pagination
  */
-exports.list = async ({
-  enfant_id,
-  educateur_id,
-  date_debut,
-  date_fin,
-  page,
-  limit,
-}) => {
-  return repo.list(
-    { enfant_id, educateur_id, date_debut, date_fin },
-    { page, limit }
-  );
+exports.list = async (
+  { enfant_id, educateur_id, date_debut, date_fin, page, limit },
+  currentUser
+) => {
+  const filters = { enfant_id, educateur_id, date_debut, date_fin };
+  if (currentUser?.role === "EDUCATEUR") {
+    const { enfantIds } = await educatorAccess.listAccessibleChildIds(
+      currentUser.id
+    );
+    if (!enfantIds.length) {
+      return { rows: [], count: 0, page: page || 1, limit: limit || 20 };
+    }
+    if (enfant_id) {
+      if (!enfantIds.includes(Number(enfant_id))) {
+        return { rows: [], count: 0, page: page || 1, limit: limit || 20 };
+      }
+    } else {
+      filters.enfant_ids = enfantIds;
+    }
+    filters.educateur_id = currentUser.id;
+  }
+  return repo.list(filters, { page, limit });
 };
 
 /**
  * Get one by id
  */
-exports.get = async (id) => {
+exports.get = async (id, currentUser) => {
   const item = await repo.findById(id);
   if (!item) {
     const err = new Error("Observation introuvable");
     err.status = 404;
     throw err;
+  }
+  if (currentUser?.role === "EDUCATEUR") {
+    await educatorAccess.assertCanAccessChild(currentUser.id, item.enfant_id);
   }
   return item;
 };
@@ -39,6 +53,9 @@ exports.create = async (
   { enfant_id, date_observation, contenu },
   currentUser
 ) => {
+  if (currentUser?.role === "EDUCATEUR") {
+    await educatorAccess.assertCanAccessChild(currentUser.id, enfant_id);
+  }
   const payload = {
     enfant_id,
     educateur_id: currentUser.id,
@@ -59,6 +76,9 @@ exports.update = async (id, attrs, currentUser) => {
     throw err;
   }
 
+  if (currentUser?.role === "EDUCATEUR") {
+    await educatorAccess.assertCanAccessChild(currentUser.id, existing.enfant_id);
+  }
   const isOwner = existing.educateur_id === currentUser.id;
   const isAdmin = ["DIRECTEUR", "PRESIDENT"].includes(currentUser.role);
 
@@ -93,6 +113,9 @@ exports.remove = async (id, currentUser) => {
     throw err;
   }
 
+  if (currentUser?.role === "EDUCATEUR") {
+    await educatorAccess.assertCanAccessChild(currentUser.id, existing.enfant_id);
+  }
   const isOwner = existing.educateur_id === currentUser.id;
   const isAdmin = ["DIRECTEUR", "PRESIDENT"].includes(currentUser.role);
 

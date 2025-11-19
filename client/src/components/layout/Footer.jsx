@@ -113,7 +113,7 @@ const Footer = () => {
 
   return (
     <footer className="relative mt-24 bg-slate-950 text-slate-100" dir="rtl">
-      <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/40 via-slate-950 to-slate-950" aria-hidden="true" />
+      <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/40 via-slate-950 to-slate-950" aria-hidden={true} />
       <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="grid gap-12 lg:grid-cols-[1.4fr,1fr,1fr,1fr]">
           <div className="space-y-6">

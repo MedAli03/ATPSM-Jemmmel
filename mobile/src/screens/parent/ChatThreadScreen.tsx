@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -8,42 +8,30 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { RouteProp, useRoute } from "@react-navigation/native";
 import { ParentStackParamList } from "../../navigation/ParentNavigator";
+import { useChatThread } from "../../features/parent/hooks";
+import { useAuth } from "../../features/auth/AuthContext";
 
 type ChatRoute = RouteProp<ParentStackParamList, "ChatThread">;
 
-type Message = {
-  id: number;
-  from: "PARENT" | "EDUCATEUR";
-  content: string;
-  createdAt: string;
-};
-
-const MOCK_MESSAGES: Message[] = [
-  { id: 1, from: "EDUCATEUR", content: "Bonjour, Ahmed a très bien travaillé aujourd’hui.", createdAt: "09:15" },
-  { id: 2, from: "PARENT", content: "Merci beaucoup pour vos efforts 🙏", createdAt: "09:20" },
-];
-
 export const ChatThreadScreen: React.FC = () => {
   const { params } = useRoute<ChatRoute>();
-  const { childId } = params;
-  const [messages, setMessages] = useState<Message[]>(MOCK_MESSAGES);
+  const { threadId } = params;
+  const { user } = useAuth();
+  const { thread, messages, isLoading, isError, error, send, sending } = useChatThread(threadId);
   const [input, setInput] = useState("");
 
-  const sendMessage = () => {
-    if (!input.trim()) return;
-    const newMsg: Message = {
-      id: messages.length + 1,
-      from: "PARENT",
-      content: input.trim(),
-      createdAt: "Maintenant",
-    };
-    setMessages((prev) => [...prev, newMsg]);
-    setInput("");
-    // TODO: call API to send message
-  };
+  const conversationTitle = useMemo(() => {
+    if (thread?.child?.prenom || thread?.child?.nom) {
+      return `${thread.child.prenom ?? ""} ${thread.child.nom ?? ""}`.trim();
+    }
+    return thread?.title ?? "المحادثة";
+  }, [thread]);
+
+  const canSend = input.trim().length > 0 && !sending;
 
   return (
     <KeyboardAvoidingView
@@ -51,32 +39,62 @@ export const ChatThreadScreen: React.FC = () => {
       behavior={Platform.select({ ios: "padding", android: undefined })}
       keyboardVerticalOffset={80}
     >
-      <FlatList
-        data={messages}
-        keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={{ padding: 16, paddingBottom: 8 }}
-        renderItem={({ item }) => {
-          const isParent = item.from === "PARENT";
-          return (
-            <View
-              style={[
-                styles.bubbleRow,
-                { justifyContent: isParent ? "flex-end" : "flex-start" },
-              ]}
-            >
+      <View style={styles.threadHeader}>
+        <Text style={styles.threadTitle}>{conversationTitle}</Text>
+        {thread?.participants ? (
+          <Text style={styles.threadSubtitle} numberOfLines={1}>
+            {thread.participants
+              .filter((participant) => !participant.isCurrentUser)
+              .map((participant) => participant.name)
+              .join(" · ") || "-"}
+          </Text>
+        ) : null}
+      </View>
+
+      {isError && (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>{error ?? "تعذّر تحميل المحادثة."}</Text>
+        </View>
+      )}
+
+      {isLoading && messages.length === 0 ? (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator color="#2563EB" />
+          <Text style={styles.loadingText}>جارٍ تحميل المحادثة...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={messages}
+          keyExtractor={(item) => String(item.id)}
+          contentContainerStyle={{ padding: 16, paddingBottom: 8 }}
+          renderItem={({ item }) => {
+            const isParent = item.sender?.role === "PARENT" || item.sender?.id === user?.id;
+            return (
               <View
                 style={[
-                  styles.bubble,
-                  isParent ? styles.bubbleParent : styles.bubbleEducator,
+                  styles.bubbleRow,
+                  { justifyContent: isParent ? "flex-end" : "flex-start" },
                 ]}
               >
-                <Text style={styles.bubbleText}>{item.content}</Text>
-                <Text style={styles.bubbleTime}>{item.createdAt}</Text>
+                <View
+                  style={[
+                    styles.bubble,
+                    isParent ? styles.bubbleParent : styles.bubbleEducator,
+                  ]}
+                >
+                  <Text style={styles.bubbleText}>{item.text ?? ""}</Text>
+                  <Text style={styles.bubbleTime}>
+                    {new Date(item.createdAt).toLocaleTimeString("fr-FR", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </Text>
+                </View>
               </View>
-            </View>
-          );
-        }}
-      />
+            );
+          }}
+        />
+      )}
 
       <View style={styles.inputRow}>
         <TextInput
@@ -84,9 +102,20 @@ export const ChatThreadScreen: React.FC = () => {
           placeholder="اكتب رسالة..."
           value={input}
           onChangeText={setInput}
+          editable={!sending}
         />
-        <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
-          <Text style={styles.sendText}>إرسال</Text>
+        <TouchableOpacity
+          style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
+          onPress={() => {
+            if (!canSend) {
+              return;
+            }
+            send(input.trim());
+            setInput("");
+          }}
+          disabled={!canSend}
+        >
+          <Text style={styles.sendText}>{sending ? "..." : "إرسال"}</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -95,6 +124,27 @@ export const ChatThreadScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F3F4F6" },
+  threadHeader: { paddingHorizontal: 16, paddingTop: 12 },
+  threadTitle: { fontSize: 16, fontWeight: "700", color: "#111827" },
+  threadSubtitle: { fontSize: 12, color: "#6B7280", marginTop: 2 },
+  errorBox: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    borderRadius: 12,
+    padding: 10,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+  },
+  errorText: { color: "#B91C1C", textAlign: "center" },
+  loadingBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 24,
+    gap: 8,
+  },
+  loadingText: { color: "#4B5563" },
   bubbleRow: { flexDirection: "row", marginBottom: 8 },
   bubble: {
     maxWidth: "80%",
@@ -131,5 +181,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: "#2563EB",
   },
+  sendButtonDisabled: { opacity: 0.6 },
   sendText: { color: "#FFFFFF", fontWeight: "600", fontSize: 13 },
 });

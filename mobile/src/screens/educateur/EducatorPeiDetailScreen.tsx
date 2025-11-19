@@ -7,6 +7,7 @@ import {
     SafeAreaView,
     TouchableOpacity,
     ActivityIndicator,
+    Alert,
 } from "react-native";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -43,6 +44,12 @@ export const EducatorPeiDetailScreen: React.FC = () => {
     let isMounted = true;
 
     const loadPei = async () => {
+      if (!peiId) {
+        setLoading(false);
+        setError("لا يمكن تحميل بيانات الـ PEI بدون معرّف صالح.");
+        Alert.alert("تنبيه", "لا يمكن تحميل بيانات الـ PEI بدون معرّف صالح.");
+        return;
+      }
       setLoading(true);
       setError(null);
       try {
@@ -58,7 +65,10 @@ export const EducatorPeiDetailScreen: React.FC = () => {
       } catch (err) {
         console.error("Failed to load PEI details", err);
         if (isMounted) {
-          setError("تعذّر تحميل بيانات الـ PEI. حاول لاحقًا.");
+          const fallback = "تعذّر تحميل بيانات الـ PEI. حاول لاحقًا.";
+          const message = err instanceof Error ? err.message : fallback;
+          setError(message);
+          Alert.alert("تنبيه", message);
         }
       } finally {
         if (isMounted) {
@@ -74,16 +84,30 @@ export const EducatorPeiDetailScreen: React.FC = () => {
     };
   }, [peiId]);
 
+  if (!peiId) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>
+            لا يمكن فتح تفاصيل الـ PEI بدون تحديد المعرّف.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   const renderStatusLabel = (status?: PeiDetails["statut"]) => {
     switch (status) {
-      case "ACTIF":
-        return "PEI مفعّل";
+      case "VALIDE":
+        return "PEI مُصادَق عليه";
+      case "EN_ATTENTE_VALIDATION":
+        return "في انتظار المصادقة";
       case "CLOTURE":
         return "PEI مغلق";
-      case "BROUILLON":
-        return "PEI في طور الإعداد";
+      case "REFUSE":
+        return "PEI مرفوض";
       default:
-        return "PEI";
+        return "حالة غير معروفة";
     }
   };
 
@@ -95,9 +119,9 @@ export const EducatorPeiDetailScreen: React.FC = () => {
   const objectiveLines = pei?.objectifs
     ? pei.objectifs.split(/\n+/).map((line) => line.trim()).filter(Boolean)
     : [];
-  const statusStyle = pei?.statut === "ACTIF"
+  const statusStyle = pei?.statut === "VALIDE"
     ? styles.statusActive
-    : pei?.statut === "CLOTURE"
+    : pei?.statut === "CLOTURE" || pei?.statut === "REFUSE"
     ? styles.statusClosed
     : styles.statusToReview;
   const showLoader = loading && !pei;
@@ -142,6 +166,14 @@ export const EducatorPeiDetailScreen: React.FC = () => {
                 <Text style={styles.statusText}>{renderStatusLabel(pei.statut)}</Text>
               </View>
             </View>
+
+            {pei.statut === "EN_ATTENTE_VALIDATION" ? (
+              <View style={styles.pendingAlert}>
+                <Text style={styles.pendingAlertText}>
+                  هذا الـ PEI في انتظار مصادقة الإدارة ولن يصبح نشطًا قبل الموافقة.
+                </Text>
+              </View>
+            ) : null}
 
             <TouchableOpacity
               style={styles.timelineBtn}
@@ -320,6 +352,20 @@ const styles = StyleSheet.create({
   },
   headerLabel: { fontSize: 11, color: "#6B7280" },
   headerValue: { fontSize: 13, color: "#111827", marginTop: 2 },
+  pendingAlert: {
+    marginTop: 10,
+    backgroundColor: "#FEF3C7",
+    borderRadius: 14,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#FCD34D",
+  },
+  pendingAlertText: {
+    fontSize: 12,
+    color: "#92400E",
+    lineHeight: 18,
+    textAlign: "right",
+  },
 
   statusChip: {
     alignSelf: "flex-start",
