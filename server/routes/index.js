@@ -12,7 +12,6 @@ router.use("/", require("./dailynotes.routes"));
 router.use("/", require("./evaluations.routes"));
 router.use("/", require("./reco.routes"));
 
-router.use("/dashboard", require("./dashboard/index"));
 router.use("/annees", require("./annees.routes"));
 router.use("/annees-scolaires", require("./annees-scolaires.routes"));
 
