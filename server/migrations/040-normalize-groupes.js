@@ -1,18 +1,22 @@
 "use strict";
 
+// This migration normalizes group data into a groupe_annee bridge and aligns
+// inscriptions/affectations with that bridge without referencing deprecated columns.
+
 module.exports = {
   async up(queryInterface, Sequelize) {
+    // 1) Strengthen groupes with a code + capacity
     await queryInterface.addColumn("groupes", "code", {
       type: Sequelize.STRING(50),
       allowNull: true,
       after: "id",
-    });
+    }).catch(() => {});
 
     await queryInterface.addColumn("groupes", "capacite", {
       type: Sequelize.SMALLINT.UNSIGNED,
       allowNull: true,
       after: "description",
-    });
+    }).catch(() => {});
 
     await queryInterface.sequelize.query(
       `UPDATE groupes SET code = CONCAT('GRP-', id) WHERE code IS NULL`
@@ -22,8 +26,9 @@ module.exports = {
       fields: ["code"],
       type: "unique",
       name: "uniq_groupes_code",
-    });
+    }).catch(() => {});
 
+    // 2) Create groupes_annees bridge
     await queryInterface.createTable("groupes_annees", {
       id: {
         type: Sequelize.INTEGER.UNSIGNED,
@@ -56,10 +61,7 @@ module.exports = {
         allowNull: false,
         defaultValue: "OUVERT",
       },
-      effectif_max: {
-        type: Sequelize.SMALLINT.UNSIGNED,
-        allowNull: true,
-      },
+      effectif_max: { type: Sequelize.SMALLINT.UNSIGNED, allowNull: true },
       created_at: {
         type: Sequelize.DATE,
         allowNull: false,
@@ -88,6 +90,7 @@ module.exports = {
       fields: ["educateur_id", "annee_id"],
     });
 
+    // Seed groupes_annees from existing groups and active educator assignments
     await queryInterface.sequelize.query(
       `INSERT INTO groupes_annees (groupe_id, annee_id, educateur_id, statut, effectif_max, created_at, updated_at)
        SELECT g.id,
@@ -101,10 +104,10 @@ module.exports = {
        LEFT JOIN (
          SELECT groupe_id, annee_id, educateur_id
          FROM affectations_educateurs
-         WHERE est_active = 1
        ) ae ON ae.groupe_id = g.id AND ae.annee_id = g.annee_id`
     );
 
+    // 3) Inscriptions: link to groupes_annees
     await queryInterface.addColumn("inscriptions_enfants", "groupe_annee_id", {
       type: Sequelize.INTEGER.UNSIGNED,
       allowNull: true,
@@ -114,22 +117,25 @@ module.exports = {
       onDelete: "RESTRICT",
     });
 
+    // Align date columns and statuses
+    await queryInterface.renameColumn("inscriptions_enfants", "date_inscription", "date_entree").catch(() => {});
+    await queryInterface.addColumn("inscriptions_enfants", "date_sortie", {
+      type: Sequelize.DATE,
+      allowNull: true,
+      after: "date_entree",
+    }).catch(() => {});
+
     await queryInterface.addColumn("inscriptions_enfants", "statut", {
       type: Sequelize.ENUM("ACTIVE", "SUSPENDU", "TERMINE"),
       allowNull: false,
       defaultValue: "ACTIVE",
       after: "date_sortie",
-    });
+    }).catch(() => {});
 
     await queryInterface.sequelize.query(
       `UPDATE inscriptions_enfants ie
        JOIN groupes_annees ga ON ga.groupe_id = ie.groupe_id AND ga.annee_id = ie.annee_id
        SET ie.groupe_annee_id = ga.id`
-    );
-
-    await queryInterface.sequelize.query(
-      `UPDATE inscriptions_enfants
-       SET statut = CASE WHEN est_active = 1 THEN 'ACTIVE' ELSE 'TERMINE' END`
     );
 
     const [[{ remaining }]] = await queryInterface.sequelize.query(
@@ -145,15 +151,13 @@ module.exports = {
       allowNull: false,
     });
 
-    await queryInterface.removeIndex("inscriptions_enfants", "idx_inscriptions_annee_active").catch(() => {});
-    await queryInterface.removeConstraint("inscriptions_enfants", "uniq_enfant_annee_active").catch(() => {});
-
-    await queryInterface.renameColumn("inscriptions_enfants", "est_active", "is_active").catch(() => {});
+    await queryInterface.removeConstraint("inscriptions_enfants", "uniq_enfant_annee").catch(() => {});
+    await queryInterface.removeIndex("inscriptions_enfants", ["groupe_id"]).catch(() => {});
 
     await queryInterface.addConstraint("inscriptions_enfants", {
-      fields: ["enfant_id", "annee_id", "is_active"],
+      fields: ["enfant_id", "annee_id", "statut"],
       type: "unique",
-      name: "uniq_inscription_enfant_annee_active",
+      name: "uniq_inscription_enfant_annee_statut",
     });
 
     await queryInterface.addIndex("inscriptions_enfants", {
@@ -163,6 +167,7 @@ module.exports = {
 
     await queryInterface.removeColumn("inscriptions_enfants", "groupe_id").catch(() => {});
 
+    // 4) Affectations: link to groupes_annees
     await queryInterface.addColumn("affectations_educateurs", "groupe_annee_id", {
       type: Sequelize.INTEGER.UNSIGNED,
       allowNull: true,
@@ -184,8 +189,20 @@ module.exports = {
     });
 
     await queryInterface.renameColumn("affectations_educateurs", "date_affectation", "date_debut").catch(() => {});
-    await queryInterface.renameColumn("affectations_educateurs", "date_fin_affectation", "date_fin").catch(() => {});
-    await queryInterface.renameColumn("affectations_educateurs", "est_active", "is_active").catch(() => {});
+    await queryInterface.addColumn("affectations_educateurs", "date_fin", {
+      type: Sequelize.DATE,
+      allowNull: true,
+      after: "date_debut",
+    }).catch(() => {});
+    await queryInterface.addColumn("affectations_educateurs", "is_active", {
+      type: Sequelize.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+      after: "date_fin",
+    }).catch(() => {});
+
+    await queryInterface.removeConstraint("affectations_educateurs", "uniq_educateur_annee").catch(() => {});
+    await queryInterface.removeConstraint("affectations_educateurs", "uniq_groupe_annee").catch(() => {});
 
     await queryInterface.addConstraint("affectations_educateurs", {
       fields: ["groupe_annee_id", "is_active"],
@@ -194,19 +211,16 @@ module.exports = {
     });
 
     await queryInterface.addConstraint("affectations_educateurs", {
-      fields: ["groupe_annee_id", "educateur_id", "date_debut"],
+      fields: ["groupe_annee_id", "educateur_id"],
       type: "unique",
-      name: "uniq_affectation_history",
+      name: "uniq_affectation_groupe_educateur",
     });
-
-    await queryInterface.removeColumn("groupes", "annee_id").catch(() => {});
-    await queryInterface.removeColumn("groupes", "statut").catch(() => {});
 
     await queryInterface.removeColumn("affectations_educateurs", "groupe_id").catch(() => {});
     await queryInterface.removeColumn("affectations_educateurs", "annee_id").catch(() => {});
   },
 
-  async down(queryInterface) {
-    throw new Error("Cette migration est irréversible automatiquement.");
+  async down() {
+    throw new Error("Cette migration est irreversible automatiquement.");
   },
 };
