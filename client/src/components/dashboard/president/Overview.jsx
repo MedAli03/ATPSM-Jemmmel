@@ -52,6 +52,11 @@ export default function PresidentOverview() {
   const hist = ovq.data?.data?.evalDistribution;
   const latest = ovq.data?.data?.latestActualites || [];
   const events = ovq.data?.data?.upcomingEvents || [];
+  const unread = ovq.data?.data?.notifications?.unread ?? 0;
+
+  const totalPei = peiStats
+    ? Object.values(peiStats).reduce((sum, val) => sum + (Number(val) || 0), 0)
+    : 0;
 
   return (
     <div className="p-4 space-y-4" dir="rtl">
@@ -89,6 +94,8 @@ export default function PresidentOverview() {
           value={counters?.nbGroupesActifs}
           hint={counters?.anneeActive?.libelle}
         />
+        <StatCard label="الخطط التربوية الفردية" value={totalPei} />
+        <StatCard label="الإشعارات غير المقروءة" value={unread} />
       </div>
 
       {/* Charts */}
