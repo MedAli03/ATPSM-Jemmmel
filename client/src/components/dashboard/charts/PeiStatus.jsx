@@ -8,16 +8,30 @@ import {
   Legend,
 } from "recharts";
 
-export default function PeiStatus({ data }) {
-  // data: { brouillon, actif, clos }
-  const src = [
-    { name: "مسودة", value: data?.brouillon || 0 },
-    { name: "نشِط", value: data?.actif || 0 },
-    { name: "مغلق", value: data?.clos || 0 },
-  ];
+const STATUS = [
+  { key: "EN_ATTENTE_VALIDATION", label: "بانتظار المصادقة" },
+  { key: "VALIDE", label: "مفعّل" },
+  { key: "CLOTURE", label: "مغلَق" },
+  { key: "REFUSE", label: "مرفوض" },
+];
+
+export default function PeiStatus({ data, emptyLabel }) {
+  const src = STATUS.map(({ key, label }) => ({
+    name: label,
+    value: data?.[key] || 0,
+  }));
+  const total = src.reduce((sum, item) => sum + (Number(item.value) || 0), 0);
+
+  if (!total) {
+    return (
+      <div className="flex h-full min-h-[220px] items-center justify-center text-sm text-gray-500">
+        {emptyLabel || "لا توجد بيانات"}
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-white border rounded-xl p-4">
-      <div className="font-semibold mb-2">حالة مشاريع PEI</div>
+    <div className="h-full min-h-[220px]">
       <ResponsiveContainer width="100%" height={240}>
         <PieChart>
           <Pie data={src} dataKey="value" nameKey="name" outerRadius={90}>

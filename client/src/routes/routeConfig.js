@@ -72,15 +72,6 @@ const protectedRoutes = [
       { index: true, element: ProfilePage, title: "الملف الشخصي" },
     ],
   },
-  // {
-  //   path: "/dashboard",
-  //   element: DashboardLayout,
-  //   roles: ["PRESIDENT"],
-  //   children: [
-  //     { index: true, element: PresidentOverview, title: "لوحة الرئيس" },
-  //   ],
-  // },
-  // Explicit President base route
   {
     path: "/dashboard/president",
     element: DashboardLayout,
