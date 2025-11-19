@@ -55,7 +55,7 @@ export const getRecent = (limit = 8) =>
 //     .then((r) => r.data);
 
 export const activateYear = (anneeId) =>
-  client.post(`/annees/${anneeId}/activate`).then((r) => r.data);
+  client.post(`/dashboard/president/annees/${anneeId}/activate`).then((r) => r.data);
 
 export const broadcast = (payload) =>
   client
