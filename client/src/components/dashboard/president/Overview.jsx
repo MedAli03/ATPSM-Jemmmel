@@ -1,5 +1,5 @@
 // src/pages/dashboard/president/Overview.jsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getOverview, activateYear } from "../../../api/dashboard.president";
 import { getActiveAnnee } from "../../../api/annees";
@@ -18,7 +18,13 @@ export default function PresidentOverview() {
     queryFn: getActiveAnnee,
   });
 
-  const [anneeId, setAnneeId] = useState(activeYear?.data?.id ?? null);
+  const [anneeId, setAnneeId] = useState();
+
+  useEffect(() => {
+    if (activeYear?.data?.id && anneeId === undefined) {
+      setAnneeId(activeYear.data.id);
+    }
+  }, [activeYear?.data?.id, anneeId]);
 
   const ovq = useQuery({
     queryKey: [
@@ -27,6 +33,7 @@ export default function PresidentOverview() {
       { anneeId, weeks: 8, bins: 10, limit: 8 },
     ],
     queryFn: () => getOverview({ anneeId, weeks: 8, bins: 10, limit: 8 }),
+    enabled: anneeId !== undefined,
   });
 
   const act = useMutation({
