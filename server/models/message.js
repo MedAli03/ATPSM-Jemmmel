@@ -10,26 +10,25 @@ module.exports = (sequelize) =>
         primaryKey: true,
       },
       thread_id: {
-        type: DataTypes.INTEGER.UNSIGNED,
+        type: DataTypes.BIGINT.UNSIGNED,
         allowNull: false,
       },
       sender_id: {
-        type: DataTypes.INTEGER.UNSIGNED,
+        type: DataTypes.BIGINT.UNSIGNED,
         allowNull: false,
       },
+      contenu: { type: DataTypes.TEXT, allowNull: false },
       kind: {
-        type: DataTypes.ENUM("text", "system", "attachment"),
+        type: DataTypes.ENUM("TEXTE", "MEDIA", "SYSTEME"),
         allowNull: false,
-        defaultValue: "text",
+        defaultValue: "TEXTE",
       },
-      text: {
-        type: DataTypes.TEXT,
-        allowNull: true,
-      },
+      metadata: { type: DataTypes.JSON, allowNull: true },
     },
     {
       tableName: "messages",
       underscored: true,
       timestamps: true,
+      indexes: [{ fields: ["thread_id", "created_at"] }],
     }
   );

@@ -5,44 +5,54 @@ module.exports = (sequelize, DataTypes) => {
     "Enfant",
     {
       id: {
-        type: DataTypes.INTEGER.UNSIGNED,
+        type: DataTypes.BIGINT.UNSIGNED,
         primaryKey: true,
         autoIncrement: true,
       },
-      nom: {
-        type: DataTypes.STRING(100),
+      numero_dossier: {
+        type: DataTypes.STRING(30),
         allowNull: false,
+        unique: true,
       },
       prenom: {
-        type: DataTypes.STRING(100),
+        type: DataTypes.STRING(120),
+        allowNull: false,
+      },
+      nom: {
+        type: DataTypes.STRING(120),
         allowNull: false,
       },
       date_naissance: {
         type: DataTypes.DATEONLY,
         allowNull: false,
       },
-      parent_user_id: {
-        type: DataTypes.INTEGER.UNSIGNED,
-        allowNull: true, // sera lié plus tard (link/unlink)
+      genre: {
+        type: DataTypes.ENUM("F", "M", "AUTRE"),
+        allowNull: true,
       },
-      created_at: { type: DataTypes.DATE, allowNull: true },
-      updated_at: { type: DataTypes.DATE, allowNull: true },
+      statut: {
+        type: DataTypes.ENUM("ACTIF", "INACTIF"),
+        allowNull: false,
+        defaultValue: "ACTIF",
+      },
+      date_inscription: { type: DataTypes.DATEONLY, allowNull: true },
+      notes_confidentielles: { type: DataTypes.TEXT, allowNull: true },
+      created_by: {
+        type: DataTypes.BIGINT.UNSIGNED,
+        allowNull: false,
+      },
     },
     {
       tableName: "enfants",
       underscored: true,
       timestamps: true,
-      freezeTableName: true,
       indexes: [
-        { fields: ["nom"] },
-        { fields: ["prenom"] },
-        { fields: ["parent_user_id"] },
+        { fields: ["statut"] },
+        { fields: ["date_inscription"] },
+        { fields: ["created_by"] },
       ],
     }
   );
-
-  // Les associations sont déclarées dans models/index.js (recommandé)
-  // Enfant.belongsTo(models.Utilisateur, { as: "parent", foreignKey: "parent_user_id" });
 
   return Enfant;
 };

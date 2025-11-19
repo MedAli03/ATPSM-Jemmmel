@@ -2,30 +2,29 @@ const { DataTypes } = require("sequelize");
 
 module.exports = (sequelize) =>
   sequelize.define(
-    "MessageReadReceipt",
+    "DocumentGroupe",
     {
       id: {
         type: DataTypes.BIGINT.UNSIGNED,
         autoIncrement: true,
         primaryKey: true,
       },
-      message_id: {
+      document_id: {
         type: DataTypes.BIGINT.UNSIGNED,
         allowNull: false,
       },
-      user_id: {
+      groupe_id: {
         type: DataTypes.BIGINT.UNSIGNED,
         allowNull: false,
       },
-      read_at: { type: DataTypes.DATE, allowNull: false },
     },
     {
-      tableName: "message_read_receipts",
+      tableName: "document_groupes",
       underscored: true,
-      timestamps: false,
+      timestamps: true,
       indexes: [
-        { unique: true, fields: ["message_id", "user_id"] },
-        { fields: ["user_id", "read_at"] },
+        { unique: true, fields: ["document_id", "groupe_id"] },
+        { fields: ["groupe_id"] },
       ],
     }
   );

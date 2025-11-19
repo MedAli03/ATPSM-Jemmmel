@@ -1,52 +1,30 @@
-"use strict";
+const { DataTypes } = require("sequelize");
 
-module.exports = (sequelize, DataTypes) => {
-  const AnneeScolaire = sequelize.define(
-    "annees_scolaires",
+module.exports = (sequelize) =>
+  sequelize.define(
+    "AnneeScolaire",
     {
       id: {
-        type: DataTypes.INTEGER.UNSIGNED,
+        type: DataTypes.SMALLINT.UNSIGNED,
         primaryKey: true,
         autoIncrement: true,
       },
-      libelle: { type: DataTypes.STRING(20), allowNull: false, unique: true }, // "2025-2026"
-      date_debut: { type: DataTypes.DATEONLY, allowNull: false },
-      date_fin: { type: DataTypes.DATEONLY, allowNull: false },
-      est_active: {
-        type: DataTypes.BOOLEAN,
+      label: {
+        type: DataTypes.STRING(9),
         allowNull: false,
-        defaultValue: false,
+        unique: true,
       },
-      created_at: { type: DataTypes.DATE, allowNull: true },
-      updated_at: { type: DataTypes.DATE, allowNull: true },
+      date_debut: { type: DataTypes.DATEONLY, allowNull: true },
+      date_fin: { type: DataTypes.DATEONLY, allowNull: true },
+      est_active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     },
     {
       tableName: "annees_scolaires",
       underscored: true,
       timestamps: true,
-      freezeTableName: true,
       indexes: [
-        { fields: ["date_debut"] },
-        { fields: ["date_fin"] },
+        { unique: true, fields: ["date_debut", "date_fin"] },
         { fields: ["est_active"] },
       ],
-      defaultScope: { order: [["date_debut", "DESC"]] },
-      scopes: {
-        active: { where: { est_active: true } },
-      },
-      validate: {
-        datesCoherentes() {
-          if (
-            this.date_debut &&
-            this.date_fin &&
-            this.date_debut >= this.date_fin
-          ) {
-            throw new Error("date_debut doit être < date_fin");
-          }
-        },
-      },
     }
   );
-
-  return AnneeScolaire;
-};

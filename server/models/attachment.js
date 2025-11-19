@@ -5,34 +5,23 @@ module.exports = (sequelize) =>
     "Attachment",
     {
       id: {
-        type: DataTypes.INTEGER.UNSIGNED,
-        autoIncrement: true,
+        type: DataTypes.BIGINT.UNSIGNED,
         primaryKey: true,
+        autoIncrement: true,
       },
       uploader_id: {
-        type: DataTypes.INTEGER.UNSIGNED,
+        type: DataTypes.BIGINT.UNSIGNED,
         allowNull: false,
       },
-      name: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
-      mime: {
-        type: DataTypes.STRING,
-        allowNull: true,
-      },
-      size: {
-        type: DataTypes.INTEGER.UNSIGNED,
-        allowNull: false,
-      },
-      storage_key: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
+      filename: { type: DataTypes.STRING(255), allowNull: true },
+      mime_type: { type: DataTypes.STRING(120), allowNull: true },
+      url: { type: DataTypes.STRING(500), allowNull: false },
+      size_bytes: { type: DataTypes.BIGINT.UNSIGNED, allowNull: true },
     },
     {
       tableName: "attachments",
       underscored: true,
       timestamps: true,
+      indexes: [{ fields: ["uploader_id"] }],
     }
   );

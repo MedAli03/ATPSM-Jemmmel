@@ -5,7 +5,7 @@ module.exports = (sequelize) =>
     "MessageAttachment",
     {
       id: {
-        type: DataTypes.INTEGER.UNSIGNED,
+        type: DataTypes.BIGINT.UNSIGNED,
         autoIncrement: true,
         primaryKey: true,
       },
@@ -14,7 +14,7 @@ module.exports = (sequelize) =>
         allowNull: false,
       },
       attachment_id: {
-        type: DataTypes.INTEGER.UNSIGNED,
+        type: DataTypes.BIGINT.UNSIGNED,
         allowNull: false,
       },
     },
@@ -22,5 +22,9 @@ module.exports = (sequelize) =>
       tableName: "message_attachments",
       underscored: true,
       timestamps: true,
+      indexes: [
+        { unique: true, fields: ["message_id", "attachment_id"] },
+        { fields: ["attachment_id"] },
+      ],
     }
   );

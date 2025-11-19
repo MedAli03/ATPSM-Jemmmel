@@ -1,46 +1,47 @@
-"use strict";
+const { DataTypes } = require("sequelize");
 
-module.exports = (sequelize, DataTypes) => {
-  const Document = sequelize.define(
-    "documents",
+module.exports = (sequelize) =>
+  sequelize.define(
+    "Document",
     {
       id: {
-        type: DataTypes.INTEGER.UNSIGNED,
-        primaryKey: true,
+        type: DataTypes.BIGINT.UNSIGNED,
         autoIncrement: true,
+        primaryKey: true,
       },
-      admin_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+      titre: {
+        type: DataTypes.STRING(255),
+        allowNull: false,
+      },
+      contenu: { type: DataTypes.TEXT, allowNull: true },
+      fichier_url: { type: DataTypes.STRING(500), allowNull: true },
       type: {
-        type: DataTypes.ENUM("reglement", "autre"),
+        type: DataTypes.ENUM("DOCUMENT", "REGLEMENT", "EVENEMENT", "ACTUALITE"),
         allowNull: false,
-        defaultValue: "autre",
+        defaultValue: "DOCUMENT",
       },
-      titre: { type: DataTypes.STRING(200), allowNull: false },
-      url: { type: DataTypes.STRING(255), allowNull: false },
-      statut: {
-        type: DataTypes.ENUM("brouillon", "publie"),
+      audience_scope: {
+        type: DataTypes.ENUM("TOUS", "ROLE", "GROUPE", "ENFANT"),
         allowNull: false,
-        defaultValue: "brouillon",
+        defaultValue: "TOUS",
       },
-      created_at: { type: DataTypes.DATE, allowNull: true },
-      updated_at: { type: DataTypes.DATE, allowNull: true },
+      visible_from: { type: DataTypes.DATE, allowNull: true },
+      visible_to: { type: DataTypes.DATE, allowNull: true },
+      created_by: {
+        type: DataTypes.BIGINT.UNSIGNED,
+        allowNull: false,
+      },
+      is_archived: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+      legacy_source_table: { type: DataTypes.STRING(50), allowNull: true },
+      legacy_source_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: true },
     },
     {
       tableName: "documents",
       underscored: true,
       timestamps: true,
-      freezeTableName: true,
       indexes: [
-        { fields: ["admin_id"] },
-        { fields: ["type"] },
-        { fields: ["statut"] },
-        { fields: ["titre"] },
+        { fields: ["type", "audience_scope"] },
+        { fields: ["visible_from", "visible_to"] },
       ],
     }
   );
-
-  // Associations (si tu centralises dans models/index.js, elles sont déjà faites)
-  // Document.belongsTo(models.Utilisateur, { as: "admin", foreignKey: "admin_id" });
-
-  return Document;
-};

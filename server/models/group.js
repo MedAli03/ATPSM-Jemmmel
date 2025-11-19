@@ -1,25 +1,27 @@
-// models/Groupe.js
 const { DataTypes } = require("sequelize");
 
 module.exports = (sequelize) =>
   sequelize.define(
     "Groupe",
     {
-      id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
-      annee_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
-      nom: { type: DataTypes.STRING(120), allowNull: false },
+      id: {
+        type: DataTypes.BIGINT.UNSIGNED,
+        primaryKey: true,
+        autoIncrement: true,
+      },
+      code: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        unique: true,
+      },
+      nom: { type: DataTypes.STRING(150), allowNull: true },
       description: { type: DataTypes.TEXT, allowNull: true },
-      statut: { type: DataTypes.ENUM("actif", "archive"), allowNull: false, defaultValue: "actif" },
-      created_at: { type: DataTypes.DATE, allowNull: true },
-      updated_at: { type: DataTypes.DATE, allowNull: true },
+      capacite: { type: DataTypes.SMALLINT, allowNull: true },
     },
     {
       tableName: "groupes",
       underscored: true,
       timestamps: true,
-      indexes: [
-        // Optional: avoid duplicate names within a year (if you want it)
-        // { unique: true, fields: ["annee_id", "nom"] },
-      ],
+      freezeTableName: true,
     }
   );
