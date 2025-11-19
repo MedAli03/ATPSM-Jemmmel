@@ -3,7 +3,42 @@
 const TABLE = "threads";
 const CREATED_BY_FK = "threads_created_by_foreign_idx";
 
-async function populateCreatedBy(queryInterface) {
+async function describeThreads(queryInterface) {
+  try {
+    return await queryInterface.describeTable(TABLE);
+  } catch (error) {
+    throw new Error("La table 'threads' doit exister avant d'appliquer cette migration.");
+  }
+}
+
+async function ensureColumn(queryInterface, columnName, definition) {
+  const tableDefinition = await describeThreads(queryInterface);
+  if (Object.prototype.hasOwnProperty.call(tableDefinition, columnName)) {
+    return false;
+  }
+  await queryInterface.addColumn(TABLE, columnName, definition);
+  return true;
+}
+
+async function dropCreatedByConstraint(queryInterface) {
+  try {
+    await queryInterface.removeConstraint(TABLE, CREATED_BY_FK);
+  } catch (error) {
+    const message = error?.message || "";
+    const code = error?.original?.code;
+    if (
+      code === "ER_CANT_DROP_FIELD_OR_KEY" ||
+      code === "ER_DROP_INDEX_FK" ||
+      /doesn't exist/i.test(message) ||
+      /Cannot drop/i.test(message)
+    ) {
+      return;
+    }
+    throw error;
+  }
+}
+
+async function populateCreatedByFromMessages(queryInterface) {
   await queryInterface.sequelize.query(
     `UPDATE ${TABLE} t
      JOIN (
@@ -14,11 +49,13 @@ async function populateCreatedBy(queryInterface) {
          FROM messages
        ) ordered
        WHERE rn = 1
-     ) m ON m.thread_id = t.id
-     SET t.created_by = m.sender_id
+     ) first_message ON first_message.thread_id = t.id
+     SET t.created_by = first_message.sender_id
      WHERE t.created_by IS NULL`
   );
+}
 
+async function populateCreatedByFromParticipants(queryInterface) {
   await queryInterface.sequelize.query(
     `UPDATE ${TABLE} t
      JOIN (
@@ -45,13 +82,12 @@ async function assignFallbackCreator(queryInterface) {
     const [[anyUser]] = await queryInterface.sequelize.query(
       `SELECT id FROM utilisateurs ORDER BY id LIMIT 1`
     );
-
     fallbackId = anyUser?.id;
   }
 
   if (!fallbackId) {
     throw new Error(
-      "Unable to backfill threads.created_by because no utilisateurs exist. Please create at least one user before rerunning this migration."
+      "Impossible de valoriser threads.created_by : aucun utilisateur n'existe. Créez un utilisateur avant de relancer la migration."
     );
   }
 
@@ -62,26 +98,14 @@ async function assignFallbackCreator(queryInterface) {
     { replacements: { fallbackId } }
   );
 
-  const [[{ missingCreatedBy }]] = await queryInterface.sequelize.query(
-    `SELECT COUNT(*) AS missingCreatedBy FROM ${TABLE} WHERE created_by IS NULL`
+  const [[{ missing }]] = await queryInterface.sequelize.query(
+    `SELECT COUNT(*) AS missing FROM ${TABLE} WHERE created_by IS NULL`
   );
 
-  if (missingCreatedBy > 0) {
+  if (missing > 0) {
     throw new Error(
-      `Unable to backfill created_by for ${missingCreatedBy} threads. Please fix those rows manually before rerunning this migration.`
+      `Impossible de renseigner created_by pour ${missing} threads. Corrigez ces lignes manuellement avant de relancer la migration.`
     );
-  }
-}
-
-async function removeCreatedByConstraint(queryInterface) {
-  try {
-    await queryInterface.removeConstraint(TABLE, CREATED_BY_FK);
-  } catch (error) {
-    if (error?.original?.code !== "ER_CANT_DROP_FIELD_OR_KEY" &&
-        error?.original?.code !== "ER_DROP_INDEX_FK" &&
-        !/Cannot drop/i.test(error?.message || "")) {
-      throw error;
-    }
   }
 }
 
@@ -103,34 +127,42 @@ async function populateEnfantId(queryInterface) {
 
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await removeCreatedByConstraint(queryInterface);
-
-    await queryInterface.addColumn(TABLE, "enfant_id", {
+    await ensureColumn(queryInterface, "created_by", {
       type: Sequelize.BIGINT.UNSIGNED,
       allowNull: true,
       after: "id",
+    });
+
+    await ensureColumn(queryInterface, "enfant_id", {
+      type: Sequelize.BIGINT.UNSIGNED,
+      allowNull: true,
+      after: "created_by",
       references: { model: "enfants", key: "id" },
       onUpdate: "CASCADE",
       onDelete: "RESTRICT",
     });
 
-    await queryInterface.addColumn(TABLE, "archived_at", {
+    await ensureColumn(queryInterface, "archived_at", {
       type: Sequelize.DATE,
       allowNull: true,
       after: "archived",
     });
 
-    await populateCreatedBy(queryInterface);
+    await dropCreatedByConstraint(queryInterface);
+
+    await populateCreatedByFromMessages(queryInterface);
+    await populateCreatedByFromParticipants(queryInterface);
     await assignFallbackCreator(queryInterface);
+
     await populateEnfantId(queryInterface);
 
-    const [[{ missing }]] = await queryInterface.sequelize.query(
-      `SELECT COUNT(*) AS missing FROM ${TABLE} WHERE enfant_id IS NULL`
+    const [[{ missingEnfant }]] = await queryInterface.sequelize.query(
+      `SELECT COUNT(*) AS missingEnfant FROM ${TABLE} WHERE enfant_id IS NULL`
     );
 
-    if (missing > 0) {
+    if (missingEnfant > 0) {
       throw new Error(
-        `Unable to infer enfant_id for ${missing} threads. Please update the threads table manually to set enfant_id before re-running this migration.`
+        `Impossible d'associer ${missingEnfant} threads à un enfant. Mettez à jour la colonne enfant_id avant de relancer la migration.`
       );
     }
 
@@ -182,6 +214,11 @@ module.exports = {
       references: { table: "utilisateurs", field: "id" },
       onUpdate: "CASCADE",
       onDelete: "SET NULL",
+    }).catch(() => {});
+
+    await queryInterface.changeColumn(TABLE, "enfant_id", {
+      type: Sequelize.BIGINT.UNSIGNED,
+      allowNull: true,
     }).catch(() => {});
 
     await queryInterface.removeColumn(TABLE, "archived_at").catch(() => {});
