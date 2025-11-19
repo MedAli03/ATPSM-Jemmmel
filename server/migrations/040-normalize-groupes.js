@@ -130,9 +130,24 @@ module.exports = {
       const inscDef = await queryInterface.describeTable(TABLE_INSCRIPTIONS);
 
       if (inscDef.date_inscription) {
-        await queryInterface.renameColumn(TABLE_INSCRIPTIONS, "date_inscription", "date_entree", { transaction });
+        await queryInterface.renameColumn(
+          TABLE_INSCRIPTIONS,
+          "date_inscription",
+          "date_entree",
+          { transaction }
+        );
       }
+
+      // MariaDB strict mode can reject legacy invalid defaults; normalize definition explicitly
       const inscDefAfter = await queryInterface.describeTable(TABLE_INSCRIPTIONS);
+      if (inscDefAfter.date_entree) {
+        await queryInterface.changeColumn(
+          TABLE_INSCRIPTIONS,
+          "date_entree",
+          { type: Sequelize.DATE, allowNull: true },
+          { transaction }
+        );
+      }
       if (!inscDefAfter.date_sortie) {
         await queryInterface.addColumn(
           TABLE_INSCRIPTIONS,
