@@ -10,11 +10,11 @@ module.exports = (sequelize) =>
         primaryKey: true,
       },
       thread_id: {
-        type: DataTypes.BIGINT.UNSIGNED,
+        type: DataTypes.INTEGER.UNSIGNED,
         allowNull: false,
       },
       sender_id: {
-        type: DataTypes.BIGINT.UNSIGNED,
+        type: DataTypes.INTEGER.UNSIGNED,
         allowNull: false,
       },
       contenu: { type: DataTypes.TEXT, allowNull: false },

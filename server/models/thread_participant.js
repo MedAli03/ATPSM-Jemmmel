@@ -5,16 +5,16 @@ module.exports = (sequelize) =>
     "ThreadParticipant",
     {
       id: {
-        type: DataTypes.BIGINT.UNSIGNED,
+        type: DataTypes.INTEGER.UNSIGNED,
         autoIncrement: true,
         primaryKey: true,
       },
       thread_id: {
-        type: DataTypes.BIGINT.UNSIGNED,
+        type: DataTypes.INTEGER.UNSIGNED,
         allowNull: false,
       },
       user_id: {
-        type: DataTypes.BIGINT.UNSIGNED,
+        type: DataTypes.INTEGER.UNSIGNED,
         allowNull: false,
       },
       role: {

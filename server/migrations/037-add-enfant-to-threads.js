@@ -2,6 +2,7 @@
 
 const TABLE = "threads";
 const CREATED_BY_FK = "threads_created_by_foreign_idx";
+const ENFANT_FK = "threads_enfant_id_fk";
 
 async function describeThreads(queryInterface) {
   try {
@@ -128,18 +129,15 @@ async function populateEnfantId(queryInterface) {
 module.exports = {
   async up(queryInterface, Sequelize) {
     await ensureColumn(queryInterface, "created_by", {
-      type: Sequelize.BIGINT.UNSIGNED,
+      type: Sequelize.INTEGER.UNSIGNED,
       allowNull: true,
       after: "id",
     });
 
     await ensureColumn(queryInterface, "enfant_id", {
-      type: Sequelize.BIGINT.UNSIGNED,
+      type: Sequelize.INTEGER.UNSIGNED,
       allowNull: true,
       after: "created_by",
-      references: { model: "enfants", key: "id" },
-      onUpdate: "CASCADE",
-      onDelete: "RESTRICT",
     });
 
     await ensureColumn(queryInterface, "archived_at", {
@@ -167,12 +165,12 @@ module.exports = {
     }
 
     await queryInterface.changeColumn(TABLE, "enfant_id", {
-      type: Sequelize.BIGINT.UNSIGNED,
+      type: Sequelize.INTEGER.UNSIGNED,
       allowNull: false,
     });
 
     await queryInterface.changeColumn(TABLE, "created_by", {
-      type: Sequelize.BIGINT.UNSIGNED,
+      type: Sequelize.INTEGER.UNSIGNED,
       allowNull: false,
     });
 
@@ -181,6 +179,15 @@ module.exports = {
       type: "foreign key",
       name: CREATED_BY_FK,
       references: { table: "utilisateurs", field: "id" },
+      onUpdate: "CASCADE",
+      onDelete: "CASCADE",
+    });
+
+    await queryInterface.addConstraint(TABLE, {
+      fields: ["enfant_id"],
+      type: "foreign key",
+      name: ENFANT_FK,
+      references: { table: "enfants", field: "id" },
       onUpdate: "CASCADE",
       onDelete: "CASCADE",
     });
@@ -201,9 +208,10 @@ module.exports = {
     await queryInterface.removeIndex(TABLE, "idx_threads_created_by").catch(() => {});
 
     await queryInterface.removeConstraint(TABLE, CREATED_BY_FK).catch(() => {});
+    await queryInterface.removeConstraint(TABLE, ENFANT_FK).catch(() => {});
 
     await queryInterface.changeColumn(TABLE, "created_by", {
-      type: Sequelize.BIGINT.UNSIGNED,
+      type: Sequelize.INTEGER.UNSIGNED,
       allowNull: true,
     }).catch(() => {});
 
@@ -217,7 +225,7 @@ module.exports = {
     }).catch(() => {});
 
     await queryInterface.changeColumn(TABLE, "enfant_id", {
-      type: Sequelize.BIGINT.UNSIGNED,
+      type: Sequelize.INTEGER.UNSIGNED,
       allowNull: true,
     }).catch(() => {});
 

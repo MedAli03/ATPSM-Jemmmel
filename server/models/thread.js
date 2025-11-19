@@ -5,16 +5,16 @@ module.exports = (sequelize) =>
     "Thread",
     {
       id: {
-        type: DataTypes.BIGINT.UNSIGNED,
+        type: DataTypes.INTEGER.UNSIGNED,
         autoIncrement: true,
         primaryKey: true,
       },
       enfant_id: {
-        type: DataTypes.BIGINT.UNSIGNED,
+        type: DataTypes.INTEGER.UNSIGNED,
         allowNull: false,
       },
       created_by: {
-        type: DataTypes.BIGINT.UNSIGNED,
+        type: DataTypes.INTEGER.UNSIGNED,
         allowNull: false,
       },
       sujet: { type: DataTypes.STRING(255), allowNull: true },
