@@ -11,10 +11,12 @@ import {
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { EducatorStackParamList } from "../../navigation/EducatorNavigator";
+import { useAuth } from "../../features/auth/AuthContext";
 import {
   ForbiddenError,
   getActivePeiForChild,
   getChildDetails,
+  getLatestPeiForChild,
   getLatestObservationInitiale,
   getPEI,
   getPeiActivities,
@@ -27,6 +29,7 @@ import {
   PeiDetails,
   PeiEvaluation,
 } from "../../features/educateur/types";
+import { showErrorMessage } from "../../utils/feedback";
 
 type Route = RouteProp<EducatorStackParamList, "EducatorChildDetails">;
 type Nav = NativeStackNavigationProp<EducatorStackParamList>;
@@ -35,6 +38,7 @@ export const EducatorChildDetailsScreen: React.FC = () => {
   const { params } = useRoute<Route>();
   const navigation = useNavigation<Nav>();
   const { childId } = params;
+  const { user } = useAuth();
 
   const [child, setChild] = useState<ChildDetails | null>(null);
   const [observation, setObservation] = useState<ObservationInitialeDto | null>(null);
@@ -77,7 +81,9 @@ export const EducatorChildDetailsScreen: React.FC = () => {
           setActivities(acts.slice(0, 3));
         } else {
           setActivePeiId(null);
-          setPeiDetails(null);
+          const latestPei = await getLatestPeiForChild(childId).catch(() => null);
+          if (!isMounted) return;
+          setPeiDetails(latestPei);
           setEvaluations([]);
           setActivities([]);
         }
@@ -112,12 +118,16 @@ export const EducatorChildDetailsScreen: React.FC = () => {
   const renderPeiStatusLabel = () => {
     if (!peiDetails) return "لا يوجد";
     switch (peiDetails.statut) {
-      case "ACTIF":
-        return "PEI مفعّل";
+      case "VALIDE":
+        return "PEI مُصادَق عليه";
+      case "EN_ATTENTE_VALIDATION":
+        return "في انتظار المصادقة";
       case "CLOTURE":
         return "PEI مغلق";
+      case "REFUSE":
+        return "PEI مرفوض";
       default:
-        return "في انتظار مراجعة";
+        return "حالة غير معروفة";
     }
   };
 
@@ -136,12 +146,14 @@ export const EducatorChildDetailsScreen: React.FC = () => {
   const allergies = child?.allergies ?? "غير مصرح";
   const needs = child?.besoins_specifiques ?? child?.description ?? "لم يتم تحديد احتياجات بعد";
   const peiStatusStyle = peiDetails
-    ? peiDetails.statut === "ACTIF"
+    ? peiDetails.statut === "VALIDE"
       ? styles.peiStatusActive
-      : peiDetails.statut === "CLOTURE"
+      : peiDetails.statut === "CLOTURE" || peiDetails.statut === "REFUSE"
       ? styles.peiStatusClosed
       : styles.peiStatusToReview
     : styles.peiStatusClosed;
+  const activePeiDetails = peiDetails?.statut === "VALIDE" ? peiDetails : null;
+  const pendingPeiDetails = peiDetails?.statut === "EN_ATTENTE_VALIDATION" ? peiDetails : null;
   const formatDate = (value?: string | null) => (value ? value.slice(0, 10) : "غير متاح");
   const observationInfo = observation
     ? {
@@ -150,12 +162,34 @@ export const EducatorChildDetailsScreen: React.FC = () => {
         completed: Boolean(observation.contenu),
       }
     : { exists: false, date: "", completed: false };
-  const peiStats = peiDetails
+  const hasPendingPei = Boolean(pendingPeiDetails);
+  const canGeneratePei = Boolean(
+    observationInfo.exists && !activePeiId && user?.id && !hasPendingPei
+  );
+  const generationHelperText = !observationInfo.exists
+    ? "يجب إكمال الملاحظة الأوّلية قبل إنشاء الـ PEI"
+    : activePeiId
+    ? "يوجد مشروع تربوي نشط لهذا الطفل."
+    : hasPendingPei
+    ? "هناك مشروع بانتظار مصادقة الإدارة."
+    : !user?.id
+    ? "يجب تسجيل الدخول كمربٍّ لإنشاء الـ PEI."
+    : null;
+  const handleGeneratePei = () => {
+    if (!canGeneratePei) {
+      if (!user) {
+        showErrorMessage("لا يمكن إنشاء الـ PEI من دون تسجيل الدخول كمربٍّ.");
+      }
+      return;
+    }
+    navigation.navigate("EducatorPeiCreate", { childId });
+  };
+  const peiStats = activePeiDetails
     ? {
-        lastUpdate: peiDetails.date_derniere_maj ?? peiDetails.date_debut,
-        nextReview: peiDetails.date_fin_prevue ?? undefined,
-        objectivesCount: peiDetails.objectifs
-          ? peiDetails.objectifs.split(/\n+/).filter((line) => line.trim().length > 0).length
+        lastUpdate: activePeiDetails.date_derniere_maj ?? activePeiDetails.date_debut,
+        nextReview: activePeiDetails.date_fin_prevue ?? undefined,
+        objectivesCount: activePeiDetails.objectifs
+          ? activePeiDetails.objectifs.split(/\n+/).filter((line) => line.trim().length > 0).length
           : 0,
         activitiesCount: activities.length,
       }
@@ -276,6 +310,58 @@ export const EducatorChildDetailsScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
+      {/* GENERATE PEI */}
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>إنشاء مشروع تربوي فردي</Text>
+        <Text style={styles.sectionSubtitle}>
+          يمكنك إنشاء الـ PEI بمجرد الانتهاء من الملاحظة الأوّلية.
+        </Text>
+        <TouchableOpacity
+          style={[
+            styles.generatePeiButton,
+            !canGeneratePei && styles.generatePeiButtonDisabled,
+          ]}
+          disabled={!canGeneratePei}
+          onPress={handleGeneratePei}
+        >
+          <Text style={styles.generatePeiButtonText}>
+            إنشاء مشروع تربوي فردي (PEI)
+          </Text>
+        </TouchableOpacity>
+        {generationHelperText ? (
+          <Text style={styles.generationHelper}>{generationHelperText}</Text>
+        ) : null}
+      </View>
+
+      {pendingPeiDetails ? (
+        <View style={[styles.card, styles.pendingPeiCard]}>
+          <View style={styles.pendingHeaderRow}>
+            <Text style={styles.pendingTitle}>⚠️ مشروع في انتظار المصادقة</Text>
+            <View style={[styles.peiStatusChip, styles.peiStatusToReview]}>
+              <Text style={styles.peiStatusText}>في انتظار المصادقة</Text>
+            </View>
+          </View>
+          <Text style={styles.pendingSubtitle}>
+            تم إرسال هذا المشروع إلى الإدارة وينتظر الموافقة قبل أن يصبح فعالًا للطفل.
+          </Text>
+          <View style={styles.pendingInfoRow}>
+            <Text style={styles.pendingLabel}>العنوان</Text>
+            <Text style={styles.pendingValue}>{pendingPeiDetails.titre}</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.pendingActionBtn}
+            onPress={() =>
+              navigation.navigate("EducatorPeiDetail", {
+                childId,
+                peiId: pendingPeiDetails.id,
+              })
+            }
+          >
+            <Text style={styles.pendingActionText}>عرض تفاصيل المشروع</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
       {/* PEI SUMMARY */}
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>PEI الحالي</Text>
@@ -283,46 +369,66 @@ export const EducatorChildDetailsScreen: React.FC = () => {
           Projet Éducatif Individuel · الأهداف والأنشطة والتقييمات.
         </Text>
 
-        <View style={styles.peiRow}>
-          <View style={styles.peiColumn}>
-            <Text style={styles.peiLabel}>آخر تحديث</Text>
-            <Text style={styles.peiValue}>
-              {peiStats?.lastUpdate ? formatDate(peiStats.lastUpdate) : "غير متاح"}
-            </Text>
-          </View>
-          <View style={styles.peiColumn}>
-            <Text style={styles.peiLabel}>مراجعة قادمة</Text>
-            <Text style={styles.peiValue}>
-              {peiStats?.nextReview ? formatDate(peiStats.nextReview) : "غير محدد"}
-            </Text>
-          </View>
-        </View>
+        {peiStats ? (
+          <>
+            <View style={styles.peiRow}>
+              <View style={styles.peiColumn}>
+                <Text style={styles.peiLabel}>آخر تحديث</Text>
+                <Text style={styles.peiValue}>
+                  {peiStats.lastUpdate ? formatDate(peiStats.lastUpdate) : "غير متاح"}
+                </Text>
+              </View>
+              <View style={styles.peiColumn}>
+                <Text style={styles.peiLabel}>مراجعة قادمة</Text>
+                <Text style={styles.peiValue}>
+                  {peiStats.nextReview ? formatDate(peiStats.nextReview) : "غير محدد"}
+                </Text>
+              </View>
+            </View>
 
-        <View style={styles.peiRow}>
-          <View style={styles.peiColumn}>
-            <Text style={styles.peiLabel}>عدد الأهداف</Text>
-            <Text style={styles.peiValue}>{peiStats?.objectivesCount ?? 0}</Text>
+            <View style={styles.peiRow}>
+              <View style={styles.peiColumn}>
+                <Text style={styles.peiLabel}>عدد الأهداف</Text>
+                <Text style={styles.peiValue}>{peiStats.objectivesCount ?? 0}</Text>
+              </View>
+              <View style={styles.peiColumn}>
+                <Text style={styles.peiLabel}>عدد الأنشطة</Text>
+                <Text style={styles.peiValue}>{peiStats.activitiesCount ?? 0}</Text>
+              </View>
+            </View>
+          </>
+        ) : (
+          <View style={styles.noActivePeiBox}>
+            <Text style={styles.mutedText}>لا يوجد PEI مُصادَق عليه حاليًا.</Text>
+            {pendingPeiDetails ? (
+              <Text style={[styles.mutedText, styles.noActivePeiHelper]}>
+                يوجد مشروع بانتظار المصادقة قبل أن يصبح نشطًا.
+              </Text>
+            ) : null}
           </View>
-          <View style={styles.peiColumn}>
-            <Text style={styles.peiLabel}>عدد الأنشطة</Text>
-            <Text style={styles.peiValue}>{peiStats?.activitiesCount ?? 0}</Text>
-          </View>
-        </View>
+        )}
 
         <View style={styles.peiActionsRow}>
           <TouchableOpacity
-            style={[styles.peiActionBtn, !activePeiId && styles.peiActionBtnDisabled]}
-            disabled={!activePeiId}
+            style={[
+              styles.peiActionBtn,
+              !activePeiDetails && styles.peiActionBtnDisabled,
+            ]}
+            disabled={!activePeiDetails}
             onPress={() =>
-              activePeiId &&
+              activePeiDetails &&
               navigation.navigate("EducatorPeiDetail", {
                 childId,
-                peiId: activePeiId,
+                peiId: activePeiDetails.id,
               })
             }
           >
             <Text style={styles.peiActionText}>
-              {activePeiId ? "عرض تفاصيل الـ PEI" : "لا يوجد PEI نشط"}
+              {activePeiDetails
+                ? "عرض تفاصيل الـ PEI"
+                : pendingPeiDetails
+                ? "بانتظار المصادقة"
+                : "لا يوجد PEI نشط"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -528,6 +634,13 @@ const styles = StyleSheet.create({
   peiColumn: { flex: 1 },
   peiLabel: { fontSize: 12, color: "#6B7280" },
   peiValue: { fontSize: 14, color: "#111827", marginTop: 2 },
+  noActivePeiBox: {
+    marginTop: 10,
+    paddingVertical: 8,
+  },
+  noActivePeiHelper: {
+    marginTop: 4,
+  },
   peiActionsRow: { flexDirection: "row", marginTop: 12 },
   peiActionBtn: {
     flex: 1,
@@ -576,6 +689,79 @@ const styles = StyleSheet.create({
   },
   quickEmoji: { fontSize: 20 },
   quickLabel: { fontSize: 12, color: "#111827", marginTop: 4 },
+  pendingPeiCard: {
+    borderColor: "#FCD34D",
+    borderWidth: 1,
+  },
+  pendingHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  pendingTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#92400E",
+  },
+  pendingSubtitle: {
+    marginTop: 8,
+    fontSize: 13,
+    color: "#B45309",
+    lineHeight: 20,
+  },
+  pendingInfoRow: {
+    marginTop: 12,
+  },
+  pendingLabel: {
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  pendingValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#111827",
+    marginTop: 4,
+  },
+  pendingActionBtn: {
+    marginTop: 14,
+    borderRadius: 999,
+    paddingVertical: 10,
+    alignItems: "center",
+    backgroundColor: "#FEF3C7",
+  },
+  pendingActionText: {
+    color: "#92400E",
+    fontWeight: "700",
+    fontSize: 13,
+  },
+  generatePeiButton: {
+    marginTop: 12,
+    backgroundColor: "#2563EB",
+    borderRadius: 999,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  generatePeiButtonDisabled: {
+    backgroundColor: "#93C5FD",
+  },
+  generatePeiButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  generationHelper: {
+    marginTop: 10,
+    fontSize: 12,
+    color: "#6B7280",
+    textAlign: "right",
+  },
+  inlineError: {
+    marginTop: 8,
+    fontSize: 12,
+    color: "#B91C1C",
+    textAlign: "right",
+  },
 });
 
 export default EducatorChildDetailsScreen;

@@ -1,5 +1,5 @@
 // src/screens/parent/ParentDashboardScreen.tsx
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -8,45 +8,21 @@ import {
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
+  ActivityIndicator,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../../features/auth/AuthContext";
 import { ParentStackParamList } from "../../navigation/ParentNavigator";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useMyChildren } from "../../features/parent/hooks";
+import { Child } from "../../features/parent/types";
 
 type ParentNav = NativeStackNavigationProp<ParentStackParamList, "ParentTabs">;
-
-type ChildSummary = {
-  id: number;
-  firstName: string;
-  lastName: string;
-  groupName: string;
-  educatorName: string;
-  lastNoteDate: string;
-  lastNotePreview: string;
-};
-
-const MOCK_CHILDREN: ChildSummary[] = [
-  {
-    id: 1,
-    firstName: "Ahmed",
-    lastName: "Ben Ali",
-    groupName: "مجموعة الألوان - 2024/2025",
-    educatorName: "أ. مريم",
-    lastNoteDate: "12/11/2025",
-    lastNotePreview: "Ahmed était calme aujourd’hui et a bien participé à l’atelier…",
-  },
-];
 
 export const ParentDashboardScreen: React.FC = () => {
   const { user } = useAuth();
   const navigation = useNavigation<ParentNav>();
-  const [children, setChildren] = useState<ChildSummary[]>([]);
-
-  useEffect(() => {
-    // TODO: replace with real API call
-    setChildren(MOCK_CHILDREN);
-  }, []);
+  const { children, isLoading, isError, error, refetch } = useMyChildren();
 
   const parentName =
     (user as any)?.fullName ||
@@ -62,9 +38,17 @@ export const ParentDashboardScreen: React.FC = () => {
     navigation.navigate("ChildTimeline", { childId });
   };
 
-  const openChat = (childId: number) => {
-    navigation.navigate("ChatThread", { childId });
+  const openChat = (child: Child) => {
+    if (child.thread_id) {
+      navigation.navigate("ChatThread", { childId: child.id, threadId: child.thread_id });
+      return;
+    }
+    (navigation as any).navigate("ParentTabs", { screen: "Messages" });
   };
+
+  const latestUpdate = children
+    .map((child) => child.last_note_date)
+    .filter(Boolean)[0];
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -91,9 +75,7 @@ export const ParentDashboardScreen: React.FC = () => {
 
             <View style={[styles.summaryCard, styles.summaryCardSecondary]}>
               <Text style={styles.summaryLabel}>آخر تحديث</Text>
-              <Text style={styles.summaryValueSmall}>
-                {children[0]?.lastNoteDate || "-"}
-              </Text>
+              <Text style={styles.summaryValueSmall}>{latestUpdate ?? "-"}</Text>
               <Text style={styles.summaryHint}>تاريخ آخر ملاحظة تربوية</Text>
             </View>
           </View>
@@ -105,9 +87,23 @@ export const ParentDashboardScreen: React.FC = () => {
               <Text style={styles.sectionSubtitle}>Mes enfants</Text>
             </View>
 
-            {children.length === 0 ? (
+            {isError && (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorText}>{error ?? "حدث خطأ غير متوقع."}</Text>
+                <TouchableOpacity onPress={refetch} style={styles.retryBtn}>
+                  <Text style={styles.retryText}>إعادة المحاولة</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {isLoading && children.length === 0 ? (
+              <View style={styles.loadingBox}>
+                <ActivityIndicator color="#2563EB" />
+                <Text style={styles.loadingText}>جارٍ تحميل بيانات الأطفال...</Text>
+              </View>
+            ) : children.length === 0 ? (
               <View style={styles.emptyBox}>
-                <Text style={styles.emptyTitle}>لا يوجد أطفال مسجّلين بعد</Text>
+                <Text style={styles.emptyTitle}>لا يوجد أطفال مرتبطون بحسابك.</Text>
                 <Text style={styles.emptyText}>
                   سيتمّ ربط حسابك بأطفالك من طرف إدارة الجمعية.
                 </Text>
@@ -123,9 +119,11 @@ export const ParentDashboardScreen: React.FC = () => {
                   <View style={styles.childHeaderRow}>
                     <View style={styles.childNameContainer}>
                       <Text style={styles.childName}>
-                        {child.firstName} {child.lastName}
+                        {child.prenom} {child.nom}
                       </Text>
-                      <Text style={styles.childGroup}>{child.groupName}</Text>
+                      <Text style={styles.childGroup}>
+                        {child.groupe_actuel?.nom ?? "-"}
+                      </Text>
                     </View>
                     <View style={styles.chip}>
                       <Text style={styles.chipText}>تابع اليوم</Text>
@@ -134,15 +132,19 @@ export const ParentDashboardScreen: React.FC = () => {
 
                   <View style={styles.childMetaRow}>
                     <Text style={styles.childMetaLabel}>المربية:</Text>
-                    <Text style={styles.childMetaValue}>{child.educatorName}</Text>
+                    <Text style={styles.childMetaValue}>
+                      {child.educateur_referent
+                        ? `${child.educateur_referent.prenom ?? ""} ${child.educateur_referent.nom ?? ""}`.trim()
+                        : "غير محدد"}
+                    </Text>
                   </View>
 
                   <View style={styles.lastNoteBox}>
                     <Text style={styles.lastNoteLabel}>
-                      آخر ملاحظة · {child.lastNoteDate}
+                      آخر ملاحظة · {child.last_note_date ?? "-"}
                     </Text>
                     <Text style={styles.lastNoteText} numberOfLines={2}>
-                      {child.lastNotePreview}
+                      {child.last_note_preview ?? "لم تتم إضافة ملاحظات بعد."}
                     </Text>
                   </View>
 
@@ -163,7 +165,7 @@ export const ParentDashboardScreen: React.FC = () => {
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.cardAction}
-                      onPress={() => openChat(child.id)}
+                      onPress={() => openChat(child)}
                     >
                       <Text style={styles.cardActionEmoji}>💬</Text>
                       <Text style={styles.cardActionText}>راسل المربية</Text>
@@ -246,6 +248,25 @@ const styles = StyleSheet.create({
   sectionHeader: { marginBottom: 8 },
   sectionTitle: { fontSize: 18, fontWeight: "700", color: "#111827" },
   sectionSubtitle: { fontSize: 13, color: "#6B7280" },
+  errorBox: {
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    marginBottom: 10,
+  },
+  errorText: { fontSize: 13, color: "#B91C1C", marginBottom: 6, textAlign: "right" },
+  retryBtn: {
+    alignSelf: "flex-start",
+    backgroundColor: "#B91C1C",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  retryText: { color: "#FFF", fontSize: 12, fontWeight: "600" },
+  loadingBox: { flexDirection: "row", alignItems: "center", gap: 8, padding: 12 },
+  loadingText: { fontSize: 13, color: "#374151" },
   emptyBox: {
     marginTop: 8,
     padding: 16,

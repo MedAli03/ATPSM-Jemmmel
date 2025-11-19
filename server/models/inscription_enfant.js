@@ -19,6 +19,9 @@ module.exports = (sequelize) =>
       tableName: "inscriptions_enfants",
       underscored: true,
       timestamps: true,
-      indexes: [{ unique: true, fields: ["enfant_id", "annee_id"] }],
+      indexes: [
+        { unique: true, fields: ["enfant_id", "annee_id", "est_active"] },
+        { fields: ["annee_id", "est_active"] },
+      ],
     }
   );

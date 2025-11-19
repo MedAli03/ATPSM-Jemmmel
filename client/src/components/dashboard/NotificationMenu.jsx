@@ -357,7 +357,7 @@ export default function NotificationMenu({ anchorClass = "" }) {
                   >
                     <div
                       className={`grid h-10 w-10 place-items-center rounded-xl ${style.chip}`}
-                      aria-hidden="true"
+                      aria-hidden={true}
                     >
                       {style.icon}
                     </div>

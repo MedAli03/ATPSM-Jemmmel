@@ -1,13 +1,110 @@
 "use strict";
 
 const bcrypt = require("bcrypt");
+const { QueryTypes } = require("sequelize");
 const SALT_ROUNDS = 10;
 
 const { sequelize, Enfant, Utilisateur, ParentsFiche } = require("../models");
 const repo = require("../repos/enfant.repo");
+const educatorAccess = require("./educateur_access.service");
 
-exports.list = (q) =>
-  repo.findAll({ q: q.q }, { page: q.page, limit: q.limit });
+function toPlainChild(child) {
+  if (!child) return null;
+  if (typeof child.get === "function") {
+    return child.get({ plain: true });
+  }
+  return { ...child };
+}
+
+async function fetchParentChildThreadMap(parentId, childIds) {
+  if (!Array.isArray(childIds) || childIds.length === 0) {
+    return new Map();
+  }
+  const rows = await sequelize.query(
+    `SELECT t.enfant_id AS enfantId, t.id AS threadId
+     FROM threads t
+     INNER JOIN thread_participants tp
+       ON tp.thread_id = t.id
+       AND tp.user_id = :parentId
+       AND (tp.left_at IS NULL OR tp.left_at > NOW())
+     WHERE t.enfant_id IN (:childIds)
+     ORDER BY t.updated_at DESC, t.id DESC`,
+    { replacements: { parentId, childIds }, type: QueryTypes.SELECT }
+  );
+  const map = new Map();
+  rows.forEach((row) => {
+    const enfantId = Number(row.enfantId);
+    if (Number.isNaN(enfantId) || map.has(enfantId)) return;
+    map.set(enfantId, Number(row.threadId));
+  });
+  return map;
+}
+
+async function fetchUnreadMessagesByChild(parentId, childIds) {
+  if (!Array.isArray(childIds) || childIds.length === 0) {
+    return new Map();
+  }
+  const rows = await sequelize.query(
+    `SELECT t.enfant_id AS enfantId, COUNT(*) AS unread
+     FROM threads t
+     INNER JOIN thread_participants tp
+       ON tp.thread_id = t.id
+       AND tp.user_id = :parentId
+       AND (tp.left_at IS NULL OR tp.left_at > NOW())
+     INNER JOIN messages m ON m.thread_id = t.id
+     LEFT JOIN message_read_receipts r
+       ON r.message_id = m.id AND r.user_id = :parentId
+     WHERE t.enfant_id IN (:childIds)
+       AND t.enfant_id IS NOT NULL
+       AND m.sender_id <> :parentId
+       AND r.id IS NULL
+     GROUP BY t.enfant_id`,
+    { replacements: { parentId, childIds }, type: QueryTypes.SELECT }
+  );
+  const map = new Map();
+  rows.forEach((row) => {
+    const enfantId = Number(row.enfantId);
+    if (Number.isNaN(enfantId)) return;
+    map.set(enfantId, Number(row.unread) || 0);
+  });
+  return map;
+}
+
+async function fetchUnreadNotesByChild(parentId, childIds) {
+  if (!Array.isArray(childIds) || childIds.length === 0) {
+    return new Set();
+  }
+  const rows = await sequelize.query(
+    `SELECT CAST(JSON_UNQUOTE(JSON_EXTRACT(n.payload, '$.enfant_id')) AS UNSIGNED) AS enfantId
+     FROM notifications n
+     WHERE n.utilisateur_id = :parentId
+       AND n.lu_le IS NULL
+       AND n.type = 'note'
+       AND JSON_EXTRACT(n.payload, '$.enfant_id') IS NOT NULL
+       AND CAST(JSON_UNQUOTE(JSON_EXTRACT(n.payload, '$.enfant_id')) AS UNSIGNED) IN (:childIds)
+     GROUP BY enfantId`,
+    { replacements: { parentId, childIds }, type: QueryTypes.SELECT }
+  );
+  const set = new Set();
+  rows.forEach((row) => {
+    const enfantId = Number(row.enfantId);
+    if (!Number.isNaN(enfantId)) {
+      set.add(enfantId);
+    }
+  });
+  return set;
+}
+
+exports.list = async (q, currentUser) => {
+  if (currentUser?.role === "EDUCATEUR") {
+    return educatorAccess.listChildrenForEducateurCurrentYear(currentUser.id, {
+      search: q.q,
+      page: q.page,
+      limit: q.limit,
+    });
+  }
+  return repo.findAll({ q: q.q }, { page: q.page, limit: q.limit });
+};
 
 exports.get = async (id, currentUser) => {
   const enfant = await repo.findById(id);
@@ -24,6 +121,9 @@ exports.get = async (id, currentUser) => {
     const e = new Error("Accès refusé");
     e.status = 403;
     throw e;
+  }
+  if (currentUser?.role === "EDUCATEUR") {
+    await educatorAccess.assertCanAccessChild(currentUser.id, id);
   }
   return enfant;
 };
@@ -116,8 +216,42 @@ exports.unlinkParent = async (id) => {
   });
 };
 
-exports.listForParent = (parentId, q) =>
-  repo.findByParent(parentId, { page: q.page, limit: q.limit });
+exports.listForParent = async (parentId, q) => {
+  const data = await repo.findByParent(parentId, { page: q.page, limit: q.limit });
+  const rawRows = Array.isArray(data.rows) ? data.rows : [];
+  const plainRows = rawRows.map(toPlainChild).filter(Boolean);
+  const childIds = plainRows
+    .map((child) => Number(child.id))
+    .filter((id) => Number.isInteger(id) && id > 0);
+
+  if (!childIds.length) {
+    return { ...data, rows: plainRows };
+  }
+
+  const [threadMap, unreadMessagesMap, unreadNotesSet] = await Promise.all([
+    fetchParentChildThreadMap(parentId, childIds),
+    fetchUnreadMessagesByChild(parentId, childIds),
+    fetchUnreadNotesByChild(parentId, childIds),
+  ]);
+
+  const enrichedRows = plainRows.map((child) => {
+    const childId = Number(child.id);
+    const computedThreadId = threadMap.get(childId);
+    const hasUnreadNote = unreadNotesSet.has(childId);
+    return {
+      ...child,
+      thread_id:
+        typeof child.thread_id === "number" && Number.isFinite(child.thread_id)
+          ? child.thread_id
+          : computedThreadId ?? null,
+      has_unread_note: hasUnreadNote,
+      has_unread_daily_note: hasUnreadNote,
+      unread_messages_count: unreadMessagesMap.get(childId) || 0,
+    };
+  });
+
+  return { ...data, rows: enrichedRows };
+};
 
 /**
  * Helper: create parent account from parents_fiche and link to child.

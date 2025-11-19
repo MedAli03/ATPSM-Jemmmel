@@ -4,6 +4,8 @@ import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { EducatorStackParamList } from "../../navigation/EducatorNavigator";
 import { ForbiddenError, addDailyNote, getActivePeiForChild } from "../../features/educateur/api";
+import { showErrorMessage, showSuccessMessage } from "../../utils/feedback";
+import { validateStringFields } from "../../utils/validation";
 
 type Route = RouteProp<EducatorStackParamList, "DailyNoteForm">;
 type Nav = NativeStackNavigationProp<EducatorStackParamList>;
@@ -16,7 +18,7 @@ export const DailyNoteFormScreen: React.FC = () => {
   const [peiId, setPeiId] = useState<number | null>(initialPeiId ?? null);
   const [loading, setLoading] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [fieldError, setFieldError] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialPeiId) {
@@ -50,31 +52,48 @@ export const DailyNoteFormScreen: React.FC = () => {
     };
   }, [childId, initialPeiId]);
 
+  useEffect(() => {
+    if (peiId && fieldError === "لا يوجد PEI نشط لهذا الطفل") {
+      setFieldError(null);
+    }
+  }, [peiId, fieldError]);
+
+  const validateForm = () => {
+    const errors = validateStringFields([
+      {
+        key: "note",
+        value: note,
+        required: true,
+        minLength: 5,
+        maxLength: 800,
+        messages: {
+          minLength: "النص قصير جدًا",
+          maxLength: "الملاحظة طويلة جدًا",
+        },
+      },
+    ]);
+
+    let errorMessage = errors.note ?? null;
+
+    if (!peiId && !errorMessage) {
+      errorMessage = "لا يوجد PEI نشط لهذا الطفل";
+    }
+
+    setFieldError(errorMessage);
+
+    if (errorMessage) {
+      Alert.alert("تنبيه", errorMessage);
+    }
+
+    return !errorMessage;
+  };
+
   const handleSave = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
     const trimmed = note.trim();
-
-    if (trimmed.length < 10) {
-      const message = "الرجاء إدخال ملاحظة أوضح (10 أحرف على الأقل).";
-      setFormError(message);
-      Alert.alert("تنبيه", message);
-      return;
-    }
-
-    if (trimmed.length > 800) {
-      const message = "الملاحظة طويلة جدًا، الرجاء الاختصار (أقل من 800 حرف).";
-      setFormError(message);
-      Alert.alert("تنبيه", message);
-      return;
-    }
-
-    if (!peiId) {
-      const message = "لا يوجد PEI نشط لهذا الطفل، لا يمكن ربط الملاحظة.";
-      setFormError(message);
-      Alert.alert("تنبيه", message);
-      return;
-    }
-
-    setFormError(null);
 
     setSaving(true);
     try {
@@ -83,19 +102,31 @@ export const DailyNoteFormScreen: React.FC = () => {
         date_note: new Date().toISOString(),
         contenu: trimmed,
       });
-      Alert.alert("تمّ الحفظ", "تمّ حفظ الملاحظة بنجاح.", [
-        { text: "حسنًا", onPress: () => navigation.goBack() },
-      ]);
+      showSuccessMessage("تم حفظ الملاحظة بنجاح");
+      navigation.goBack();
     } catch (err) {
       console.error("Failed to save daily note", err);
       const defaultMessage = "تعذّر حفظ الملاحظة. حاول مرة أخرى.";
-      const message = err instanceof ForbiddenError ? err.message : err instanceof Error ? err.message : defaultMessage;
-      setFormError(message);
-      Alert.alert("خطأ", message);
+      const message =
+        err instanceof ForbiddenError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : defaultMessage;
+      showErrorMessage(message);
     } finally {
       setSaving(false);
     }
   };
+
+  const trimmedNote = note.trim();
+  const isSubmitDisabled =
+    saving ||
+    loading ||
+    !peiId ||
+    !trimmedNote ||
+    trimmedNote.length < 5 ||
+    trimmedNote.length > 800;
 
   return (
     <View style={styles.container}>
@@ -111,13 +142,18 @@ export const DailyNoteFormScreen: React.FC = () => {
         placeholder="اكتب هنا ملاحظة مختصرة حول سلوك الطفل، مشاركته، تفاعله..."
         multiline
         value={note}
-        onChangeText={setNote}
+        onChangeText={(text) => {
+          if (fieldError) {
+            setFieldError(null);
+          }
+          setNote(text);
+        }}
       />
-      {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
+      {fieldError ? <Text style={styles.errorText}>{fieldError}</Text> : null}
       <TouchableOpacity
-        style={[styles.saveBtn, (saving || loading) && styles.saveBtnDisabled]}
+        style={[styles.saveBtn, isSubmitDisabled && styles.saveBtnDisabled]}
         onPress={handleSave}
-        disabled={saving || loading}
+        disabled={isSubmitDisabled}
       >
         <Text style={styles.saveText}>{saving ? "..." : "حفظ الملاحظة"}</Text>
       </TouchableOpacity>

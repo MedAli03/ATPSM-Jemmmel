@@ -13,6 +13,10 @@ module.exports = (sequelize) =>
         type: DataTypes.STRING,
         allowNull: true,
       },
+      enfant_id: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        allowNull: true,
+      },
       is_group: {
         type: DataTypes.BOOLEAN,
         allowNull: false,

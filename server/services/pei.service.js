@@ -7,9 +7,18 @@ const {
   AffectationEducateur,
 } = require("../models");
 const repo = require("../repos/pei.repo");
-const { Op } = require("sequelize");
+const notifier = require("./notifier.service");
+const { DatabaseError, Op } = require("sequelize");
+const educatorAccess = require("./educateur_access.service");
 
-exports.list = async (q) => {
+const PEI_STATUS = {
+  PENDING: "EN_ATTENTE_VALIDATION",
+  VALID: "VALIDE",
+  CLOSED: "CLOTURE",
+  REFUSED: "REFUSE",
+};
+
+exports.list = async (q, currentUser) => {
   const page = Math.max(1, Number(q.page || 1));
   const pageSize = Math.min(100, Math.max(1, Number(q.pageSize || 20)));
   const where = {};
@@ -18,17 +27,52 @@ exports.list = async (q) => {
   if (q.annee_id) where.annee_id = Number(q.annee_id);
   if (q.statut) where.statut = q.statut;
 
+  if (currentUser?.role === "EDUCATEUR") {
+    const { enfantIds } = await educatorAccess.listAccessibleChildIds(
+      currentUser.id
+    );
+    if (!enfantIds.length) {
+      return { rows: [], count: 0 };
+    }
+    if (where.enfant_id != null) {
+      const targetId = Number(where.enfant_id);
+      if (!enfantIds.includes(targetId)) {
+        return { rows: [], count: 0 };
+      }
+    } else {
+      where.enfant_id = { [Op.in]: enfantIds };
+    }
+  }
+
   return repo.findAndCount({ page, pageSize, where });
 };
 
-exports.get = async (id) => {
-  const pei = await repo.findByIdFull(id);
-  if (!pei) {
-    const e = new Error("PEI introuvable");
-    e.status = 404;
+exports.get = async (id, currentUser) => {
+  const peiId = Number(id);
+  if (!Number.isFinite(peiId) || peiId <= 0) {
+    const e = new Error("Identifiant de PEI invalide");
+    e.status = 400;
     throw e;
   }
-  return pei;
+  try {
+    const pei = await repo.findByIdFull(peiId);
+    if (!pei) {
+      const e = new Error("PEI introuvable");
+      e.status = 404;
+      throw e;
+    }
+    if (currentUser?.role === "EDUCATEUR") {
+      await educatorAccess.assertCanAccessChild(currentUser.id, pei.enfant_id);
+    }
+    return pei;
+  } catch (error) {
+    if (error instanceof DatabaseError) {
+      const e = new Error("Erreur lors du chargement du PEI");
+      e.status = 500;
+      throw e;
+    }
+    throw error;
+  }
 };
 
 // Vérifie que l'éducateur est bien affecté au groupe de l'enfant pour l'année
@@ -42,7 +86,7 @@ async function verifyEducateurEnfantSameGroupe(
   });
   if (!inscription) return false;
   const affectation = await AffectationEducateur.findOne({
-    where: { annee_id, groupe_id: inscription.groupe_id },
+    where: { annee_id, groupe_id: inscription.groupe_id, est_active: true },
   });
   return !!(affectation && affectation.educateur_id === Number(educateur_id));
 }
@@ -76,34 +120,37 @@ exports.create = async (dto) => {
   }
 
   return sequelize.transaction(async (t) => {
-    if (dto.statut === "actif") {
-      const active = await repo.findActiveByEnfantYear({
-        enfant_id: dto.enfant_id,
-        annee_id: dto.annee_id,
-      });
-      if (active) {
-        const e = new Error(
-          "Un PEI actif existe déjà pour cet enfant et cette année"
-        );
-        e.status = 409;
-        throw e;
-      }
+    const existingPending = await repo.findPendingByEnfantYear(
+      { enfant_id: dto.enfant_id, annee_id: dto.annee_id },
+      t
+    );
+    if (existingPending) {
+      const e = new Error(
+        "Un PEI est déjà en attente de validation pour cet enfant et cette année"
+      );
+      e.status = 409;
+      throw e;
     }
-    const created = await repo.create(dto, t);
+
+    const payload = { ...dto, statut: PEI_STATUS.PENDING, est_actif: null };
+    const created = await repo.create(payload, t);
+    const plain = created.get({ plain: true });
 
     await repo.addHistory(
       {
-        projet_id: created.id,
+        projet_id: plain.id,
         educateur_id: dto.educateur_id,
         date_modification: new Date(),
         ancien_objectifs: "",
-        ancien_statut: "brouillon",
+        ancien_statut: PEI_STATUS.PENDING,
         raison_modification: "Création du PEI",
       },
       t
     );
 
-    return created;
+    await notifier.notifyOnPeiAwaitingValidation(plain, t);
+
+    return plain;
   });
 };
 
@@ -116,12 +163,11 @@ exports.update = async (id, dto, userId) => {
       throw e;
     }
 
-    // si on passe en "actif", vérifier unicité (enfant, année)
-    if (dto.statut === "actif" && current.statut !== "actif") {
+    if (dto.statut === PEI_STATUS.VALID && current.statut !== PEI_STATUS.VALID) {
       const active = await repo.findActiveByEnfantYear({
         enfant_id: current.enfant_id,
         annee_id: current.annee_id,
-      });
+      }, t);
       if (active && active.id !== current.id) {
         const e = new Error(
           "Un autre PEI actif existe déjà pour cet enfant et cette année"
@@ -136,7 +182,16 @@ exports.update = async (id, dto, userId) => {
 
     const updated = await repo.updateById(
       id,
-      { ...dto, date_derniere_maj: new Date() },
+      {
+        ...dto,
+        est_actif:
+          dto.statut === PEI_STATUS.VALID
+            ? true
+            : dto.statut
+            ? null
+            : current.est_actif,
+        date_derniere_maj: new Date(),
+      },
       t
     );
 
@@ -164,11 +219,15 @@ exports.close = async (id, userId) => {
       e.status = 404;
       throw e;
     }
-    if (current.statut === "clos") return current;
+    if (current.statut === PEI_STATUS.CLOSED) return current;
 
     const updated = await repo.updateById(
       id,
-      { statut: "clos", date_derniere_maj: new Date() },
+      {
+        statut: PEI_STATUS.CLOSED,
+        est_actif: null,
+        date_derniere_maj: new Date(),
+      },
       t
     );
     await repo.addHistory(
@@ -184,4 +243,78 @@ exports.close = async (id, userId) => {
     );
     return updated;
   });
+};
+
+exports.validate = async (id, userId) => {
+  return sequelize.transaction(async (t) => {
+    const current = await PEI.findByPk(id, { transaction: t });
+    if (!current) {
+      const e = new Error("PEI introuvable");
+      e.status = 404;
+      throw e;
+    }
+    if (current.statut === PEI_STATUS.CLOSED) {
+      const e = new Error("Impossible de valider un PEI clôturé");
+      e.status = 400;
+      throw e;
+    }
+    if (current.statut === PEI_STATUS.VALID) {
+      return current.get({ plain: true });
+    }
+    if (
+      current.statut !== PEI_STATUS.PENDING &&
+      current.statut !== PEI_STATUS.REFUSED
+    ) {
+      const e = new Error("Ce PEI ne peut pas être validé");
+      e.status = 400;
+      throw e;
+    }
+
+    const active = await repo.findActiveByEnfantYear(
+      { enfant_id: current.enfant_id, annee_id: current.annee_id },
+      t
+    );
+    if (active && active.id !== current.id) {
+      await repo.updateById(
+        active.id,
+        {
+          statut: PEI_STATUS.CLOSED,
+          est_actif: null,
+          date_derniere_maj: new Date(),
+        },
+        t
+      );
+    }
+
+    const updated = await repo.updateById(
+      id,
+      {
+        statut: PEI_STATUS.VALID,
+        est_actif: true,
+        date_derniere_maj: new Date(),
+      },
+      t
+    );
+    const plain = updated.get({ plain: true });
+
+    await repo.addHistory(
+      {
+        projet_id: id,
+        educateur_id: userId,
+        date_modification: new Date(),
+        ancien_objectifs: current.objectifs || "",
+        ancien_statut: current.statut,
+        raison_modification: "Validation du PEI",
+      },
+      t
+    );
+
+    await notifier.notifyOnPEICreated(plain, t);
+
+    return plain;
+  });
+};
+
+exports.listPending = async (q) => {
+  return exports.list({ ...q, statut: PEI_STATUS.PENDING });
 };

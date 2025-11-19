@@ -13,6 +13,7 @@ import { DailyNoteFormScreen } from "../screens/educateur/DailyNoteFormScreen";
 import { ActivityFormScreen } from "../screens/educateur/ActivityFormScreen";
 import { ObservationInitialeScreen } from "../screens/educateur/ObservationInitialeScreen";
 import { EducatorPeiDetailScreen } from "../screens/educateur/EducatorPeiDetailScreen";
+import { EducatorPeiCreateScreen } from "../screens/educateur/EducatorPeiCreateScreen";
 
 export type EducatorStackParamList = {
   EducatorTabs: undefined;
@@ -22,7 +23,8 @@ export type EducatorStackParamList = {
   ActivityForm: { childId: number; peiId?: number };
   EducatorChatThread: { threadId?: number; childId?: number };
   ObservationInitiale: { childId: number };
-  EducatorPeiDetail: { childId: number; peiId: number };
+  EducatorPeiDetail: { childId: number; peiId?: number };
+  EducatorPeiCreate: { childId: number; anneeId?: number };
 };
 
 export type EducatorTabParamList = {
@@ -122,6 +124,11 @@ export const EducatorNavigator = () => {
         name="EducatorPeiDetail"
         component={EducatorPeiDetailScreen}
         options={{ title: "PEI – تفاصيل" }}
+      />
+      <Stack.Screen
+        name="EducatorPeiCreate"
+        component={EducatorPeiCreateScreen}
+        options={{ title: "إنشاء PEI" }}
       />
     </Stack.Navigator>
   );

@@ -127,9 +127,10 @@ export const EducatorDashboardScreen: React.FC = () => {
         setTodayChildren(todayChildCards);
 
         const peiStatusMap: Record<string, PeiSummary["status"]> = {
-          ACTIF: "ACTIVE",
-          BROUILLON: "TO_REVIEW",
+          VALIDE: "ACTIVE",
+          EN_ATTENTE_VALIDATION: "TO_REVIEW",
           CLOTURE: "CLOSED",
+          REFUSE: "CLOSED",
         };
 
         setPeiItems(

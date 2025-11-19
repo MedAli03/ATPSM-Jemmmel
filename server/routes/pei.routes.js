@@ -11,23 +11,36 @@ const {
 
 router.use(auth);
 
+const normalizeListQuery = (req, res, next) => {
+  const { error, value } = listPeiQuerySchema.validate(req.query, {
+    abortEarly: false,
+  });
+  if (error) {
+    const e = new Error(error.details.map((d) => d.message).join(", "));
+    e.status = 422;
+    return next(e);
+  }
+  req.query = value;
+  next();
+};
+
 // Lister / filtrer (PRESIDENT, DIRECTEUR, EDUCATEUR)
 router.get(
   "/",
   requireRole("PRESIDENT", "DIRECTEUR", "EDUCATEUR"),
+  normalizeListQuery,
+  ctrl.list
+);
+
+router.get(
+  "/en-attente",
+  requireRole("PRESIDENT", "DIRECTEUR"),
+  normalizeListQuery,
   (req, res, next) => {
-    const { error, value } = listPeiQuerySchema.validate(req.query, {
-      abortEarly: false,
-    });
-    if (error) {
-      const e = new Error(error.details.map((d) => d.message).join(", "));
-      e.status = 422;
-      return next(e);
-    }
-    req.query = value;
+    req.query = { ...req.query, statut: "EN_ATTENTE_VALIDATION" };
     next();
   },
-  ctrl.list
+  ctrl.listPending
 );
 
 // Obtenir un PEI (PRESIDENT, DIRECTEUR, EDUCATEUR)
@@ -41,6 +54,12 @@ router.get(
 router.post(
   "/",
   requireRole("DIRECTEUR", "PRESIDENT", "EDUCATEUR"),
+  (req, res, next) => {
+    if (req.user?.role === "EDUCATEUR") {
+      req.body.educateur_id = req.user.id;
+    }
+    next();
+  },
   validate(createPeiSchema),
   ctrl.create
 );
@@ -51,6 +70,12 @@ router.put(
   requireRole("EDUCATEUR", "DIRECTEUR", "PRESIDENT"),
   validate(updatePeiSchema),
   ctrl.update
+);
+
+router.patch(
+  "/:id/validate",
+  requireRole("DIRECTEUR", "PRESIDENT"),
+  ctrl.validate
 );
 
 // Clôturer un PEI

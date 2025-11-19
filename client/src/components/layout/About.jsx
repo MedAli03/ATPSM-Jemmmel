@@ -91,7 +91,7 @@ const About = () => {
     <section className="relative mt-24 overflow-hidden" dir="rtl">
       <div
         className="absolute inset-0 bg-gradient-to-b from-slate-900 via-slate-900/95 to-slate-950"
-        aria-hidden="true"
+        aria-hidden={true}
       />
       <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-indigo-600/40 to-transparent" aria-hidden />
       <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">

@@ -33,12 +33,18 @@ export interface ChildDetails extends ChildSummary {
   description?: string | null;
 }
 
+export type PeiStatus =
+  | "VALIDE"
+  | "CLOTURE"
+  | "EN_ATTENTE_VALIDATION"
+  | "REFUSE";
+
 export type ProjetEducatifIndividuelSummary = {
   id: number;
   enfant_id: number;
   enfant_nom_complet?: string;
   titre: string;
-  statut: "ACTIF" | "CLOTURE" | "BROUILLON";
+  statut: PeiStatus;
   date_debut: string;
   date_fin_prevue?: string;
   objectifs_resume?: string;
@@ -61,9 +67,9 @@ export interface PeiEvaluation {
 }
 
 export interface NewPeiEvaluationPayload {
-  periode: string;
-  commentaire_global?: string;
-  note_globale?: number;
+  date_evaluation: string;
+  score: number;
+  notes?: string;
 }
 
 export interface CreatePeiPayload {
@@ -72,11 +78,12 @@ export interface CreatePeiPayload {
   annee_id: number;
   date_creation: string;
   objectifs?: string;
-  statut?: "brouillon" | "actif" | "clos";
   precedent_projet_id?: number;
 }
 
-export type UpdatePeiPayload = Partial<Pick<CreatePeiPayload, "objectifs" | "statut">> & {
+export type UpdatePeiPayload = {
+  objectifs?: string | null;
+  statut?: PeiStatus;
   date_derniere_maj?: string;
 };
 
