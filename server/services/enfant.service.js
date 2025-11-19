@@ -3,9 +3,18 @@
 const bcrypt = require("bcrypt");
 const SALT_ROUNDS = 10;
 
-const { sequelize, Enfant, Utilisateur, ParentsFiche } = require("../models");
+const { Op } = require("sequelize");
+const {
+  sequelize,
+  Sequelize,
+  Enfant,
+  Utilisateur,
+  ParentsFiche,
+  DailyNote,
+} = require("../models");
 const repo = require("../repos/enfant.repo");
 const educatorAccess = require("./educateur_access.service");
+const parentChildReadStateService = require("./parent_child_read_state.service");
 
 exports.list = async (q, currentUser) => {
   if (currentUser?.role === "EDUCATEUR") {
@@ -128,8 +137,87 @@ exports.unlinkParent = async (id) => {
   });
 };
 
-exports.listForParent = (parentId, q) =>
-  repo.findByParent(parentId, { page: q.page, limit: q.limit });
+exports.listForParent = async (parentId, q) => {
+  const data = await repo.findByParent(parentId, { page: q.page, limit: q.limit });
+  const childIds = data.rows.map((row) => Number(row.id));
+  if (!childIds.length) {
+    return data;
+  }
+
+  const threadIds = [
+    ...new Set(
+      data.rows
+        .map((row) => (row.thread_id ? Number(row.thread_id) : null))
+        .filter(Boolean)
+    ),
+  ];
+
+  const [states, noteAggregates, unreadMap] = await Promise.all([
+    parentChildReadStateService.findStatesForParent(parentId, childIds),
+    DailyNote.findAll({
+      attributes: [
+        "enfant_id",
+        [sequelize.fn("MAX", sequelize.col("created_at")), "last_note_created_at"],
+      ],
+      where: { enfant_id: { [Op.in]: childIds } },
+      group: ["enfant_id"],
+      raw: true,
+    }),
+    fetchUnreadCountsForParent(parentId, threadIds),
+  ]);
+
+  const stateMap = new Map(states.map((state) => [Number(state.child_id), state]));
+  const lastNoteMap = new Map(
+    noteAggregates.map((row) => [
+      Number(row.enfant_id),
+      row.last_note_created_at ? new Date(row.last_note_created_at) : null,
+    ])
+  );
+
+  data.rows.forEach((child) => {
+    const state = stateMap.get(Number(child.id));
+    const lastNoteAt = lastNoteMap.get(Number(child.id));
+    let hasUnreadNote = false;
+    if (state && lastNoteAt) {
+      const lastSeen = state.last_daily_note_seen_at
+        ? new Date(state.last_daily_note_seen_at)
+        : null;
+      hasUnreadNote = !lastSeen || lastNoteAt > lastSeen;
+    }
+    child.setDataValue("has_unread_note", hasUnreadNote);
+    child.setDataValue("has_unread_daily_note", hasUnreadNote);
+
+    const threadId = child.thread_id ? Number(child.thread_id) : null;
+    const unreadMessages = threadId ? unreadMap.get(threadId) || 0 : 0;
+    child.setDataValue("unread_messages_count", unreadMessages);
+  });
+
+  return data;
+};
+
+async function fetchUnreadCountsForParent(parentId, threadIds = []) {
+  if (!threadIds.length) {
+    return new Map();
+  }
+  const rows = await sequelize.query(
+    `SELECT m.thread_id AS threadId, COUNT(*) AS unread
+     FROM messages m
+     INNER JOIN thread_participants tp
+       ON tp.thread_id = m.thread_id
+      AND tp.user_id = :parentId
+      AND (tp.left_at IS NULL OR tp.left_at > NOW())
+     LEFT JOIN message_read_receipts r
+       ON r.message_id = m.id AND r.user_id = :parentId
+     WHERE m.thread_id IN (:threadIds)
+       AND r.id IS NULL
+     GROUP BY m.thread_id`,
+    {
+      type: Sequelize.QueryTypes.SELECT,
+      replacements: { parentId, threadIds },
+    }
+  );
+  return new Map(rows.map((row) => [Number(row.threadId), Number(row.unread)]));
+}
 
 /**
  * Helper: create parent account from parents_fiche and link to child.

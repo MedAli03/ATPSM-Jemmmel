@@ -170,11 +170,10 @@ export const ParentDashboardScreen: React.FC = () => {
               children.map((child) => {
                 // 🔔 Unread flags coming from backend (optional)
                 const hasUnreadNote =
-                  (child as any).has_unread_note === true ||
-                  (child as any).has_unread_daily_note === true;
+                  child.has_unread_note === true ||
+                  child.has_unread_daily_note === true;
 
-                const unreadMessagesCount =
-                  (child as any).unread_messages_count ?? 0;
+                const unreadMessagesCount = child.unread_messages_count ?? 0;
 
                 const hasUnreadMessages = unreadMessagesCount > 0;
 
