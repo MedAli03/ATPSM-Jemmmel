@@ -11,7 +11,7 @@ module.exports = (sequelize) =>
       },
       enfant_id: {
         type: DataTypes.INTEGER.UNSIGNED,
-        allowNull: false,
+        allowNull: true,
       },
       created_by: {
         type: DataTypes.INTEGER.UNSIGNED,

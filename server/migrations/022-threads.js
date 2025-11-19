@@ -14,13 +14,6 @@ module.exports = {
         onUpdate: "CASCADE",
         onDelete: "RESTRICT",
       },
-      enfant_id: {
-        type: Sequelize.INTEGER.UNSIGNED,
-        allowNull: true,
-        references: { model: "enfants", key: "id" },
-        onUpdate: "CASCADE",
-        onDelete: "SET NULL",
-      },
       sujet: { type: Sequelize.STRING(200), allowNull: false },
       created_at: {
         type: Sequelize.DATE,
