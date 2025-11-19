@@ -103,6 +103,8 @@ async function populateEnfantId(queryInterface) {
 
 module.exports = {
   async up(queryInterface, Sequelize) {
+    await removeCreatedByConstraint(queryInterface);
+
     await queryInterface.addColumn(TABLE, "enfant_id", {
       type: Sequelize.BIGINT.UNSIGNED,
       allowNull: true,
@@ -110,21 +112,6 @@ module.exports = {
       references: { model: "enfants", key: "id" },
       onUpdate: "CASCADE",
       onDelete: "RESTRICT",
-    });
-
-    await queryInterface.addColumn(TABLE, "created_by", {
-      type: Sequelize.BIGINT.UNSIGNED,
-      allowNull: true,
-      after: "enfant_id",
-    });
-
-    await queryInterface.addConstraint(TABLE, {
-      fields: ["created_by"],
-      type: "foreign key",
-      name: CREATED_BY_FK,
-      references: { table: "utilisateurs", field: "id" },
-      onUpdate: "CASCADE",
-      onDelete: "SET NULL",
     });
 
     await queryInterface.addColumn(TABLE, "archived_at", {
@@ -152,8 +139,6 @@ module.exports = {
       allowNull: false,
     });
 
-    await removeCreatedByConstraint(queryInterface);
-
     await queryInterface.changeColumn(TABLE, "created_by", {
       type: Sequelize.BIGINT.UNSIGNED,
       allowNull: false,
@@ -179,7 +164,7 @@ module.exports = {
     });
   },
 
-  async down(queryInterface) {
+  async down(queryInterface, Sequelize) {
     await queryInterface.removeIndex(TABLE, "idx_threads_enfant_archived").catch(() => {});
     await queryInterface.removeIndex(TABLE, "idx_threads_created_by").catch(() => {});
 
@@ -200,7 +185,6 @@ module.exports = {
     }).catch(() => {});
 
     await queryInterface.removeColumn(TABLE, "archived_at").catch(() => {});
-    await queryInterface.removeColumn(TABLE, "created_by").catch(() => {});
     await queryInterface.removeColumn(TABLE, "enfant_id").catch(() => {});
   },
 };
