@@ -1,29 +1,7 @@
-// eslint-disable-next-line no-unused-vars
+import { useMemo } from "react";
 import { motion } from "framer-motion";
-
-const activities = [
-  {
-    id: 1,
-    title: "ورشة عمل حول التوحد",
-    description: "جلسة توعوية للأهالي حول اضطراب طيف التوحد وكيفية التعامل معه.",
-    image: "/aut2.jpg",
-    date: "15 مارس 2025",
-  },
-  {
-    id: 2,
-    title: "يوم رياضي للأطفال",
-    description: "فعاليات رياضية للأطفال المصابين بالتوحد لتعزيز مهاراتهم الاجتماعية.",
-    image: "/aut3.jpg",
-    date: "22 أبريل 2025",
-  },
-  {
-    id: 3,
-    title: "محاضرة تعليمية",
-    description: "محاضرة حول أحدث استراتيجيات التعليم للأطفال ذوي الاحتياجات الخاصة.",
-    image: "/aut2.jpg",
-    date: "10 مايو 2025",
-  },
-];
+import { FiCalendar, FiMapPin } from "react-icons/fi";
+import { useSiteOverview } from "../hooks/useSiteOverview";
 
 const cardVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -31,35 +9,80 @@ const cardVariants = {
 };
 
 const ActivitiesPage = () => {
+  const { data, isLoading } = useSiteOverview();
+
+  const events = useMemo(() => {
+    if (Array.isArray(data?.highlights?.events)) {
+      return data.highlights.events;
+    }
+    return [];
+  }, [data?.highlights?.events]);
+
+  const formatDate = (value) => {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return new Intl.DateTimeFormat("ar-TN", { dateStyle: "medium" }).format(date);
+  };
+
+  const hasEvents = events.length > 0;
+
   return (
-    <div className="max-w-6xl mx-auto p-6 mt-12">
-      <h2 className="text-3xl font-bold text-center text-blue-700 mb-8">
-        أنشطتنا
-      </h2>
-      <div className="grid md:grid-cols-3 sm:grid-cols-2 grid-cols-1 gap-6">
-        {activities.map((activity, index) => (
-          <motion.div
-            key={activity.id}
-            initial="hidden"
-            animate="visible"
-            transition={{ duration: 0.5, delay: index * 0.2 }}
-            variants={cardVariants}
-            className="bg-white shadow-lg rounded-xl overflow-hidden hover:scale-105 transition-transform duration-300 cursor-pointer"
-          >
-            <img
-              src={activity.image}
-              alt={activity.title}
-              className="w-full h-48 object-cover"
-            />
-            <div className="p-5">
-              <h3 className="text-xl font-bold text-gray-800">{activity.title}</h3>
-              <p className="text-gray-600 mt-2">{activity.description}</p>
-            </div>
-            <div className="bg-blue-50 text-blue-700 text-center py-2 font-semibold">
-              {activity.date}
-            </div>
-          </motion.div>
-        ))}
+    <div className="min-h-screen bg-gray-50 pt-16 pb-16" dir="rtl">
+      <div className="mx-auto max-w-6xl px-4">
+        <motion.h2
+          className="text-3xl font-bold text-center text-indigo-700"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          فعالياتنا القادمة
+        </motion.h2>
+        <p className="mt-3 text-center text-sm text-slate-600">
+          ندعوك للانضمام إلى ورشاتنا وأنشطتنا الداعمة للأطفال وأسرهم.
+        </p>
+
+        <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {(isLoading && !hasEvents ? Array.from({ length: 3 }) : events).map((event, index) => (
+            <motion.div
+              key={event?.id || `placeholder-${index}`}
+              variants={cardVariants}
+              initial="hidden"
+              animate="visible"
+              transition={{ duration: 0.45, delay: index * 0.08 }}
+              className="flex h-full flex-col justify-between rounded-2xl border border-indigo-50 bg-white p-5 text-right shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+            >
+              <div className="space-y-3">
+                <p className="text-sm font-semibold text-slate-900">{event?.titre || "فعالية قادمة"}</p>
+                <p className="text-sm text-slate-600 line-clamp-3">
+                  {event?.description || "ترقبوا تفاصيل هذه الفعالية قريبًا."}
+                </p>
+              </div>
+
+              <div className="mt-4 space-y-2 text-sm text-slate-700">
+                <div className="flex items-center justify-end gap-2 text-xs text-slate-500">
+                  <FiCalendar className="h-4 w-4" />
+                  {formatDate(event?.debut) || "سيعلن قريبًا"}
+                </div>
+                {event?.lieu && (
+                  <div className="flex items-center justify-end gap-2 text-xs text-slate-500">
+                    <FiMapPin className="h-4 w-4" />
+                    {event.lieu}
+                  </div>
+                )}
+                {event?.audience && (
+                  <p className="text-xs text-slate-500">الفئة المستهدفة: {event.audience}</p>
+                )}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        {!isLoading && !hasEvents && (
+          <div className="mt-10 rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-center text-slate-600">
+            لا توجد فعاليات معلنة حاليًا، سنشارك الجدول القادم قريبًا.
+          </div>
+        )}
       </div>
     </div>
   );

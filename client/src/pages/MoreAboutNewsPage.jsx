@@ -1,72 +1,91 @@
+import { useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
-// eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
-
-const newsArticles = [
-  {
-    id: 1,
-    title: "إطلاق برنامج دعم جديد للأطفال",
-    description:
-      "تم الإعلان عن برنامج دعم خاص للأطفال المصابين بالتوحد لتعزيز مهاراتهم الاجتماعية.",
-    image: "/aut1.jpg",
-    date: "12 مارس 2025",
-    details:
-      "تفاصيل حول البرنامج الجديد وكيفية التسجيل والشروط المطلوبة. يهدف البرنامج إلى تقديم دعم متكامل للأطفال المصابين بالتوحد، من خلال ورش عمل تعليمية وجلسات دعم نفسي للأهالي. سيتم توفير استشارات مجانية من قبل مختصين في المجال.",
-  },
-  {
-    id: 2,
-    title: "حملة توعوية في المدارس",
-    description:
-      "تم تنفيذ حملة توعوية حول التوحد في العديد من المدارس المحلية لزيادة الوعي.",
-    image: "/aut1.jpg",
-    date: "25 أبريل 2025",
-    details:
-      "تهدف الحملة إلى تعريف الطلاب والمدرسين بأهمية تقبل الأطفال المصابين بالتوحد، وتقديم ورش عمل تثقيفية. تخلل الحدث أنشطة تفاعلية تهدف إلى تعزيز التفاعل الاجتماعي بين الأطفال.",
-  },
-  {
-    id: 3,
-    title: "افتتاح مركز جديد لدعم الأطفال",
-    description:
-      "افتتاح مركز حديث لدعم الأطفال المصابين بالتوحد وتقديم برامج متطورة.",
-    image: "/aut1.jpg",
-    date: "5 مايو 2025",
-    details:
-      "يعد هذا المركز خطوة مهمة في تقديم رعاية متخصصة للأطفال المصابين بالتوحد. يتضمن المركز غرفًا تعليمية مجهزة بأحدث الوسائل، وجلسات فردية مع مختصين، بالإضافة إلى توفير الدعم للأهالي من خلال ندوات وورش عمل متخصصة.",
-  },
-];
+import { FiCalendar, FiChevronLeft, FiImage } from "react-icons/fi";
+import { useSiteOverview } from "../hooks/useSiteOverview";
+import { resolveApiAssetPath } from "../utils/url";
 
 const MoreAboutNewsPage = () => {
   const { id } = useParams();
-  const news = newsArticles.find((n) => n.id === parseInt(id));
+  const { data, isLoading } = useSiteOverview();
 
-  if (!news) {
-    return <p className="text-center text-red-500 mt-10">المقال غير موجود</p>;
+  const article = useMemo(() => {
+    const items = Array.isArray(data?.highlights?.news) ? data.highlights.news : [];
+    return items.find((item) => String(item.id) === String(id));
+  }, [data?.highlights?.news, id]);
+
+  const imageSrc =
+    resolveApiAssetPath(article?.couverture_url) || article?.couverture_url || null;
+
+  const formatDate = (value) => {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return new Intl.DateTimeFormat("ar-TN", { dateStyle: "medium" }).format(date);
+  };
+
+  if (!article && !isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 pt-16" dir="rtl">
+        <div className="mx-auto max-w-3xl px-4 py-16 text-center text-slate-700">
+          <p className="text-lg font-semibold text-indigo-700">المقال غير متوفر</p>
+          <p className="mt-2 text-sm">الخبر الذي تبحث عنه غير موجود أو لم يتم نشره بعد.</p>
+          <Link
+            to="/news"
+            className="mt-6 inline-flex items-center gap-2 rounded-full bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow transition hover:bg-indigo-700"
+          >
+            العودة إلى الأخبار
+            <FiChevronLeft className="h-4 w-4" />
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6 mt-12">
-      <motion.div
-        className="max-w-4xl mx-auto bg-white p-6 shadow-lg rounded-lg"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <img
-          src={news.image}
-          alt={news.title}
-          className="w-full h-72 object-cover rounded-lg"
-        />
-        <h1 className="text-3xl font-bold text-blue-700 mt-4">{news.title}</h1>
-        <p className="text-gray-500 mt-2">📅 {news.date}</p>
-        <p className="text-gray-700 mt-4">{news.details}</p>
-        {/* Back Button */}
-        <Link
-          to="/news"
-          className="mt-6 inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+    <div className="min-h-screen bg-gray-50 pt-16 pb-16" dir="rtl">
+      <div className="mx-auto max-w-4xl px-4">
+        <motion.div
+          className="overflow-hidden rounded-3xl border border-indigo-50 bg-white shadow-lg"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
         >
-          العودة إلى الأخبار
-        </Link>
-      </motion.div>
+          <div className="aspect-[5/3] bg-indigo-50">
+            {imageSrc ? (
+              <img
+                src={imageSrc}
+                alt={article?.titre}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-indigo-200">
+                <FiImage className="h-12 w-12" />
+              </div>
+            )}
+          </div>
+          <div className="space-y-4 p-6 text-right">
+            <div className="flex items-center justify-end gap-2 text-xs text-slate-500">
+              <FiCalendar className="h-4 w-4" />
+              {formatDate(article?.publie_le) || "قريبًا"}
+            </div>
+            <h1 className="text-2xl font-bold text-slate-900">{article?.titre || "خبر"}</h1>
+            <p className="text-sm leading-7 text-slate-700">
+              {article?.resume || "سيتم نشر تفاصيل هذا الخبر قريبًا."}
+            </p>
+            <div className="pt-4">
+              <Link
+                to="/news"
+                className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow transition hover:bg-indigo-700"
+              >
+                العودة إلى الأخبار
+                <FiChevronLeft className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+        </motion.div>
+      </div>
     </div>
   );
 };
