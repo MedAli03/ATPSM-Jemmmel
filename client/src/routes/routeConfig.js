@@ -19,8 +19,6 @@ const AutismInfo = lazy(() => import("../pages/AutismInfo"));
 const FAQPage = lazy(() => import("../pages/FAQPage"));
 const NewsPage = lazy(() => import("../pages/NewsPage"));
 const MoreAboutNewsPage = lazy(() => import("../pages/MoreAboutNewsPage"));
-// const Login = lazy(() => import("../pages/auth/Login"));
-// const PageNotFound = lazy(() => import("../pages/PageNotFound"));
 const PresidentOverview = lazy(() =>
   import("../components/dashboard/president/Overview")
 );
@@ -43,10 +41,6 @@ const MessagesLayout = lazy(() => import("../pages/messages/MessagesLayout"));
 const ThreadsPage = lazy(() => import("../pages/messages/ThreadsPage"));
 const ThreadView = lazy(() => import("../pages/messages/ThreadView"));
 const NoThreadSelected = lazy(() => import("../pages/messages/NoThreadSelected"));
-// const DashboardHome = lazy(() => import("../pages/dashboard/DashboardHome"));
-// const DashboardUsers = lazy(() => import("../pages/dashboard/DashboardUsers"));
-// const DashboardReports = lazy(() => import("../pages/dashboard/DashboardReports"));
-// const DashboardSettings = lazy(() => import("../pages/dashboard/DashboardSettings"));
 
 // Public routes — no auth required
 const publicRoutes = [
@@ -72,15 +66,6 @@ const protectedRoutes = [
       { index: true, element: ProfilePage, title: "الملف الشخصي" },
     ],
   },
-  // {
-  //   path: "/dashboard",
-  //   element: DashboardLayout,
-  //   roles: ["PRESIDENT"],
-  //   children: [
-  //     { index: true, element: PresidentOverview, title: "لوحة الرئيس" },
-  //   ],
-  // },
-  // Explicit President base route
   {
     path: "/dashboard/president",
     element: DashboardLayout,

@@ -363,8 +363,8 @@ const NAV_CONFIG = {
         variant: "primary",
       },
       {
-        to: "/dashboard/broadcast",
-        label: "بثّ إشعار",
+        to: "/dashboard/president/notifications",
+        label: "الإشعارات",
         variant: "ghost",
       },
     ],
@@ -381,7 +381,6 @@ const NAV_CONFIG = {
           { to: "/dashboard/president/users", label: "كلّ المستخدمين", icon: "users" },
           { to: "/dashboard/president/educators", label: "المربّون", icon: "users" },
           { to: "/dashboard/president/parents", label: "الأولياء", icon: "users" },
-          { to: "/dashboard/admins", label: "المديرون", icon: "settings" },
         ],
       },
       {
@@ -391,21 +390,6 @@ const NAV_CONFIG = {
         items: [
           { to: "/dashboard/president/children", label: "الأطفال", icon: "child" },
           { to: "/dashboard/president/groups", label: "المجموعات", icon: "groups" },
-          { to: "/dashboard/years", label: "السنوات الدراسية", icon: "years" },
-        ],
-      },
-      {
-        title: "PEI والتقييمات",
-        icon: "pei",
-        defaultOpen: true,
-        items: [
-          { to: "/dashboard/pei", label: "مشاريع PEI", icon: "pei" },
-          { to: "/dashboard/evaluations", label: "التقييمات", icon: "eval" },
-          {
-            to: "/dashboard/recommendations",
-            label: "توصيات الذكاء الاصطناعي",
-            icon: "reco",
-          },
         ],
       },
       {
@@ -415,20 +399,12 @@ const NAV_CONFIG = {
         items: [
           { to: "/dashboard/president/news", label: "الأخبار", icon: "news" },
           { to: "/dashboard/president/events", label: "الفعاليات", icon: "events" },
-          { to: "/dashboard/resources", label: "الموارد", icon: "resources" },
-          { to: "/dashboard/messages", label: "الرسائل", icon: "chat" },
-          { to: "/dashboard/notifications", label: "الإشعارات", icon: "notif" },
-        ],
-      },
-      {
-        title: "التقارير والإعدادات",
-        icon: "reports",
-        defaultOpen: true,
-        items: [
-          { to: "/dashboard/reports", label: "التقارير", icon: "reports" },
-          { to: "/dashboard/settings", label: "الإعدادات", icon: "settings" },
-          { to: "/dashboard/audit", label: "سجلّ العمليات", icon: "audit" },
-          { to: "/dashboard/broadcast", label: "بثّ إشعار", icon: "broadcast" },
+          { to: "/dashboard/president/messages", label: "الرسائل", icon: "chat" },
+          {
+            to: "/dashboard/president/notifications",
+            label: "الإشعارات",
+            icon: "notif",
+          },
         ],
       },
     ],

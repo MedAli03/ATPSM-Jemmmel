@@ -9,20 +9,28 @@ import {
   CartesianGrid,
 } from "recharts";
 
-export default function WeeklyBar({ data }) {
+export default function WeeklyBar({ data, emptyLabel }) {
   // data: [{ isoWeek: 202445, count: 3 }, ...]
+  const points = data || [];
+  const isEmpty = !points.length;
+
   return (
-    <div className="bg-white border rounded-xl p-4">
-      <div className="font-semibold mb-2">النشاطات خلال الأسابيع الأخيرة</div>
-      <ResponsiveContainer width="100%" height={240}>
-        <BarChart data={data || []}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="isoWeek" />
-          <YAxis />
-          <Tooltip />
-          <Bar dataKey="count" fill="currentColor" />
-        </BarChart>
-      </ResponsiveContainer>
+    <div className="h-full min-h-[220px]">
+      {isEmpty ? (
+        <div className="flex h-full items-center justify-center text-sm text-gray-500">
+          {emptyLabel || "لا توجد بيانات"}
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height={240}>
+          <BarChart data={points}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="isoWeek" />
+            <YAxis />
+            <Tooltip />
+            <Bar dataKey="count" fill="currentColor" />
+          </BarChart>
+        </ResponsiveContainer>
+      )}
     </div>
   );
 }

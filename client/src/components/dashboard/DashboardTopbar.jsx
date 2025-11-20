@@ -13,6 +13,16 @@ export default function TopbarNeo({ onMenuClick }) {
   const { currentUser, logout } = useAuth();
   const { pathname } = useLocation();
 
+  const normalizedRole = String(currentUser?.role || "").toUpperCase();
+  const isDirector =
+    normalizedRole === "DIRECTEUR" || pathname.startsWith("/dashboard/manager");
+  const homePath = isDirector ? "/dashboard/manager" : "/dashboard/president";
+  const notificationsPath = `${homePath}/notifications`;
+  const childrenPath = `${homePath}/children`;
+  const newsPath = `${homePath}/news`;
+  const eventsPath = `${homePath}/events`;
+  const messagesPath = `${homePath}/messages`;
+
   // --- local state
   const [openCmd, setOpenCmd] = useState(false);
   // const [openNotif, setOpenNotif] = useState(false);
@@ -79,7 +89,7 @@ export default function TopbarNeo({ onMenuClick }) {
                   </svg>
                 </button>
 
-                <Link to="/dashboard/president" className="flex items-center gap-2">
+                <Link to={homePath} className="flex items-center gap-2">
                   <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 grid place-items-center text-white shadow-sm">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
@@ -100,7 +110,7 @@ export default function TopbarNeo({ onMenuClick }) {
                 <nav className="hidden lg:block">
                   <ol className="flex items-center gap-2 text-sm text-gray-600">
                     <li>
-                      <Link to="/dashboard/president" className="hover:text-gray-900 font-medium">
+                      <Link to={homePath} className="hover:text-gray-900 font-medium">
                         الرئيسية
                       </Link>
                     </li>
@@ -142,15 +152,20 @@ export default function TopbarNeo({ onMenuClick }) {
                 {/* <SelectAnnee value={anneeId} onChange={setAnneeId} /> */}
 
                 <Link
-                  to="/dashboard/broadcast"
+                  to={notificationsPath}
                   className="hidden sm:inline-flex items-center gap-2 px-3 py-2 rounded-2xl
                              bg-gradient-to-l from-blue-600 to-indigo-600 text-white hover:opacity-95 shadow-sm"
                 >
                   <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none">
-                    <path d="M15 10l4.553-2.276a1 1 0 011.447.894v5.764a1 1 0 01-1.447.894L15 13M4 6h7v12H4z"
-                          stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    <path
+                      d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 00-6-6v0a6 6 0 00-6 6v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
                   </svg>
-                  بثّ إشعار
+                  الإشعارات
                 </Link>
 
                 {/* notifications */}
@@ -181,8 +196,12 @@ export default function TopbarNeo({ onMenuClick }) {
 
                   {openUser && (
                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border py-1 z-50">
-                      <Link to="/profile" className="block px-4 py-2 text-sm hover:bg-gray-50">الملف الشخصي</Link>
-                      <Link to="/settings" className="block px-4 py-2 text-sm hover:bg-gray-50">الإعدادات</Link>
+                      <Link
+                        to="/dashboard/profile"
+                        className="block px-4 py-2 text-sm hover:bg-gray-50"
+                      >
+                        الملف الشخصي
+                      </Link>
                       <button onClick={logout} className="w-full text-right px-4 py-2 text-sm hover:bg-gray-50">
                         تسجيل الخروج
                       </button>
@@ -230,13 +249,29 @@ export default function TopbarNeo({ onMenuClick }) {
 
             <div className="mt-3 text-xs text-gray-500 px-1">اقتراحات</div>
             <ul className="mt-1 max-h-72 overflow-y-auto">
-              <CmdItem to="/dashboard/president" label="الانتقال إلى لوحة الرئيس" onClose={() => setOpenCmd(false)} />
-              <CmdItem to="/dashboard/children" label="فتح إدارة الأطفال" onClose={() => setOpenCmd(false)} />
-              <CmdItem to="/dashboard/pei" label="مشاريع PEI" onClose={() => setOpenCmd(false)} />
-              <CmdItem to="/dashboard/actualites" label="الأخبار" onClose={() => setOpenCmd(false)} />
               <CmdItem
-                to="/dashboard/president/events"
+                to={homePath}
+                label={isDirector ? "الانتقال إلى لوحة المدير" : "الانتقال إلى لوحة الرئيس"}
+                onClose={() => setOpenCmd(false)}
+              />
+              <CmdItem
+                to={childrenPath}
+                label="فتح إدارة الأطفال"
+                onClose={() => setOpenCmd(false)}
+              />
+              <CmdItem
+                to={newsPath}
+                label="الأخبار"
+                onClose={() => setOpenCmd(false)}
+              />
+              <CmdItem
+                to={eventsPath}
                 label="الفعاليات"
+                onClose={() => setOpenCmd(false)}
+              />
+              <CmdItem
+                to={messagesPath}
+                label="الرسائل"
                 onClose={() => setOpenCmd(false)}
               />
             </ul>
