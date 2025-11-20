@@ -1,21 +1,15 @@
 import { useRef } from "react";
-// eslint-disable-next-line no-unused-vars
 import { motion, useInView } from "framer-motion";
 import { FaInfoCircle, FaDna, FaChartBar } from "react-icons/fa";
 
 const AutismPage = () => {
-  const refs = [
-    useRef(null),
-    useRef(null),
-    useRef(null),
-    useRef(null),
-    useRef(null),
-  ];
+  const sectionOneRef = useRef(null);
+  const sectionTwoRef = useRef(null);
+  const sectionThreeRef = useRef(null);
 
-  const inView = refs.map((ref) =>
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    useInView(ref, { once: true, margin: "-100px" })
-  );
+  const sectionOneInView = useInView(sectionOneRef, { once: true, margin: "-100px" });
+  const sectionTwoInView = useInView(sectionTwoRef, { once: true, margin: "-100px" });
+  const sectionThreeInView = useInView(sectionThreeRef, { once: true, margin: "-100px" });
 
   const sectionVariants = {
     hidden: { opacity: 0, x: 50 },
@@ -26,9 +20,9 @@ const AutismPage = () => {
     <div className="max-w-6xl mx-auto my-10 px-4 dir-rtl mt-12" dir="rtl">
       {/* Section 1: ما هو التوحد */}
       <motion.section
-        ref={refs[0]}
+        ref={sectionOneRef}
         initial="hidden"
-        animate={inView[0] ? "visible" : "hidden"}
+        animate={sectionOneInView ? "visible" : "hidden"}
         variants={sectionVariants}
         transition={{ duration: 0.8 }}
         className="bg-white shadow-lg rounded-lg p-6 "
@@ -57,9 +51,9 @@ const AutismPage = () => {
 
       {/* Section 2: مسببات التوحد */}
       <motion.section
-        ref={refs[1]}
+        ref={sectionTwoRef}
         initial="hidden"
-        animate={inView[1] ? "visible" : "hidden"}
+        animate={sectionTwoInView ? "visible" : "hidden"}
         variants={sectionVariants}
         transition={{ duration: 0.8, delay: 0.2 }}
         className="bg-#061831 p-8 my-8 rounded-xl shadow-md"
@@ -118,9 +112,9 @@ const AutismPage = () => {
 
       {/* Statistics Section */}
       <motion.section
-        ref={refs[2]}
+        ref={sectionThreeRef}
         initial="hidden"
-        animate={inView[2] ? "visible" : "hidden"}
+        animate={sectionThreeInView ? "visible" : "hidden"}
         variants={sectionVariants}
         transition={{ duration: 0.8, delay: 0.4 }}
         className="bg-white shadow-lg rounded-lg p-6"
