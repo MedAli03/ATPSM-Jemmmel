@@ -55,14 +55,14 @@ export const getRecent = (limit = 8) =>
 //     .then((r) => r.data);
 
 export const activateYear = (anneeId) =>
-  client.post(`/annees/${anneeId}/activate`).then((r) => r.data);
+  client.post(`/dashboard/president/annees/${anneeId}/activate`).then((r) => r.data);
 
 export const broadcast = (payload) =>
   client
     .post("/dashboard/president/notifications/broadcast", payload)
     .then((r) => r.data);
 
-    export async function getUnreadCount() {
+export async function getUnreadCount() {
   const { data } = await client.get("/notifications/me/unread-count");
   // backend typically returns { ok:true, data: { count: 3 } } or { ok:true, data: 3 }
   const count = typeof data?.data === "number" ? data.data : data?.data?.count ?? 0;

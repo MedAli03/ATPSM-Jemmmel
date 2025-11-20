@@ -31,6 +31,7 @@ module.exports = {
 
   async counters(_req, res, next) {
     try {
+      // TODO: currently unused by the web dashboard; kept for modular endpoints.
       const data = await svc.counters();
       res.json({ ok: true, data });
     } catch (e) {
@@ -40,6 +41,7 @@ module.exports = {
 
   async usersSummary(_req, res, next) {
     try {
+      // TODO: currently unused by the web dashboard; kept for modular endpoints.
       const data = await svc.usersSummary();
       res.json({ ok: true, data });
     } catch (e) {
@@ -49,6 +51,7 @@ module.exports = {
 
   async groupsSummary(req, res, next) {
     try {
+      // TODO: currently unused by the web dashboard; kept for modular endpoints.
       const { error, value } = groupsSummaryQuerySchema.validate(req.query, {
         abortEarly: false,
       });

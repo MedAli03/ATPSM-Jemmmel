@@ -181,8 +181,12 @@ export default function TopbarNeo({ onMenuClick }) {
 
                   {openUser && (
                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border py-1 z-50">
-                      <Link to="/profile" className="block px-4 py-2 text-sm hover:bg-gray-50">الملف الشخصي</Link>
-                      <Link to="/settings" className="block px-4 py-2 text-sm hover:bg-gray-50">الإعدادات</Link>
+                      <Link
+                        to="/dashboard/profile"
+                        className="block px-4 py-2 text-sm hover:bg-gray-50"
+                      >
+                        الملف الشخصي
+                      </Link>
                       <button onClick={logout} className="w-full text-right px-4 py-2 text-sm hover:bg-gray-50">
                         تسجيل الخروج
                       </button>
@@ -231,9 +235,16 @@ export default function TopbarNeo({ onMenuClick }) {
             <div className="mt-3 text-xs text-gray-500 px-1">اقتراحات</div>
             <ul className="mt-1 max-h-72 overflow-y-auto">
               <CmdItem to="/dashboard/president" label="الانتقال إلى لوحة الرئيس" onClose={() => setOpenCmd(false)} />
-              <CmdItem to="/dashboard/children" label="فتح إدارة الأطفال" onClose={() => setOpenCmd(false)} />
-              <CmdItem to="/dashboard/pei" label="مشاريع PEI" onClose={() => setOpenCmd(false)} />
-              <CmdItem to="/dashboard/actualites" label="الأخبار" onClose={() => setOpenCmd(false)} />
+              <CmdItem
+                to="/dashboard/president/children"
+                label="فتح إدارة الأطفال"
+                onClose={() => setOpenCmd(false)}
+              />
+              <CmdItem
+                to="/dashboard/president/news"
+                label="الأخبار"
+                onClose={() => setOpenCmd(false)}
+              />
               <CmdItem
                 to="/dashboard/president/events"
                 label="الفعاليات"

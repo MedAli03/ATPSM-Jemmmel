@@ -5,34 +5,69 @@ const auth = require("../middlewares/auth");
 const requireRole = require("../middlewares/requireRole");
 const ctrl = require("../controllers/president_dashboard.controller");
 
-// Toutes ces routes nécessitent un token & PRESIDENT
+const allowPresidentAndDirector = requireRole("PRESIDENT", "DIRECTEUR");
+const presidentOnly = requireRole("PRESIDENT");
+
+// Toutes ces routes nécessitent un token
 router.use(auth);
-router.use(requireRole("PRESIDENT", "DIRECTEUR")); // <= on autorise aussi le DIRECTEUR en lecture
 
 /**
  * READ-ONLY KPIs & lists
  */
-router.get("/dashboard/president/overview", ctrl.overview);
-router.get("/dashboard/president/counters", ctrl.counters);
-router.get("/dashboard/president/users/summary", ctrl.usersSummary);
-router.get("/dashboard/president/groups/summary", ctrl.groupsSummary);
+router.get("/dashboard/president/overview", allowPresidentAndDirector, ctrl.overview);
+router.get("/dashboard/president/counters", allowPresidentAndDirector, ctrl.counters);
+router.get(
+  "/dashboard/president/users/summary",
+  allowPresidentAndDirector,
+  ctrl.usersSummary
+);
+router.get(
+  "/dashboard/president/groups/summary",
+  allowPresidentAndDirector,
+  ctrl.groupsSummary
+);
 
-router.get("/dashboard/president/pei-stats", ctrl.peiStats);
-router.get("/dashboard/president/activities/weekly", ctrl.activitiesWeekly);
+router.get("/dashboard/president/pei-stats", allowPresidentAndDirector, ctrl.peiStats);
+router.get(
+  "/dashboard/president/activities/weekly",
+  allowPresidentAndDirector,
+  ctrl.activitiesWeekly
+);
 router.get(
   "/dashboard/president/evaluations/distribution",
+  allowPresidentAndDirector,
   ctrl.evaluationsDistribution
 );
 
-router.get("/dashboard/president/actualites/latest", ctrl.latestActualites);
-router.get("/dashboard/president/events/upcoming", ctrl.upcomingEvents);
-router.get("/dashboard/president/recent", ctrl.recent);
-router.get("/dashboard/president/notifications/unread-count", ctrl.unreadCount);
+router.get(
+  "/dashboard/president/actualites/latest",
+  allowPresidentAndDirector,
+  ctrl.latestActualites
+);
+router.get(
+  "/dashboard/president/events/upcoming",
+  allowPresidentAndDirector,
+  ctrl.upcomingEvents
+);
+router.get("/dashboard/president/recent", allowPresidentAndDirector, ctrl.recent);
+router.get(
+  "/dashboard/president/notifications/unread-count",
+  allowPresidentAndDirector,
+  ctrl.unreadCount
+);
 
 /**
  * SHORTCUTS (mutations)
  */
-router.post("/dashboard/president/annees/:id/activate", ctrl.activateYear);
-router.post("/dashboard/president/notifications/broadcast", ctrl.broadcast);
+router.post(
+  "/dashboard/president/annees/:id/activate",
+  allowPresidentAndDirector,
+  ctrl.activateYear
+);
+router.post(
+  "/dashboard/president/notifications/broadcast",
+  presidentOnly,
+  ctrl.broadcast
+);
 
 module.exports = router;

@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+client/node_modules/
+server/node_modules/
+mobile/node_modules/
+
+# Builds
+/dist/
+client/dist/
+server/dist/
+
+# Environment / local
+.env
+.env.*
+.vscode/
+.DS_Store
+npm-debug.log*
+yarn-error.log*
+
+# Coverage / tests
+coverage/
