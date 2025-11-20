@@ -28,42 +28,89 @@ const Stats = () => {
   };
 
   return (
-    <section className="relative -mt-12" dir="rtl">
+    <section className="relative -mt-16 sm:-mt-20 z-20" dir="rtl">
       <div className="mx-auto max-w-7xl px-4">
-        <div className="relative overflow-hidden rounded-4xl border border-white/40 bg-gradient-to-br from-indigo-600 via-indigo-500 to-slate-900 p-10 text-white shadow-2xl">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.12),transparent_60%)]" aria-hidden={true} />
-          <div className="relative flex flex-col gap-10 lg:flex-row lg:items-end lg:justify-between">
+        <div className="
+          relative overflow-hidden rounded-4xl 
+          border border-white/30
+          bg-gradient-to-br from-indigo-700 via-indigo-600 to-slate-900
+          p-10 sm:p-12
+          text-white shadow-[0_0_50px_rgba(0,0,0,0.35)]
+        ">
+          {/* Subtle radial glow */}
+          <div
+            className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.15),transparent_70%)]"
+            aria-hidden="true"
+          />
+
+          <div className="relative flex flex-col gap-12 lg:flex-row lg:items-end lg:justify-between">
+            {/* LEFT SECTION */}
             <div className="max-w-xl text-right">
-              <span className="text-sm font-semibold text-indigo-100">أثر الجمعية بالأرقام</span>
-              <h2 className="mt-3 text-3xl font-black leading-tight">نحتضن أطفال طيف التوحد وأسرهم برؤية علمية وإنسانية.</h2>
-              <p className="mt-4 text-sm text-indigo-100/80">
-                تعكس هذه المؤشرات البيانات الحية داخل منصتنا الرقمية وتبرز جهود الفرق الميدانية وشركائنا.
+              <span className="text-sm font-semibold text-indigo-100/90 tracking-wide">
+                أثر الجمعية بالأرقام
+              </span>
+
+              <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold leading-tight">
+                نحتضن أطفال طيف التوحد وأسرهم برؤية علمية وإنسانية.
+              </h2>
+
+              <p className="mt-4 text-sm sm:text-base text-indigo-100/80 leading-relaxed">
+                هذه المؤشرات تمثّل بيانات حقيقية من منصتنا الرقمية وتعكس جهود المختصين،
+                الأولياء وشركائنا.
               </p>
-              <div className="mt-6 flex flex-wrap justify-end gap-3 text-xs text-indigo-100/70">
+
+              <div className="mt-6 flex flex-wrap justify-end gap-3 text-xs sm:text-sm text-indigo-100/75 leading-relaxed">
                 <span>
-                  {`يقود ${formatNumber(stats.educators)} مختص ${formatNumber(stats.children)} طفلًا عبر ${formatNumber(
+                  {`يقود ${formatNumber(stats.educators)} مختص رحلة ${formatNumber(stats.children)} طفلًا عبر ${formatNumber(
                     stats.activeGroups
                   )} مجموعات نشطة.`}
                 </span>
                 <span>{`نواكب ${formatNumber(stats.parents)} أسرة بالاستشارات والتدريب.`}</span>
               </div>
             </div>
+
+            {/* RIGHT SECTION — METRICS GRID */}
             <div className="grid w-full gap-5 sm:grid-cols-2 lg:w-auto lg:grid-cols-3">
               {METRICS.map((metric) => {
                 const Icon = metric.icon;
+
                 return (
                   <div
                     key={metric.key}
-                    className="relative overflow-hidden rounded-3xl border border-white/20 bg-white/10 p-4 backdrop-blur transition hover:border-white/40"
+                    className="
+                      group relative overflow-hidden rounded-3xl
+                      border border-white/20
+                      bg-white/10 p-5
+                      backdrop-blur-xl
+                      transition-all duration-300
+                      hover:border-white/40 hover:bg-white/15
+                      hover:shadow-[0_0_25px_rgba(255,255,255,0.25)]
+                    "
                   >
-                    <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${metric.accent}`} aria-hidden={true} />
+                    {/* top accent bar */}
+                    <div
+                      className={`absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r ${metric.accent}`}
+                    />
+
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-indigo-100/80">{metric.label}</span>
-                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10">
+                      <span className="text-xs sm:text-sm font-semibold text-indigo-100/90">
+                        {metric.label}
+                      </span>
+
+                      <span className="
+                        inline-flex h-10 w-10 items-center justify-center 
+                        rounded-2xl bg-white/10 
+                        text-white shadow-inner 
+                        group-hover:bg-white/20
+                        transition
+                      ">
                         <Icon className="h-5 w-5" />
                       </span>
                     </div>
-                    <p className="mt-4 text-3xl font-black">{formatNumber(stats[metric.key])}</p>
+
+                    <p className="mt-5 text-3xl sm:text-4xl font-black tracking-tight">
+                      {formatNumber(stats[metric.key])}
+                    </p>
                   </div>
                 );
               })}

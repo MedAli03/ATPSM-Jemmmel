@@ -67,13 +67,11 @@ const desktopLinkClasses =
 const mobileLinkClasses =
   "block rounded-2xl px-4 py-3 text-base font-medium text-slate-700 transition hover:bg-indigo-50";
 
-const mobileDropdownClasses =
-  "grid overflow-hidden px-2 transition-all";
-
+const mobileDropdownClasses = "grid overflow-hidden px-2 transition-all";
 const mobileDropdownInner = "flex flex-col gap-2 py-2";
 
 const iconButtonClasses =
-  "inline-flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm backdrop-blur transition hover:border-indigo-300 hover:text-indigo-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400";
+  "inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm backdrop-blur transition hover:border-indigo-300 hover:text-indigo-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400";
 
 function normalizeChildren(children, prefix) {
   if (!isValidArray(children)) return [];
@@ -105,6 +103,7 @@ const NavBar = () => {
   const { data, isLoading } = useSiteOverview();
   const navigation = data?.navigation ?? FALLBACK_NAVIGATION;
   const contact = data?.contact ?? FALLBACK_CONTACT;
+
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [expandedDropdown, setExpandedDropdown] = useState(null);
@@ -150,7 +149,7 @@ const NavBar = () => {
   }, [location.pathname]);
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 24);
+    const handleScroll = () => setScrolled(window.scrollY > 16);
     handleScroll();
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
@@ -162,7 +161,9 @@ const NavBar = () => {
 
   const activeLinkClass = (href, children) => {
     if (isValidArray(children)) {
-      return children.some((child) => isPathActive(location.pathname, child.href));
+      return children.some((child) =>
+        isPathActive(location.pathname, child.href)
+      );
     }
     return isPathActive(location.pathname, href);
   };
@@ -173,11 +174,12 @@ const NavBar = () => {
         className={`fixed inset-x-0 top-0 z-50 border-b border-transparent transition ${
           scrolled
             ? "bg-white/95 border-slate-100 shadow-sm backdrop-blur"
-            : "bg-white/70 backdrop-blur-lg"
+            : "bg-white/80 backdrop-blur-lg"
         }`}
         dir="rtl"
       >
-        <div className="hidden border-b border-white/30 bg-slate-900/95 text-white backdrop-blur-sm lg:block">
+        {/* Top info bar (desktop only) */}
+        <div className="hidden border-b border-slate-100 bg-slate-900/95 text-white lg:block">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2 text-xs sm:px-6">
             <div className="flex items-center gap-4">
               {contact.phone && (
@@ -200,7 +202,9 @@ const NavBar = () => {
               )}
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-slate-200">بوابة الإدارة</span>
+              <span className="hidden text-slate-200 sm:inline">
+                بوابة الإدارة
+              </span>
               <Link
                 to="/login"
                 className="inline-flex items-center gap-2 rounded-full border border-white/40 px-3 py-1 font-semibold text-white transition hover:border-white hover:bg-white/10"
@@ -211,9 +215,16 @@ const NavBar = () => {
             </div>
           </div>
         </div>
+
+        {/* Main bar */}
         <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6">
-          <Link to="/" className="flex items-center gap-3" aria-label="العودة للرئيسية">
-            <span className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-indigo-50">
+          {/* Logo + title */}
+          <Link
+            to="/"
+            className="flex items-center gap-3"
+            aria-label="العودة للرئيسية"
+          >
+            <span className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-indigo-50 border border-indigo-100">
               <img
                 src={logoSrc}
                 alt={navigation.logo?.alt || FALLBACK_NAVIGATION.logo.alt}
@@ -225,13 +236,14 @@ const NavBar = () => {
               <p className="text-xs font-semibold text-indigo-600">
                 {navigation.logo?.title || FALLBACK_NAVIGATION.logo.title}
               </p>
-              <p className="mt-1 text-base font-bold text-slate-900">
+              <p className="mt-1 text-sm sm:text-base font-bold text-slate-900">
                 {navigation.logo?.subtitle || "معًا لتمكين أطفال طيف التوحد"}
               </p>
             </div>
           </Link>
 
-          <nav className="hidden items-center gap-8 lg:flex">
+          {/* Desktop nav */}
+          <nav className="hidden items-center gap-6 lg:flex">
             {primaryLinks.map((link) => {
               const hasChildren = isValidArray(link.children);
               const isActive = activeLinkClass(link.href, link.children);
@@ -240,18 +252,20 @@ const NavBar = () => {
                 const dropdownClasses = [
                   desktopLinkClasses,
                   "inline-flex items-center gap-2 rounded-full px-4 py-2",
-                  isActive ? "text-indigo-600" : "",
+                  isActive
+                    ? "text-indigo-600 bg-indigo-50 shadow-sm"
+                    : "hover:bg-slate-50",
                 ]
                   .filter(Boolean)
                   .join(" ");
 
                 const isDropdownOpen = expandedDropdown === link._key;
                 const dropdownPanelClass = [
-                  "absolute top-full right-0 z-40 min-w-[14rem] rounded-3xl border border-slate-100 bg-white/95 p-4 text-right shadow-2xl backdrop-blur transition",
+                  "absolute top-full right-0 z-40 mt-2 min-w-[15rem] rounded-3xl border border-slate-100 bg-white/95 p-3 text-right shadow-2xl backdrop-blur transition",
                   isDropdownOpen
-                    ? "visible opacity-100 translate-y-4"
-                    : "invisible opacity-0 translate-y-3",
-                  "group-hover:visible group-hover:translate-y-4 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-4 group-focus-within:opacity-100",
+                    ? "visible opacity-100 translate-y-0"
+                    : "invisible opacity-0 translate-y-1",
+                  "group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100",
                 ].join(" ");
 
                 return (
@@ -265,23 +279,23 @@ const NavBar = () => {
                       type="button"
                       className={dropdownClasses}
                       aria-haspopup={true}
-                      aria-expanded={expandedDropdown === link._key}
+                      aria-expanded={isDropdownOpen}
                       onClick={() => toggleDropdown(link._key)}
                     >
                       <span>{link.label}</span>
                       <FiChevronDown
                         className={`h-4 w-4 transition ${
-                          expandedDropdown === link._key ? "rotate-180" : ""
+                          isDropdownOpen ? "rotate-180" : ""
                         }`}
                       />
                     </button>
                     <div className={dropdownPanelClass}>
-                      <div className="flex flex-col gap-2">
+                      <div className="flex flex-col gap-1.5">
                         {link.children.map((child) => (
                           <Link
                             key={child._key}
                             to={child.href}
-                            className="rounded-2xl px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-indigo-50 hover:text-indigo-600"
+                            className="rounded-2xl px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-indigo-50 hover:text-indigo-600"
                           >
                             {child.label}
                           </Link>
@@ -292,7 +306,14 @@ const NavBar = () => {
                 );
               }
 
-              const linkClasses = [desktopLinkClasses, isActive ? "text-indigo-600" : ""].filter(Boolean).join(" ");
+              const linkClasses = [
+                desktopLinkClasses,
+                isActive
+                  ? "text-indigo-600 relative after:absolute after:-bottom-1 after:right-0 after:h-[2px] after:w-6 after:rounded-full after:bg-indigo-500"
+                  : "",
+              ]
+                .filter(Boolean)
+                .join(" ");
 
               return (
                 <Link key={link._key} to={link.href} className={linkClasses}>
@@ -300,6 +321,8 @@ const NavBar = () => {
                 </Link>
               );
             })}
+
+            {/* Right actions */}
             <div className="flex items-center gap-3">
               <Link
                 to="/login"
@@ -319,30 +342,43 @@ const NavBar = () => {
             </div>
           </nav>
 
+          {/* Mobile menu button */}
           <button
             type="button"
-            className={`lg:hidden ${iconButtonClasses} ${isLoading ? "animate-pulse" : ""}`}
+            className={`lg:hidden ${iconButtonClasses} ${
+              isLoading ? "animate-pulse" : ""
+            }`}
             onClick={() => setMobileOpen((prev) => !prev)}
             aria-label={mobileOpen ? "إغلاق القائمة" : "فتح القائمة"}
           >
-            {mobileOpen ? <FiX className="h-6 w-6" /> : <FiMenu className="h-6 w-6" />}
+            {mobileOpen ? (
+              <FiX className="h-6 w-6" />
+            ) : (
+              <FiMenu className="h-6 w-6" />
+            )}
           </button>
         </div>
 
+        {/* Mobile menu */}
         <div
           className={`lg:hidden ${
-            mobileOpen ? "grid-rows-[1fr] border-t border-slate-100" : "grid-rows-[0fr]"
+            mobileOpen
+              ? "grid-rows-[1fr] border-t border-slate-100"
+              : "grid-rows-[0fr]"
           } grid transition-all`}
         >
           <div className="overflow-hidden bg-white/95 backdrop-blur">
-            <div className="space-y-1 px-4 py-4">
+            <div className="space-y-2 px-4 py-4">
               {primaryLinks.map((link) => {
                 const hasChildren = isValidArray(link.children);
                 const isActive = activeLinkClass(link.href, link.children);
 
                 if (hasChildren) {
                   return (
-                    <div key={link._key} className="rounded-3xl border border-slate-100 bg-white">
+                    <div
+                      key={link._key}
+                      className="rounded-3xl border border-slate-100 bg-white"
+                    >
                       <button
                         type="button"
                         className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-right text-sm font-semibold text-slate-700 ${
@@ -385,12 +421,15 @@ const NavBar = () => {
                   <Link
                     key={link._key}
                     to={link.href}
-                    className={`${mobileLinkClasses} ${isActive ? "bg-indigo-50 text-indigo-600" : ""}`}
+                    className={`${mobileLinkClasses} ${
+                      isActive ? "bg-indigo-50 text-indigo-600" : ""
+                    }`}
                   >
                     {link.label}
                   </Link>
                 );
               })}
+
               <Link
                 to="/login"
                 className="block rounded-3xl border border-slate-200 bg-white px-5 py-3 text-center text-base font-semibold text-slate-800 shadow-sm transition hover:border-indigo-200 hover:text-indigo-600"
@@ -409,6 +448,8 @@ const NavBar = () => {
           </div>
         </div>
       </header>
+
+      {/* Spacer to avoid content being under fixed header */}
       <div className="h-[6.5rem] lg:h-[8.5rem]" aria-hidden={true} />
     </>
   );

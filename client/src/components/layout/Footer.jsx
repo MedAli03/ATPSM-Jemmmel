@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   FaEnvelope,
@@ -10,17 +10,16 @@ import {
 } from "react-icons/fa";
 import { useSiteOverview } from "../../hooks/useSiteOverview";
 
-const FALLBACK_FOOTER = {
+const FALLBACK = {
   about: {
     title: "جمعية الحمائم",
     description:
-      "جمعية متخصصة في دعم وتمكين الأطفال ذوي طيف التوحد من خلال برامج تأهيلية وتعليمية متكاملة.",
+      "جمعية تُعنى بدعم وتمكين الأطفال ذوي طيف التوحد عبر برامج تعليمية وتأهيلية.",
   },
   contact: {
-    address: "حي الزياتين، الجمّال - ولاية المنستير، تونس",
+    address: "حي الزياتين، الجمال – المنستير، تونس",
     phone: "+216 73 000 000",
     email: "contact@hamaim.tn",
-    hours: "الاثنين - الجمعة: 8:30 - 17:00",
   },
   columns: [
     {
@@ -28,11 +27,11 @@ const FALLBACK_FOOTER = {
       links: [
         { label: "من نحن", href: "/about" },
         { label: "رسالتنا", href: "/about" },
-        { label: "انضم إلى فريقنا", href: "/contact" },
+        { label: "انضم إلينا", href: "/contact" },
       ],
     },
     {
-      title: "خدمات ومصادر",
+      title: "مصادر",
       links: [
         { label: "ما هو التوحد؟", href: "/what-is-autism" },
         { label: "الأسئلة الشائعة", href: "/faqs" },
@@ -41,188 +40,127 @@ const FALLBACK_FOOTER = {
     },
   ],
   social: [
-    { platform: "facebook", url: "https://www.facebook.com/profile.php?id=100064660632943" },
-    { platform: "instagram", url: "https://www.instagram.com" },
-    { platform: "youtube", url: "https://www.youtube.com" },
+    { platform: "facebook", url: "https://facebook.com" },
+    { platform: "instagram", url: "https://instagram.com" },
+    { platform: "youtube", url: "https://youtube.com" },
   ],
-  newsletter: {
-    title: "انضم إلى النشرة",
-    description: "أحدث أخبار البرامج والفعاليات مباشرة إلى بريدك الإلكتروني.",
-    placeholder: "example@email.com",
-    button: "اشتراك",
-  },
-  copyright: `© ${new Date().getFullYear()} جمعية الحمائم للنهوض بالصحة النفسية. جميع الحقوق محفوظة.`,
+  copyright: `© ${new Date().getFullYear()} جمعية الحمائم. جميع الحقوق محفوظة.`,
 };
 
 const ICONS = {
   facebook: FaFacebookF,
   instagram: FaInstagram,
   youtube: FaYoutube,
-  email: FaEnvelope,
 };
 
 const Footer = () => {
   const { data } = useSiteOverview();
-  const footer = data?.footer ?? FALLBACK_FOOTER;
-  const contact = footer.contact ?? FALLBACK_FOOTER.contact;
-  const columns = useMemo(() => {
-    const source = Array.isArray(footer.columns) && footer.columns.length
-      ? footer.columns
-      : FALLBACK_FOOTER.columns;
+  const footer = data?.footer ?? FALLBACK;
 
-    return source.map((column, columnIndex) => {
-      const linksSource = Array.isArray(column.links) ? column.links : [];
-      const seenLinks = new Set();
+  const columns = useMemo(
+    () =>
+      Array.isArray(footer.columns) && footer.columns.length
+        ? footer.columns
+        : FALLBACK.columns,
+    [footer.columns]
+  );
 
-      const links = linksSource
-        .filter((link) => link && (link.href || link.label))
-        .map((link, linkIndex) => {
-          const baseKey = link.href || link.label || `link-${linkIndex}`;
-          let uniqueKey = baseKey;
-          let attempt = 1;
-
-          while (seenLinks.has(uniqueKey)) {
-            uniqueKey = `${baseKey}-${attempt++}`;
-          }
-
-          seenLinks.add(uniqueKey);
-
-          return {
-            ...link,
-            _key: `${columnIndex}-${uniqueKey}`,
-          };
-        });
-
-      return {
-        ...column,
-        _key: column.title ? `${column.title}-${columnIndex}` : `column-${columnIndex}`,
-        links,
-      };
-    });
-  }, [footer.columns]);
-  const socialLinks = useMemo(
-    () => (Array.isArray(footer.social) && footer.social.length ? footer.social : FALLBACK_FOOTER.social),
+  const socials = useMemo(
+    () =>
+      Array.isArray(footer.social) && footer.social.length
+        ? footer.social
+        : FALLBACK.social,
     [footer.social]
   );
-  const [email, setEmail] = useState("");
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    setEmail("");
-  };
+  const contact = footer.contact ?? FALLBACK.contact;
 
   return (
-    <footer className="relative mt-24 bg-slate-950 text-slate-100" dir="rtl">
-      <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/40 via-slate-950 to-slate-950" aria-hidden={true} />
-      <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <div className="grid gap-12 lg:grid-cols-[1.4fr,1fr,1fr,1fr]">
-          <div className="space-y-6">
-            <Link to="/" className="inline-flex items-center gap-3" aria-label="العودة للرئيسية">
-              <span className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-white/10">
-                <img
-                  src="/logo.jpg"
-                  alt="شعار الجمعية"
-                  className="h-12 w-12 object-cover"
-                  loading="lazy"
-                />
-              </span>
-              <div className="text-right">
-                <p className="text-sm font-semibold text-indigo-200">جمعية الحمائم</p>
-                <p className="text-lg font-bold text-white">للنهوض بالصحة النفسية</p>
-              </div>
-            </Link>
-            <p className="max-w-md text-sm leading-relaxed text-slate-200">
-              {footer.about?.description || FALLBACK_FOOTER.about.description}
-            </p>
-            <div className="flex flex-wrap items-center gap-3 text-sm text-slate-200">
-              <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1">
-                <FaMapMarkerAlt className="h-4 w-4" />
-                {contact.address}
-              </span>
-              <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1">
-                <FaPhone className="h-4 w-4" />
-                {contact.phone}
-              </span>
+    <footer className="bg-slate-950 text-slate-200 pt-14 pb-6 mt-20" dir="rtl">
+      <div className="max-w-7xl mx-auto px-4 grid gap-12 md:grid-cols-3">
+        {/* العمود 1: التعريف الأساسي */}
+        <div className="space-y-4">
+          <Link to="/" className="flex items-center gap-3">
+            <img
+              src="/logo.jpg"
+              alt="Logo"
+              className="h-12 w-12 rounded-xl object-cover border border-slate-700"
+            />
+            <div className="text-right">
+              <p className="text-indigo-300 font-semibold text-sm">
+                {footer.about?.title || FALLBACK.about.title}
+              </p>
+              <p className="text-white font-bold text-lg">
+                للنهوض بالصحة النفسية
+              </p>
             </div>
-            <div className="flex items-center gap-3">
-              {socialLinks.map((social) => {
-                const Icon = ICONS[social.platform] || FaInstagram;
-                return (
-                  <a
-                    key={`${social.platform}-${social.url}`}
-                    href={social.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-white transition hover:bg-white/20"
-                    aria-label={`تابعنا على ${social.platform}`}
-                  >
-                    <Icon className="h-5 w-5" />
-                  </a>
-                );
-              })}
-            </div>
-          </div>
+          </Link>
+          <p className="text-sm text-slate-300 leading-relaxed">
+            {footer.about?.description || FALLBACK.about.description}
+          </p>
 
-          {columns.map((column) => (
-            <div key={column._key} className="space-y-4">
-              <h3 className="text-lg font-semibold text-white">{column.title}</h3>
-              <ul className="space-y-3 text-sm text-slate-300">
-                {column.links.map((link) => (
-                    <li key={link._key}>
-                      <Link
-                        to={link.href}
-                        className="transition hover:text-white hover:underline"
-                      >
-                        {link.label}
-                      </Link>
-                    </li>
-                  ))}
+          <div className="text-sm space-y-2">
+            <p className="flex items-center gap-2">
+              <FaMapMarkerAlt className="text-indigo-400" />
+              {contact.address}
+            </p>
+            <p className="flex items-center gap-2">
+              <FaPhone className="text-indigo-400" />
+              {contact.phone}
+            </p>
+            <p className="flex items-center gap-2">
+              <FaEnvelope className="text-indigo-400" />
+              {contact.email}
+            </p>
+          </div>
+        </div>
+
+        {/* العمود 2: روابط سريعة */}
+        <div className="grid grid-cols-2 gap-8 text-right">
+          {columns.map((col, idx) => (
+            <div key={idx}>
+              <h3 className="text-white font-semibold mb-3">{col.title}</h3>
+              <ul className="space-y-2 text-sm">
+                {col.links.map((link) => (
+                  <li key={link.href}>
+                    <Link
+                      className="hover:text-indigo-400 transition"
+                      to={link.href}
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
               </ul>
             </div>
           ))}
+        </div>
 
-          <div className="space-y-6">
-            <h3 className="text-lg font-semibold text-white">{footer.newsletter?.title || FALLBACK_FOOTER.newsletter.title}</h3>
-            <p className="text-sm text-slate-300">
-              {footer.newsletter?.description || FALLBACK_FOOTER.newsletter.description}
-            </p>
-            <form className="space-y-3" onSubmit={handleSubmit}>
-              <label className="sr-only" htmlFor="newsletter-email">
-                البريد الإلكتروني
-              </label>
-              <input
-                id="newsletter-email"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder={footer.newsletter?.placeholder || FALLBACK_FOOTER.newsletter.placeholder}
-                className="w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-right text-sm text-white placeholder:text-slate-300 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                required
-              />
-              <button
-                type="submit"
-                className="w-full rounded-2xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-indigo-600"
-              >
-                {footer.newsletter?.button || FALLBACK_FOOTER.newsletter.button}
-              </button>
-            </form>
-            <div className="rounded-3xl bg-white/5 p-4 text-sm text-slate-200">
-              <p className="font-semibold text-white">ساعات العمل</p>
-              <p className="mt-2">{contact.hours}</p>
-              <a
-                href={`mailto:${contact.email}`}
-                className="mt-3 inline-flex items-center gap-2 text-indigo-200 transition hover:text-white"
-              >
-                <FaEnvelope className="h-4 w-4" />
-                {contact.email}
-              </a>
-            </div>
+        {/* العمود 3: تواصل اجتماعي */}
+        <div className="text-right space-y-4">
+          <h3 className="text-white font-semibold mb-3">تابعونا</h3>
+          <div className="flex gap-3 justify-start md:justify-end">
+            {socials.map((s, i) => {
+              const Icon = ICONS[s.platform] || FaInstagram;
+              return (
+                <a
+                  key={i}
+                  href={s.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="h-10 w-10 flex items-center justify-center bg-slate-800 border border-slate-700 rounded-full text-slate-200 hover:bg-slate-700 hover:text-white transition"
+                >
+                  <Icon className="h-4 w-4" />
+                </a>
+              );
+            })}
           </div>
         </div>
+      </div>
 
-        <div className="mt-16 border-t border-white/10 pt-6 text-center text-xs text-slate-400">
-          {footer.copyright || FALLBACK_FOOTER.copyright}
-        </div>
+      {/* حقوق النشر */}
+      <div className="text-center text-xs text-slate-500 mt-10 pt-6 border-t border-slate-800">
+        {footer.copyright}
       </div>
     </footer>
   );
