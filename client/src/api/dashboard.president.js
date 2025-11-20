@@ -4,6 +4,9 @@ import client from "./client";
 export const getOverview = (params) =>
   client.get("/dashboard/president/overview", { params }).then((r) => r.data);
 
+export const getRecent = (params) =>
+  client.get("/dashboard/president/recent", { params }).then((r) => r.data);
+
 export const activateYear = (anneeId) =>
   client.post(`/dashboard/president/annees/${anneeId}/activate`).then((r) => r.data);
 
