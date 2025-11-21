@@ -21,19 +21,16 @@ module.exports = (sequelize) =>
         type: DataTypes.ENUM("PARENT", "EDUCATEUR", "DIRECTEUR", "PRESIDENT"),
         allowNull: false,
       },
-      joined_at: {
-        type: DataTypes.DATE,
-        allowNull: false,
-        defaultValue: DataTypes.NOW,
-      },
-      left_at: {
-        type: DataTypes.DATE,
-        allowNull: true,
-      },
+      joined_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+      left_at: { type: DataTypes.DATE, allowNull: true },
     },
     {
       tableName: "thread_participants",
       underscored: true,
       timestamps: true,
+      indexes: [
+        { unique: true, fields: ["thread_id", "user_id"] },
+        { fields: ["user_id"] },
+      ],
     }
   );

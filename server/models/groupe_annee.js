@@ -2,14 +2,14 @@ const { DataTypes } = require("sequelize");
 
 module.exports = (sequelize) =>
   sequelize.define(
-    "ObservationInitiale",
+    "GroupeAnnee",
     {
       id: {
         type: DataTypes.BIGINT.UNSIGNED,
-        autoIncrement: true,
         primaryKey: true,
+        autoIncrement: true,
       },
-      enfant_id: {
+      groupe_id: {
         type: DataTypes.BIGINT.UNSIGNED,
         allowNull: false,
       },
@@ -22,20 +22,20 @@ module.exports = (sequelize) =>
         allowNull: false,
       },
       statut: {
-        type: DataTypes.ENUM("BROUILLON", "SOUMISE", "VALIDEE"),
+        type: DataTypes.ENUM("OUVERT", "FERME"),
         allowNull: false,
-        defaultValue: "BROUILLON",
+        defaultValue: "OUVERT",
       },
-      date_observation: { type: DataTypes.DATEONLY, allowNull: true },
-      contenu: { type: DataTypes.JSON, allowNull: true },
+      effectif_max: { type: DataTypes.SMALLINT, allowNull: true },
     },
     {
-      tableName: "observation_initiale",
+      tableName: "groupes_annees",
       underscored: true,
       timestamps: true,
       indexes: [
-        { unique: true, fields: ["enfant_id", "annee_id"] },
+        { unique: true, fields: ["groupe_id", "annee_id"] },
         { fields: ["educateur_id", "annee_id"] },
+        { fields: ["annee_id", "statut"] },
       ],
     }
   );

@@ -1,19 +1,9 @@
-// models/index.js
 "use strict";
 
 const path = require("path");
 const { Sequelize, DataTypes } = require("sequelize");
-require("dotenv").config();
+require("dotenv").config({ path: path.resolve(process.cwd(), ".env") });
 
-/**
- * ---- Connection ----
- * Required env:
- *  DB_HOST, DB_PORT, DB_USER, DB_PASS, DB_NAME
- * Optional:
- *  SEQ_LOG_SQL=1 (enable SQL logs)
- *  SEQ_LOG_CONNECT=1 (print successful connect)
- *  SEQ_DEBUG_MODELS=1 (print loaded models)
- */
 const sequelize = new Sequelize(
   process.env.DB_NAME,
   process.env.DB_USER,
@@ -24,11 +14,8 @@ const sequelize = new Sequelize(
     dialect: "mysql",
     logging: process.env.SEQ_LOG_SQL === "1" ? console.log : false,
     define: {
-      // expect created_at / updated_at everywhere
       underscored: true,
-      // don't pluralize table names
       freezeTableName: true,
-      // ensure timestamps columns exist
       timestamps: true,
     },
     timezone: "+00:00",
@@ -45,41 +32,24 @@ const sequelize = new Sequelize(
   }
 );
 
-// ---- Load model factories (each should export (sequelize, DataTypes) => Model) ----
 const Utilisateur = require("./utilisateur")(sequelize, DataTypes);
 const UtilisateurSession = require("./utilisateur_session")(sequelize, DataTypes);
 const Enfant = require("./enfant")(sequelize, DataTypes);
 const FicheEnfant = require("./fiche_enfant")(sequelize, DataTypes);
 const ParentsFiche = require("./parents_fiche")(sequelize, DataTypes);
+const ParentsEnfant = require("./parents_enfant")(sequelize, DataTypes);
 const AnneeScolaire = require("./annee_scolaire")(sequelize, DataTypes);
 const Groupe = require("./group")(sequelize, DataTypes);
+const GroupeAnnee = require("./groupe_annee")(sequelize, DataTypes);
+const AffectationEducateur = require("./affectation_educateur")(sequelize, DataTypes);
 const InscriptionEnfant = require("./inscription_enfant")(sequelize, DataTypes);
-const AffectationEducateur = require("./affectation_educateur")(
-  sequelize,
-  DataTypes
-);
-const ObservationInitiale = require("./observation_initiale")(
-  sequelize,
-  DataTypes
-);
-const PEI = require("./projet_educatif_individuel")(sequelize, DataTypes);
-const ActiviteProjet = require("./activite_projet")(sequelize, DataTypes);
+const ObservationInitiale = require("./observation_initiale")(sequelize, DataTypes);
+const PeiVersion = require("./pei_version")(sequelize, DataTypes);
+const PeiObjectif = require("./pei_objectif")(sequelize, DataTypes);
+const PeiActivite = require("./pei_activite")(sequelize, DataTypes);
+const PeiEvaluation = require("./pei_evaluation")(sequelize, DataTypes);
+const PeiHistoryLog = require("./pei_history_log")(sequelize, DataTypes);
 const DailyNote = require("./daily_note")(sequelize, DataTypes);
-const EvaluationProjet = require("./evaluation_projet")(sequelize, DataTypes);
-const RecoAI = require("./recommendation_ai")(sequelize, DataTypes);
-const RecoAIObjectif = require("./recommendation_ai_objectif")(
-  sequelize,
-  DataTypes
-);
-const RecoAIActivite = require("./recommendation_ai_activite")(
-  sequelize,
-  DataTypes
-);
-const HistoriqueProjet = require("./historique_projet")(sequelize, DataTypes);
-const Document = require("./document")(sequelize, DataTypes);
-const Reglement = require("./reglement")(sequelize, DataTypes);
-const Evenement = require("./evenement")(sequelize, DataTypes);
-const Actualite = require("./actualite")(sequelize, DataTypes);
 const Thread = require("./thread")(sequelize, DataTypes);
 const ThreadParticipant = require("./thread_participant")(sequelize, DataTypes);
 const Message = require("./message")(sequelize, DataTypes);
@@ -87,12 +57,15 @@ const MessageAttachment = require("./message_attachment")(sequelize, DataTypes);
 const MessageReadReceipt = require("./message_read_receipt")(sequelize, DataTypes);
 const Attachment = require("./attachment")(sequelize, DataTypes);
 const Notification = require("./notification")(sequelize, DataTypes);
+const Document = require("./document")(sequelize, DataTypes);
+const DocumentRole = require("./document_role")(sequelize, DataTypes);
+const DocumentGroupe = require("./document_groupe")(sequelize, DataTypes);
+const DocumentEnfant = require("./document_enfant")(sequelize, DataTypes);
 
 /* -------------------------------------------------------------------------- */
-/*                             ASSOCIATIONS INLINE                            */
+/*                               CORE RELATIONS                               */
 /* -------------------------------------------------------------------------- */
 
-// Utilisateur (self profile sessions)
 Utilisateur.hasMany(UtilisateurSession, {
   as: "sessions",
   foreignKey: "utilisateur_id",
@@ -102,58 +75,47 @@ UtilisateurSession.belongsTo(Utilisateur, {
   foreignKey: "utilisateur_id",
 });
 
-// Utilisateur (parent) -> enfants
-Utilisateur.hasMany(Enfant, { as: "enfants", foreignKey: "parent_user_id" });
-Enfant.belongsTo(Utilisateur, { as: "parent", foreignKey: "parent_user_id" });
+Utilisateur.hasMany(Enfant, { as: "enfants_crees", foreignKey: "created_by" });
+Enfant.belongsTo(Utilisateur, { as: "createur", foreignKey: "created_by" });
 
-// Enfant -> FicheEnfant (1:1)
 Enfant.hasOne(FicheEnfant, { as: "fiche", foreignKey: "enfant_id" });
 FicheEnfant.belongsTo(Enfant, { as: "enfant", foreignKey: "enfant_id" });
 
-// Enfant -> ParentsFiche (1:1)
-Enfant.hasOne(ParentsFiche, { as: "parents", foreignKey: "enfant_id" });
+Enfant.hasOne(ParentsFiche, { as: "fiche_parents", foreignKey: "enfant_id" });
 ParentsFiche.belongsTo(Enfant, { as: "enfant", foreignKey: "enfant_id" });
 
-// Année -> Groupes
-AnneeScolaire.hasMany(Groupe, { as: "groupes", foreignKey: "annee_id" });
-Groupe.belongsTo(AnneeScolaire, { as: "annee", foreignKey: "annee_id" });
-
-// Utilisateur (manager) -> Groupes (si votre modèle 'group' a manager_id)
-// Utilisateur.hasMany(Groupe, { as: "groupes_crees", foreignKey: "manager_id" });
-// Groupe.belongsTo(Utilisateur, { as: "manager", foreignKey: "manager_id" });
-
-// Inscriptions (groupe<->enfant/année)
-Groupe.hasMany(InscriptionEnfant, {
-  as: "inscriptions",
-  foreignKey: "groupe_id",
+Utilisateur.belongsToMany(Enfant, {
+  through: ParentsEnfant,
+  as: "enfants",
+  foreignKey: "parent_id",
+  otherKey: "enfant_id",
 });
-InscriptionEnfant.belongsTo(Groupe, { as: "groupe", foreignKey: "groupe_id" });
-
-Enfant.hasMany(InscriptionEnfant, {
-  as: "inscriptions",
+Enfant.belongsToMany(Utilisateur, {
+  through: ParentsEnfant,
+  as: "parents",
   foreignKey: "enfant_id",
+  otherKey: "parent_id",
 });
-InscriptionEnfant.belongsTo(Enfant, { as: "enfant", foreignKey: "enfant_id" });
+ParentsEnfant.belongsTo(Utilisateur, { as: "parent", foreignKey: "parent_id" });
+ParentsEnfant.belongsTo(Enfant, { as: "enfant", foreignKey: "enfant_id" });
 
-AnneeScolaire.hasMany(InscriptionEnfant, {
-  as: "inscriptions",
-  foreignKey: "annee_id",
-});
-InscriptionEnfant.belongsTo(AnneeScolaire, {
-  as: "annee",
-  foreignKey: "annee_id",
-});
+AnneeScolaire.hasMany(GroupeAnnee, { as: "groupes_annees", foreignKey: "annee_id" });
+GroupeAnnee.belongsTo(AnneeScolaire, { as: "annee", foreignKey: "annee_id" });
 
-// Affectations (groupe<->educateur/année)
-Groupe.hasMany(AffectationEducateur, {
+Groupe.hasMany(GroupeAnnee, { as: "assignations", foreignKey: "groupe_id" });
+GroupeAnnee.belongsTo(Groupe, { as: "groupe", foreignKey: "groupe_id" });
+
+Utilisateur.hasMany(GroupeAnnee, { as: "groupes_diriges", foreignKey: "educateur_id" });
+GroupeAnnee.belongsTo(Utilisateur, { as: "educateur", foreignKey: "educateur_id" });
+
+GroupeAnnee.hasMany(AffectationEducateur, {
   as: "affectations",
-  foreignKey: "groupe_id",
+  foreignKey: "groupe_annee_id",
 });
-AffectationEducateur.belongsTo(Groupe, {
-  as: "groupe",
-  foreignKey: "groupe_id",
+AffectationEducateur.belongsTo(GroupeAnnee, {
+  as: "groupe_annee",
+  foreignKey: "groupe_annee_id",
 });
-
 Utilisateur.hasMany(AffectationEducateur, {
   as: "affectations",
   foreignKey: "educateur_id",
@@ -163,24 +125,22 @@ AffectationEducateur.belongsTo(Utilisateur, {
   foreignKey: "educateur_id",
 });
 
-AnneeScolaire.hasMany(AffectationEducateur, {
-  as: "affectations",
-  foreignKey: "annee_id",
+GroupeAnnee.hasMany(InscriptionEnfant, {
+  as: "inscriptions",
+  foreignKey: "groupe_annee_id",
 });
-AffectationEducateur.belongsTo(AnneeScolaire, {
-  as: "annee",
-  foreignKey: "annee_id",
+InscriptionEnfant.belongsTo(GroupeAnnee, {
+  as: "groupe_annee",
+  foreignKey: "groupe_annee_id",
 });
+Enfant.hasMany(InscriptionEnfant, { as: "inscriptions", foreignKey: "enfant_id" });
+InscriptionEnfant.belongsTo(Enfant, { as: "enfant", foreignKey: "enfant_id" });
+AnneeScolaire.hasMany(InscriptionEnfant, { as: "inscriptions", foreignKey: "annee_id" });
+InscriptionEnfant.belongsTo(AnneeScolaire, { as: "annee", foreignKey: "annee_id" });
 
-// Observation initiale
-ObservationInitiale.belongsTo(Enfant, {
-  as: "enfant",
-  foreignKey: "enfant_id",
-});
-ObservationInitiale.belongsTo(Utilisateur, {
-  as: "educateur",
-  foreignKey: "educateur_id",
-});
+ObservationInitiale.belongsTo(Enfant, { as: "enfant", foreignKey: "enfant_id" });
+ObservationInitiale.belongsTo(AnneeScolaire, { as: "annee", foreignKey: "annee_id" });
+ObservationInitiale.belongsTo(Utilisateur, { as: "educateur", foreignKey: "educateur_id" });
 Enfant.hasMany(ObservationInitiale, {
   as: "observations_initiales",
   foreignKey: "enfant_id",
@@ -190,114 +150,76 @@ Utilisateur.hasMany(ObservationInitiale, {
   foreignKey: "educateur_id",
 });
 
-// PEI
-PEI.belongsTo(Enfant, { as: "enfant", foreignKey: "enfant_id" });
-PEI.belongsTo(Utilisateur, { as: "educateur", foreignKey: "educateur_id" });
-PEI.belongsTo(AnneeScolaire, { as: "annee", foreignKey: "annee_id" });
-PEI.belongsTo(PEI, { as: "precedent", foreignKey: "precedent_projet_id" });
-Enfant.hasMany(PEI, { as: "peis", foreignKey: "enfant_id" });
-Utilisateur.hasMany(PEI, { as: "peis", foreignKey: "educateur_id" });
-AnneeScolaire.hasMany(PEI, { as: "peis", foreignKey: "annee_id" });
-
-// Activités & Notes
-ActiviteProjet.belongsTo(PEI, { as: "projet", foreignKey: "projet_id" });
-ActiviteProjet.belongsTo(Utilisateur, {
-  as: "educateur",
-  foreignKey: "educateur_id",
+PeiVersion.belongsTo(Enfant, { as: "enfant", foreignKey: "enfant_id" });
+Enfant.hasMany(PeiVersion, { as: "pei_versions", foreignKey: "enfant_id" });
+PeiVersion.belongsTo(AnneeScolaire, { as: "annee", foreignKey: "annee_id" });
+AnneeScolaire.hasMany(PeiVersion, { as: "pei_versions", foreignKey: "annee_id" });
+PeiVersion.belongsTo(GroupeAnnee, { as: "groupe_annee", foreignKey: "groupe_annee_id" });
+PeiVersion.belongsTo(ObservationInitiale, {
+  as: "observation",
+  foreignKey: "observation_id",
 });
-ActiviteProjet.belongsTo(Enfant, { as: "enfant", foreignKey: "enfant_id" });
-PEI.hasMany(ActiviteProjet, { as: "activites", foreignKey: "projet_id" });
-
-DailyNote.belongsTo(PEI, { as: "projet", foreignKey: "projet_id" });
-DailyNote.belongsTo(Utilisateur, {
-  as: "educateur",
-  foreignKey: "educateur_id",
-});
-DailyNote.belongsTo(Enfant, { as: "enfant", foreignKey: "enfant_id" });
-PEI.hasMany(DailyNote, { as: "notes", foreignKey: "projet_id" });
-
-// Évaluation
-EvaluationProjet.belongsTo(PEI, { as: "projet", foreignKey: "projet_id" });
-EvaluationProjet.belongsTo(Utilisateur, {
-  as: "educateur",
-  foreignKey: "educateur_id",
-});
-PEI.hasMany(EvaluationProjet, { as: "evaluations", foreignKey: "projet_id" });
-
-// Recommandation IA
-RecoAI.belongsTo(Enfant, { as: "enfant", foreignKey: "enfant_id" });
-RecoAI.belongsTo(Utilisateur, { as: "educateur", foreignKey: "educateur_id" });
-RecoAI.belongsTo(EvaluationProjet, {
-  as: "evaluation",
-  foreignKey: "evaluation_id",
-});
-RecoAI.belongsTo(PEI, { as: "source", foreignKey: "projet_source_id" });
-RecoAI.belongsTo(PEI, { as: "cible", foreignKey: "projet_cible_id" });
-Enfant.hasMany(RecoAI, { as: "recommandations", foreignKey: "enfant_id" });
-Utilisateur.hasMany(RecoAI, {
-  as: "recommandations",
-  foreignKey: "educateur_id",
+PeiVersion.belongsTo(Utilisateur, { as: "createur", foreignKey: "created_by" });
+PeiVersion.belongsTo(PeiVersion, {
+  as: "precedent",
+  foreignKey: "previous_version_id",
 });
 
-RecoAIObjectif.belongsTo(RecoAI, {
-  as: "reco",
-  foreignKey: "recommendation_id",
-});
-RecoAI.hasMany(RecoAIObjectif, {
+PeiVersion.hasMany(PeiObjectif, {
   as: "objectifs",
-  foreignKey: "recommendation_id",
+  foreignKey: "pei_version_id",
 });
-
-RecoAIActivite.belongsTo(RecoAI, {
-  as: "reco",
-  foreignKey: "recommendation_id",
+PeiObjectif.belongsTo(PeiVersion, {
+  as: "pei_version",
+  foreignKey: "pei_version_id",
 });
-RecoAI.hasMany(RecoAIActivite, {
-  as: "activites",
-  foreignKey: "recommendation_id",
+PeiObjectif.hasMany(PeiActivite, { as: "activites", foreignKey: "objectif_id" });
+PeiActivite.belongsTo(PeiObjectif, { as: "objectif", foreignKey: "objectif_id" });
+PeiActivite.belongsTo(Utilisateur, { as: "createur", foreignKey: "created_by" });
+
+PeiVersion.hasMany(PeiEvaluation, {
+  as: "evaluations",
+  foreignKey: "pei_version_id",
 });
-RecoAIActivite.belongsTo(ActiviteProjet, {
-  as: "created_activite",
-  foreignKey: "created_activite_id",
+PeiEvaluation.belongsTo(PeiVersion, {
+  as: "pei_version",
+  foreignKey: "pei_version_id",
 });
+PeiEvaluation.belongsTo(PeiObjectif, { as: "objectif", foreignKey: "objectif_id" });
+PeiEvaluation.belongsTo(Utilisateur, { as: "educateur", foreignKey: "educateur_id" });
 
-// Historique PEI
-HistoriqueProjet.belongsTo(PEI, { as: "projet", foreignKey: "projet_id" });
-HistoriqueProjet.belongsTo(Utilisateur, {
-  as: "educateur",
-  foreignKey: "educateur_id",
+PeiVersion.hasMany(PeiHistoryLog, {
+  as: "historique",
+  foreignKey: "pei_version_id",
 });
-PEI.hasMany(HistoriqueProjet, { as: "historiques", foreignKey: "projet_id" });
+PeiHistoryLog.belongsTo(PeiVersion, {
+  as: "pei_version",
+  foreignKey: "pei_version_id",
+});
+PeiHistoryLog.belongsTo(Utilisateur, { as: "auteur", foreignKey: "performed_by" });
 
-// Documents / Règlements / Événements / Actualités
-Document.belongsTo(Utilisateur, { as: "admin", foreignKey: "admin_id" });
-Utilisateur.hasMany(Document, { as: "documents", foreignKey: "admin_id" });
+DailyNote.belongsTo(Enfant, { as: "enfant", foreignKey: "enfant_id" });
+Enfant.hasMany(DailyNote, { as: "daily_notes", foreignKey: "enfant_id" });
+DailyNote.belongsTo(Utilisateur, { as: "educateur", foreignKey: "educateur_id" });
+Utilisateur.hasMany(DailyNote, { as: "daily_notes", foreignKey: "educateur_id" });
+DailyNote.belongsTo(PeiVersion, { as: "pei_version", foreignKey: "pei_version_id" });
+PeiVersion.hasMany(DailyNote, { as: "daily_notes", foreignKey: "pei_version_id" });
+DailyNote.belongsTo(PeiObjectif, { as: "objectif", foreignKey: "pei_objectif_id" });
+PeiObjectif.hasMany(DailyNote, { as: "daily_notes", foreignKey: "pei_objectif_id" });
 
-Reglement.belongsTo(Document, { as: "document", foreignKey: "document_id" });
-Document.hasMany(Reglement, { as: "reglements", foreignKey: "document_id" });
+Thread.belongsTo(Enfant, { as: "enfant", foreignKey: "enfant_id" });
+Enfant.hasMany(Thread, { as: "threads", foreignKey: "enfant_id" });
+Thread.belongsTo(Utilisateur, { as: "createur", foreignKey: "created_by" });
+Utilisateur.hasMany(Thread, { as: "threads_crees", foreignKey: "created_by" });
+Thread.belongsTo(Message, { as: "lastMessage", foreignKey: "last_message_id" });
 
-Evenement.belongsTo(Document, { as: "document", foreignKey: "document_id" });
-Evenement.belongsTo(Utilisateur, { as: "admin", foreignKey: "admin_id" });
-Utilisateur.hasMany(Evenement, { as: "evenements", foreignKey: "admin_id" });
-
-Actualite.belongsTo(Utilisateur, { as: "admin", foreignKey: "admin_id" });
-Utilisateur.hasMany(Actualite, { as: "actualites", foreignKey: "admin_id" });
-
-// Messagerie
 Thread.hasMany(ThreadParticipant, {
   as: "participants",
   foreignKey: "thread_id",
   onDelete: "CASCADE",
 });
-ThreadParticipant.belongsTo(Thread, {
-  as: "thread",
-  foreignKey: "thread_id",
-});
-
-ThreadParticipant.belongsTo(Utilisateur, {
-  as: "user",
-  foreignKey: "user_id",
-});
+ThreadParticipant.belongsTo(Thread, { as: "thread", foreignKey: "thread_id" });
+ThreadParticipant.belongsTo(Utilisateur, { as: "user", foreignKey: "user_id" });
 Utilisateur.hasMany(ThreadParticipant, {
   as: "thread_participations",
   foreignKey: "user_id",
@@ -305,16 +227,12 @@ Utilisateur.hasMany(ThreadParticipant, {
 
 Thread.hasMany(Message, { as: "messages", foreignKey: "thread_id" });
 Message.belongsTo(Thread, { as: "thread", foreignKey: "thread_id" });
-
-Thread.belongsTo(Message, { as: "lastMessage", foreignKey: "last_message_id" });
-
 Message.belongsTo(Utilisateur, { as: "sender", foreignKey: "sender_id" });
 Utilisateur.hasMany(Message, { as: "messages_envoyes", foreignKey: "sender_id" });
 
 Message.hasMany(MessageReadReceipt, {
   as: "readReceipts",
   foreignKey: "message_id",
-  onDelete: "CASCADE",
 });
 MessageReadReceipt.belongsTo(Message, {
   as: "message",
@@ -324,11 +242,12 @@ MessageReadReceipt.belongsTo(Utilisateur, {
   as: "user",
   foreignKey: "user_id",
 });
-
-Attachment.belongsTo(Utilisateur, {
-  as: "uploader",
-  foreignKey: "uploader_id",
+Utilisateur.hasMany(MessageReadReceipt, {
+  as: "message_read_receipts",
+  foreignKey: "user_id",
 });
+
+Attachment.belongsTo(Utilisateur, { as: "uploader", foreignKey: "uploader_id" });
 Utilisateur.hasMany(Attachment, { as: "attachments", foreignKey: "uploader_id" });
 
 Message.belongsToMany(Attachment, {
@@ -343,7 +262,7 @@ Attachment.belongsToMany(Message, {
   foreignKey: "attachment_id",
   otherKey: "message_id",
 });
-// Notifications
+
 Notification.belongsTo(Utilisateur, {
   as: "utilisateur",
   foreignKey: "utilisateur_id",
@@ -353,6 +272,19 @@ Utilisateur.hasMany(Notification, {
   foreignKey: "utilisateur_id",
 });
 
+Document.belongsTo(Utilisateur, { as: "auteur", foreignKey: "created_by" });
+Utilisateur.hasMany(Document, { as: "documents", foreignKey: "created_by" });
+Document.hasMany(DocumentRole, { as: "roles", foreignKey: "document_id" });
+DocumentRole.belongsTo(Document, { as: "document", foreignKey: "document_id" });
+Document.hasMany(DocumentGroupe, { as: "groupes", foreignKey: "document_id" });
+DocumentGroupe.belongsTo(Document, { as: "document", foreignKey: "document_id" });
+DocumentGroupe.belongsTo(Groupe, { as: "groupe", foreignKey: "groupe_id" });
+Groupe.hasMany(DocumentGroupe, { as: "documents", foreignKey: "groupe_id" });
+Document.hasMany(DocumentEnfant, { as: "enfants", foreignKey: "document_id" });
+DocumentEnfant.belongsTo(Document, { as: "document", foreignKey: "document_id" });
+DocumentEnfant.belongsTo(Enfant, { as: "enfant", foreignKey: "enfant_id" });
+Enfant.hasMany(DocumentEnfant, { as: "documents", foreignKey: "enfant_id" });
+
 /* -------------------------------------------------------------------------- */
 /*                                   EXPORTS                                   */
 /* -------------------------------------------------------------------------- */
@@ -361,26 +293,23 @@ const db = {
   sequelize,
   Sequelize,
   Utilisateur,
+  UtilisateurSession,
   Enfant,
   FicheEnfant,
   ParentsFiche,
+  ParentsEnfant,
   AnneeScolaire,
   Groupe,
-  InscriptionEnfant,
+  GroupeAnnee,
   AffectationEducateur,
+  InscriptionEnfant,
   ObservationInitiale,
-  PEI,
-  ActiviteProjet,
+  PeiVersion,
+  PeiObjectif,
+  PeiActivite,
+  PeiEvaluation,
+  PeiHistoryLog,
   DailyNote,
-  EvaluationProjet,
-  RecoAI,
-  RecoAIObjectif,
-  RecoAIActivite,
-  HistoriqueProjet,
-  Document,
-  Reglement,
-  Evenement,
-  Actualite,
   Thread,
   ThreadParticipant,
   Message,
@@ -388,32 +317,18 @@ const db = {
   MessageReadReceipt,
   Attachment,
   Notification,
-  UtilisateurSession,
+  Document,
+  DocumentRole,
+  DocumentGroupe,
+  DocumentEnfant,
 };
 
-// Optional: print loaded models once (helps debug name mismatches)
 if (process.env.SEQ_DEBUG_MODELS === "1") {
   // eslint-disable-next-line no-console
   console.log(
     "Loaded models:",
-    Object.keys(db)
-      .filter((k) => !["sequelize", "Sequelize"].includes(k))
-      .sort()
+    Object.keys(db).filter((k) => !["sequelize", "Sequelize"].includes(k))
   );
 }
-
-// Optional: test connection once at boot
-(async () => {
-  try {
-    await sequelize.authenticate();
-    if (process.env.SEQ_LOG_CONNECT === "1") {
-      // eslint-disable-next-line no-console
-      console.log("✅ DB connection OK");
-    }
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error("❌ DB connection error:", err.message);
-  }
-})();
 
 module.exports = db;
