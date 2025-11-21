@@ -12,6 +12,11 @@ module.exports = (sequelize, DataTypes) => {
       libelle: { type: DataTypes.STRING(20), allowNull: false, unique: true }, // "2025-2026"
       date_debut: { type: DataTypes.DATEONLY, allowNull: false },
       date_fin: { type: DataTypes.DATEONLY, allowNull: false },
+      statut: {
+        type: DataTypes.ENUM("PLANIFIEE", "ACTIVE", "ARCHIVEE"),
+        allowNull: false,
+        defaultValue: "PLANIFIEE",
+      },
       est_active: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
@@ -32,7 +37,7 @@ module.exports = (sequelize, DataTypes) => {
       ],
       defaultScope: { order: [["date_debut", "DESC"]] },
       scopes: {
-        active: { where: { est_active: true } },
+        active: { where: { est_active: true, statut: "ACTIVE" } },
       },
       validate: {
         datesCoherentes() {

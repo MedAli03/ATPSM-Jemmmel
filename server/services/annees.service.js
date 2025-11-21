@@ -20,6 +20,7 @@ exports.getActive = async () => repo.findActive();
 exports.create = async (payload) => {
   // Ne pas activer à la création
   if (payload.est_active === true) payload.est_active = false;
+  if (payload.statut) delete payload.statut;
 
   // Unicité libelle
   const existing = await AnneeScolaire.findOne({
@@ -35,6 +36,19 @@ exports.create = async (payload) => {
 
 exports.update = async (id, payload) => {
   if (payload.est_active !== undefined) delete payload.est_active;
+  if (payload.statut !== undefined) delete payload.statut;
+
+  const existing = await repo.findById(id);
+  if (!existing) {
+    const err = new Error("Année scolaire introuvable");
+    err.status = 404;
+    throw err;
+  }
+  if (existing.statut === "ARCHIVEE") {
+    const err = new Error("Modification impossible sur une année archivée");
+    err.status = 409;
+    throw err;
+  }
 
   if (payload.libelle) {
     const dup = await AnneeScolaire.findOne({
@@ -47,12 +61,7 @@ exports.update = async (id, payload) => {
     }
   }
 
-  const nb = await repo.updateById(id, payload);
-  if (nb === 0) {
-    const err = new Error("Année scolaire introuvable");
-    err.status = 404;
-    throw err;
-  }
+  await repo.updateById(id, payload);
   return repo.findById(id);
 };
 
@@ -81,9 +90,31 @@ exports.activate = async (id) => {
     err.status = 404;
     throw err;
   }
+  if (found.statut === "ARCHIVEE") {
+    const err = new Error("Impossible d'activer une année archivée");
+    err.status = 409;
+    throw err;
+  }
+
   const nb = await repo.setActive(id);
   if (!nb) {
     const err = new Error("Activation non effectuée");
+    err.status = 500;
+    throw err;
+  }
+  return repo.findById(id);
+};
+
+exports.archive = async (id) => {
+  const found = await repo.findById(id);
+  if (!found) {
+    const err = new Error("Année scolaire introuvable");
+    err.status = 404;
+    throw err;
+  }
+  const nb = await repo.archive(id);
+  if (!nb) {
+    const err = new Error("Archivage non effectué");
     err.status = 500;
     throw err;
   }

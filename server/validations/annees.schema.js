@@ -3,6 +3,7 @@
 const Joi = require("joi");
 
 const libelleRegex = /^\d{4}-\d{4}$/; // ex: 2025-2026
+const statutEnum = Joi.string().valid("PLANIFIEE", "ACTIVE", "ARCHIVEE");
 
 const idParamSchema = Joi.object({
   id: Joi.number().integer().positive().required(),
@@ -10,6 +11,7 @@ const idParamSchema = Joi.object({
 
 const listQuerySchema = Joi.object({
   libelle: Joi.string().min(4).max(20).optional(),
+  statut: statutEnum.optional(),
 });
 
 const createAnneeSchema = Joi.object({

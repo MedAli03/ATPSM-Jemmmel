@@ -4,7 +4,10 @@ const service = require("../services/annees.service");
 
 exports.list = async (req, res, next) => {
   try {
-    const data = await service.list({ libelle: req.query.libelle });
+    const data = await service.list({
+      libelle: req.query.libelle,
+      statut: req.query.statut,
+    });
     res.json({ ok: true, data });
   } catch (err) {
     next(err);
@@ -50,6 +53,15 @@ exports.update = async (req, res, next) => {
 exports.activate = async (req, res, next) => {
   try {
     const data = await service.activate(req.params.id);
+    res.json({ ok: true, data });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.archive = async (req, res, next) => {
+  try {
+    const data = await service.archive(req.params.id);
     res.json({ ok: true, data });
   } catch (err) {
     next(err);

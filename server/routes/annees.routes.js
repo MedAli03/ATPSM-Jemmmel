@@ -63,6 +63,14 @@ router.post(
   ctrl.activate
 );
 
+// ARCHIVE
+router.post(
+  "/:id/archive",
+  requireRole("PRESIDENT"),
+  validate(idParamSchema, "params"),
+  ctrl.archive
+);
+
 // DELETE
 router.delete(
   "/:id",
