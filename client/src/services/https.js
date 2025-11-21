@@ -30,8 +30,23 @@ const http = axios.create({
 });
 
 http.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  // Prefer the token saved in the persisted auth object (used by AuthContext).
+  // Fallback to the legacy "token" key for backward compatibility.
+  let token = null;
+  try {
+    const rawAuth = localStorage.getItem("auth");
+    if (rawAuth) token = JSON.parse(rawAuth)?.token;
+  } catch (err) {
+    // ignore JSON parse errors and fall back
+  }
+
+  if (!token) {
+    token = localStorage.getItem("token");
+  }
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
   return config;
 });
 
