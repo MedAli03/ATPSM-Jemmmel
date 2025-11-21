@@ -84,7 +84,10 @@ export default function NewThreadModal({ open, onClose, onCreated }) {
       onCreated?.(data?.thread, data?.message);
       onClose?.();
     },
-    onError: () => toast?.("تعذّر إنشاء المحادثة", "error"),
+    onError: (error) => {
+      const serverMessage = error?.response?.data?.message || "تعذّر إنشاء المحادثة";
+      toast?.(serverMessage, "error");
+    },
   });
 
   const handleSubmit = (event) => {

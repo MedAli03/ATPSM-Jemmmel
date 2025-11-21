@@ -21,7 +21,14 @@ export const messagingApi = {
     return data.data;
   },
   async createThread(payload) {
-    const { data } = await http.post(`/messages/threads`, payload);
+    const participantIds = Array.isArray(payload?.participantIds)
+      ? payload.participantIds.map((id) => Number(id)).filter((id) => Number.isFinite(id))
+      : [];
+    const requestBody = {
+      ...payload,
+      participantIds,
+    };
+    const { data } = await http.post(`/messages/threads`, requestBody);
     return data.data;
   },
   async markRead(threadId, upToMessageId) {
