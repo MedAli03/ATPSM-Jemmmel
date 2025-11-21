@@ -19,6 +19,11 @@ exports.findAndCount = async ({ page, pageSize, where }) => {
         as: "educateur",
         attributes: ["id", "nom", "prenom", "email"],
       },
+      {
+        model: Utilisateur,
+        as: "validateur",
+        attributes: ["id", "nom", "prenom", "email"],
+      },
     ],
     order: [["date_creation", "DESC"]],
     limit: pageSize,
@@ -34,6 +39,11 @@ exports.findByIdFull = async (id) => {
       {
         model: Utilisateur,
         as: "educateur",
+        attributes: ["id", "nom", "prenom", "email"],
+      },
+      {
+        model: Utilisateur,
+        as: "validateur",
         attributes: ["id", "nom", "prenom", "email"],
       },
       {

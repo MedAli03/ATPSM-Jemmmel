@@ -16,6 +16,8 @@ module.exports = (sequelize) => sequelize.define('PEI', {
     defaultValue: "EN_ATTENTE_VALIDATION",
   },
   est_actif: { type: DataTypes.BOOLEAN, allowNull: true, defaultValue: null },
+  valide_par_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: true },
+  date_validation: { type: DataTypes.DATE, allowNull: true },
   precedent_projet_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: true },
   date_derniere_maj: DataTypes.DATE
 }, { tableName: 'projet_educatif_individuel', underscored: true, timestamps: true });

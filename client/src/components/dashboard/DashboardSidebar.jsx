@@ -398,6 +398,14 @@ const NAV_CONFIG = {
         ],
       },
       {
+        title: "مشاريع PEI",
+        icon: "pei",
+        defaultOpen: true,
+        items: [
+          { to: "/dashboard/president/peis", label: "قائمة PEI", icon: "pei" },
+        ],
+      },
+      {
         title: "المحتوى والتواصل",
         icon: "news",
         defaultOpen: true,

@@ -18,6 +18,12 @@ const PEI_STATUS = {
   REFUSED: "REFUSE",
 };
 
+// Lifecycle (aligné avec les rôles)
+// - Création: EN_ATTENTE_VALIDATION (éducateur/directeur/president)
+// - Validation: VALIDE (PRESIDENT ou DIRECTEUR via /:id/validate)
+// - Clôture/archivage: CLOTURE (EDUCATEUR, DIRECTEUR, PRESIDENT via /:id/close)
+// - REFUSE reste possible pour cohérence historique
+
 exports.list = async (q, currentUser) => {
   const page = Math.max(1, Number(q.page || 1));
   const pageSize = Math.min(100, Math.max(1, Number(q.pageSize || 20)));
@@ -291,6 +297,8 @@ exports.validate = async (id, userId) => {
       {
         statut: PEI_STATUS.VALID,
         est_actif: true,
+        valide_par_id: userId,
+        date_validation: new Date(),
         date_derniere_maj: new Date(),
       },
       t

@@ -10,6 +10,7 @@ import AllEducators from "../pages/dashboard/educators/AllEducators";
 import AllParents from "../pages/dashboard/parents/AllParents";
 import ParentAccountCreator from "../pages/dashboard/parents/ParentAccountCreator";
 import AllEvents from "../pages/dashboard/events/AllEvents";
+import PresidentPeiList from "../pages/dashboard/pei/PresidentPeiList";
 
 // Lazy pages
 const HomePage = lazy(() => import("../pages/HomePage"));
@@ -103,6 +104,7 @@ const protectedRoutes = [
         element: ParentAccountCreator,
         title: "إنشاء حساب ولي",
       },
+      { path: "peis", element: PresidentPeiList, title: "مشاريع PEI" },
       { path: "groups", element: AllGroups, title: "المجموعات" },
       { path: "educators", element: AllEducators, title: "المربّون" },
       { path: "news", element: AllNews, title: "الأخبار" },
