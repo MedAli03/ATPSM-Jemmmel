@@ -39,6 +39,55 @@ router.get(
   })
 );
 
+// إنشاء محادثة جديدة مع رسالة افتتاحية (يدمج الرئيس كمشارك تلقائي)
+router.post(
+  "/threads",
+  asyncHandler(async (req, res) => {
+    const { participantIds, title, text, isGroup } = req.body || {};
+
+    const ids = Array.isArray(participantIds)
+      ? participantIds.map((id) => Number(id)).filter((id) => Number.isInteger(id))
+      : [];
+
+    if (!ids.length) {
+      throw new ApiError({
+        status: 400,
+        code: "THREAD_PARTICIPANTS_REQUIRED",
+        message: "يجب اختيار مستلمين للمحادثة",
+      });
+    }
+
+    if (!text || typeof text !== "string" || !text.trim()) {
+      throw new ApiError({
+        status: 400,
+        code: "MESSAGE_REQUIRED",
+        message: "نص الرسالة الافتتاحية مطلوب",
+      });
+    }
+
+    const normalizedIsGroup = typeof isGroup === "boolean" ? isGroup : ids.length > 1;
+
+    const thread = await messagesService.createThread({
+      actorId: req.user.id,
+      participantIds: ids,
+      title: title || null,
+      isGroup: normalizedIsGroup,
+    });
+
+    // إرسال أول رسالة في الخيط الجديد
+    const message = await messagesService.sendMessage({
+      userId: req.user.id,
+      threadId: thread.id,
+      text: text.trim(),
+      attachments: [],
+    });
+
+    const fullThread = await messagesService.getThread(req.user.id, thread.id, req.user.role);
+
+    res.status(201).json({ data: { thread: fullThread, message }, meta: null });
+  })
+);
+
 router.get(
   "/threads/:threadId",
   asyncHandler(async (req, res) => {

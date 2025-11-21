@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate, useOutletContext } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { messagingApi } from "../../services/messagingApi";
 import ThreadItem from "../../components/messages/ThreadItem";
+import NewThreadModal from "../../components/messages/NewThreadModal";
 
 const filters = [
   { id: "all", label: "الكل" },
@@ -21,12 +22,14 @@ export default function ThreadsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const realtime = useOutletContext();
+  const queryClient = useQueryClient();
   const searchRef = useRef(null);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [density, setDensity] = useState("comfortable");
   const [focusedIndex, setFocusedIndex] = useState(null);
+  const [showNewModal, setShowNewModal] = useState(false);
 
   useEffect(() => {
     const id = setTimeout(() => setDebouncedSearch(search), 300);
@@ -72,6 +75,26 @@ export default function ThreadsPage() {
     overscan: 8,
   });
 
+  const handleSelectThread = useCallback(
+    (thread) => {
+      if (!thread) return;
+      setFocusedIndex(null);
+      navigate(`${thread.id}`);
+    },
+    [navigate]
+  );
+
+  const handleThreadCreated = useCallback(
+    (thread) => {
+      if (!thread) return;
+      setShowNewModal(false);
+      setFilter("all");
+      queryClient.invalidateQueries({ queryKey: ["threads"] });
+      navigate(`${thread.id}`);
+    },
+    [navigate, queryClient]
+  );
+
   useEffect(() => {
     const handler = (event) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
@@ -108,15 +131,6 @@ export default function ThreadsPage() {
     return () => window.removeEventListener("keydown", handler);
   }, [threads, focusedIndex, rowVirtualizer, handleSelectThread]);
 
-  const handleSelectThread = useCallback(
-    (thread) => {
-      if (!thread) return;
-      setFocusedIndex(null);
-      navigate(`${thread.id}`);
-    },
-    [navigate]
-  );
-
   const isLoading = threadsQuery.isLoading;
   const isFetching = threadsQuery.isFetching;
 
@@ -127,21 +141,21 @@ export default function ThreadsPage() {
       <div className="flex flex-1 min-h-0 flex-col gap-6 rounded-3xl bg-white p-4 shadow-lg dark:bg-slate-900 lg:flex-row">
         <section className="flex h-full min-h-0 w-full flex-col lg:w-[360px]">
           <header className="sticky top-0 z-10 flex flex-col gap-4 border-b border-slate-100 bg-white pb-4 dark:border-slate-700 dark:bg-slate-900">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-xl font-bold text-slate-900 dark:text-white">الرسائل</h1>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">
-                  {realtime?.connected ? "متصل بزمن حقيقي" : "وضع التحديث التلقائي كل ١٥ ثانية"}
-                </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-xl font-bold text-slate-900 dark:text-white">الرسائل</h1>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">
+                    {realtime?.connected ? "متصل بزمن حقيقي" : "وضع التحديث التلقائي كل ١٥ ثانية"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowNewModal(true)}
+                  className="rounded-full bg-primary-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-primary-700"
+                >
+                  + محادثة جديدة
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => alert("TODO: إنشاء محادثة جديدة")}
-                className="rounded-full bg-primary-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-primary-700"
-              >
-                + محادثة جديدة
-              </button>
-            </div>
             <div className="flex flex-col gap-3">
               <input
                 ref={searchRef}
@@ -240,6 +254,11 @@ export default function ThreadsPage() {
       <section className="flex-1 lg:hidden">
         <Outlet context={realtime} />
       </section>
+      <NewThreadModal
+        open={showNewModal}
+        onClose={() => setShowNewModal(false)}
+        onCreated={handleThreadCreated}
+      />
     </div>
   );
 }

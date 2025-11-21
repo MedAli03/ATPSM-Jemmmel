@@ -20,6 +20,10 @@ export const messagingApi = {
     const { data } = await http.post(`/messages/threads/${threadId}/messages`, payload);
     return data.data;
   },
+  async createThread(payload) {
+    const { data } = await http.post(`/messages/threads`, payload);
+    return data.data;
+  },
   async markRead(threadId, upToMessageId) {
     const { data } = await http.post(`/messages/threads/${threadId}/read`, {
       upToMessageId,
