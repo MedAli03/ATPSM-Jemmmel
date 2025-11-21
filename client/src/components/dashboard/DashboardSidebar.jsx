@@ -381,6 +381,11 @@ const NAV_CONFIG = {
           { to: "/dashboard/president/users", label: "كلّ المستخدمين", icon: "users" },
           { to: "/dashboard/president/educators", label: "المربّون", icon: "users" },
           { to: "/dashboard/president/parents", label: "الأولياء", icon: "users" },
+          {
+            to: "/dashboard/president/parent-accounts",
+            label: "إنشاء حساب ولي",
+            icon: "users",
+          },
         ],
       },
       {

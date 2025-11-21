@@ -15,7 +15,10 @@ exports.list = async (q, currentUser) => {
       limit: q.limit,
     });
   }
-  return repo.findAll({ q: q.q }, { page: q.page, limit: q.limit });
+  return repo.findAll(
+    { q: q.q, parent_user_id: q.parent_user_id },
+    { page: q.page, limit: q.limit }
+  );
 };
 
 exports.get = async (id, currentUser) => {

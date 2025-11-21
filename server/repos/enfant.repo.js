@@ -22,6 +22,9 @@ exports.findAll = async (filters = {}, pagination = {}, t = null) => {
       { prenom: { [Op.like]: `%${filters.q}%` } },
     ];
   }
+  if (Object.prototype.hasOwnProperty.call(filters, "parent_user_id")) {
+    where.parent_user_id = filters.parent_user_id;
+  }
   const page = pagination.page || 1;
   const limit = pagination.limit || 20;
   const offset = (page - 1) * limit;
