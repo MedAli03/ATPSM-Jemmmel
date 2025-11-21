@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   createParentAccount,
@@ -14,6 +14,7 @@ export default function ParentAccountCreator() {
   const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState("");
   const [selectedChild, setSelectedChild] = useState(null);
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -58,6 +59,11 @@ export default function ParentAccountCreator() {
     return fiche.mere_email || fiche.pere_email || "";
   }, [selectedFicheQuery.data]);
 
+  useEffect(() => {
+    // Prefill email from fiche when available; allow manual override if missing.
+    setEmail(preferredEmail || "");
+  }, [preferredEmail, selectedChild?.id]);
+
   const parentNames = useMemo(() => {
     const fiche = selectedFicheQuery.data;
     if (!fiche) return "";
@@ -67,9 +73,10 @@ export default function ParentAccountCreator() {
   }, [selectedFicheQuery.data]);
 
   const passwordMismatch = password && confirmPassword && password !== confirmPassword;
+  const emailMissing = !email?.trim();
   const canSubmit =
     selectedChild &&
-    preferredEmail &&
+    !emailMissing &&
     password.length >= 8 &&
     !passwordMismatch &&
     !mutation.isLoading;
@@ -233,7 +240,7 @@ export default function ParentAccountCreator() {
                 إنشاء حساب ولي للطفل {formatChildName(selectedChild)}
               </h2>
               <p className="text-sm text-gray-600">
-                البريد الإلكتروني مرفوع من fiche parents، يمكنك فقط تحديد كلمة المرور.
+                يمكن تعديل البريد الإلكتروني إذا لم يكن موجودًا في fiche parents.
               </p>
             </header>
 
@@ -250,7 +257,23 @@ export default function ParentAccountCreator() {
             ) : (
               <div className="space-y-3">
                 <InfoRow label="الأولياء" value={parentNames || "—"} />
-                <InfoRow label="البريد المعتمد" value={preferredEmail || "—"} />
+                <label className="flex flex-col gap-1">
+                  <span className="text-sm text-gray-700">البريد الإلكتروني</span>
+                  <input
+                    type="email"
+                    className={`px-3 py-2 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none ${
+                      emailMissing ? "border-amber-400 bg-amber-50" : ""
+                    }`}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="أدخل بريدًا إلكترونيًا للأولياء"
+                  />
+                  {emailMissing && (
+                    <span className="text-xs text-amber-600">
+                      لا يوجد بريد مسجل في fiche؛ الرجاء إدخاله يدويًا.
+                    </span>
+                  )}
+                </label>
                 <InfoRow
                   label="رقم الهاتف"
                   value={
@@ -305,7 +328,7 @@ export default function ParentAccountCreator() {
                   onClick={() =>
                     mutation.mutate({
                       enfantId: selectedChild.id,
-                      email: preferredEmail,
+                      email: email.trim(),
                       mot_de_passe: password,
                     })
                   }
