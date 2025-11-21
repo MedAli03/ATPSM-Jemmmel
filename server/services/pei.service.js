@@ -7,6 +7,10 @@ const {
   AffectationEducateur,
 } = require("../models");
 const repo = require("../repos/pei.repo");
+const activiteRepo = require("../repos/activite.repo");
+const noteRepo = require("../repos/dailynote.repo");
+const evaluationRepo = require("../repos/evaluation.repo");
+const observationRepo = require("../repos/observation_initiale.repo");
 const notifier = require("./notifier.service");
 const { DatabaseError, Op } = require("sequelize");
 const educatorAccess = require("./educateur_access.service");
@@ -325,4 +329,106 @@ exports.validate = async (id, userId) => {
 
 exports.listPending = async (q) => {
   return exports.list({ ...q, statut: PEI_STATUS.PENDING });
+};
+
+/**
+ * Historique complet d'un PEI (activités, notes, évaluations, observation initiale).
+ * Fournit une chronologie consolidée pour le Président/Directeur et contrôle l'accès
+ * des éducateurs aux enfants qu'ils suivent.
+ */
+exports.history = async (peiId, currentUser) => {
+  const id = Number(peiId);
+  if (!Number.isFinite(id) || id <= 0) {
+    const e = new Error("Identifiant de PEI invalide");
+    e.status = 400;
+    throw e;
+  }
+
+  const pei = await repo.findByIdFull(id);
+  if (!pei) {
+    const e = new Error("PEI introuvable");
+    e.status = 404;
+    throw e;
+  }
+
+  // Relations rappelées pour les futurs devs :
+  // - PEI.projet_id = clé primaire (projet_educatif_individuel)
+  // - ActiviteProjet.projet_id, DailyNote.projet_id, EvaluationProjet.projet_id pointent sur le PEI
+  // - ObservationInitiale lié à enfant_id : point d'entrée pédagogique avant/pendant le PEI
+  if (currentUser?.role === "EDUCATEUR") {
+    await educatorAccess.assertCanAccessChild(currentUser.id, pei.enfant_id);
+  }
+
+  const [activities, notes, evaluations, observations] = await Promise.all([
+    activiteRepo.listAllByPei(id),
+    noteRepo.listAllByPei(id),
+    evaluationRepo.listAllByPei(id),
+    observationRepo.listAllForEnfant(pei.enfant_id),
+  ]);
+
+  const plainActivities = activities.map((a) =>
+    a?.get ? a.get({ plain: true }) : a
+  );
+  const plainNotes = notes.map((n) => (n?.get ? n.get({ plain: true }) : n));
+  const plainEvaluations = evaluations.map((e) =>
+    e?.get ? e.get({ plain: true }) : e
+  );
+  const plainObservations = observations.map((o) =>
+    o?.get ? o.get({ plain: true }) : o
+  );
+
+  const mapUser = (user) =>
+    user
+      ? {
+          id: user.id,
+          nom: user.nom,
+          prenom: user.prenom,
+          email: user.email,
+        }
+      : null;
+
+  const truncate = (text) => {
+    if (!text) return "";
+    return text.length > 160 ? `${text.slice(0, 157)}...` : text;
+  };
+
+  const history = [
+    ...plainObservations.map((o) => ({
+      type: "OBSERVATION",
+      id: o.id,
+      date: o.date_observation || o.createdAt,
+      author: mapUser(o.educateur),
+      summary: truncate(o.contenu),
+      details: o,
+    })),
+    ...plainActivities.map((a) => ({
+      type: "ACTIVITY",
+      id: a.id,
+      date: a.date_activite || a.createdAt,
+      author: mapUser(a.educateur),
+      summary: truncate(a.titre || a.description),
+      details: a,
+    })),
+    ...plainNotes.map((n) => ({
+      type: "NOTE",
+      id: n.id,
+      date: n.date_note || n.createdAt,
+      author: mapUser(n.educateur),
+      summary: truncate(n.contenu),
+      details: n,
+    })),
+    ...plainEvaluations.map((ev) => ({
+      type: "EVALUATION",
+      id: ev.id,
+      date: ev.date_evaluation || ev.createdAt,
+      author: mapUser(ev.educateur),
+      summary: truncate(
+        ev.notes ||
+          (ev.score != null ? `Évaluation notée (${ev.score})` : "Évaluation")
+      ),
+      details: ev,
+    })),
+  ].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  return { pei, history };
 };

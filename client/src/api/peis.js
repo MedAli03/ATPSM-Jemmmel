@@ -31,3 +31,11 @@ export function validatePei(id) {
 export function closePei(id) {
   return client.post(`/pei/${id}/close`).then((res) => res.data);
 }
+
+// Historique consolidé (observations, activités, notes, évaluations) pour un PEI
+export function getPeiHistory(id) {
+  return client.get(`/pei/${id}/history`).then((res) => {
+    const payload = res.data ?? {};
+    return payload.data ?? payload;
+  });
+}

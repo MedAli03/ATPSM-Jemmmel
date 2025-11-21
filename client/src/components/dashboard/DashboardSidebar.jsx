@@ -427,6 +427,11 @@ const NAV_CONFIG = {
         defaultOpen: true,
         items: [
           { to: "/dashboard/president/peis", label: "قائمة PEI", icon: "pei" },
+          {
+            to: "/dashboard/president/pei-history",
+            label: "تاريخ PEI",
+            icon: "eval",
+          },
         ],
       },
       {

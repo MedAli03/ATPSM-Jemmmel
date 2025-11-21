@@ -68,3 +68,18 @@ exports.list = async (filters = {}, pagination = {}, t = null) => {
 
   return { rows, count, page, limit };
 };
+
+exports.listAllForEnfant = (enfant_id, t = null) =>
+  ObservationInitiale.findAll({
+    where: { enfant_id },
+    include: [
+      { model: Enfant, as: "enfant" },
+      {
+        model: Utilisateur,
+        as: "educateur",
+        attributes: ["id", "nom", "prenom", "email"],
+      },
+    ],
+    order: [["date_observation", "DESC"], ["id", "DESC"]],
+    transaction: t,
+  });

@@ -50,6 +50,12 @@ router.get(
   ctrl.get
 );
 
+router.get(
+  "/:id/history",
+  requireRole("PRESIDENT", "DIRECTEUR", "EDUCATEUR"),
+  ctrl.history
+);
+
 // Créer un PEI (DIRECTEUR, PRESIDENT)
 router.post(
   "/",

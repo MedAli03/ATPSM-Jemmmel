@@ -61,3 +61,12 @@ exports.validate = async (req, res, next) => {
     next(e);
   }
 };
+
+exports.history = async (req, res, next) => {
+  try {
+    const data = await service.history(req.params.id, req.user);
+    res.json({ data });
+  } catch (e) {
+    next(e);
+  }
+};
