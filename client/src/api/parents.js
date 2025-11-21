@@ -43,4 +43,35 @@ export async function listParents({
   return normalizeListResponse(data, { page, limit });
 }
 
+// GET /parents/:id (Président/DIRECTEUR)
+export async function getParent(id) {
+  const { data } = await client.get(`/parents/${id}`);
+  return data?.data ?? data;
+}
+
+// PUT /parents/:id (Président/DIRECTEUR)
+export async function updateParent(id, payload) {
+  const { data } = await client.put(`/parents/${id}`, payload);
+  return data?.data ?? data;
+}
+
+// PATCH /parents/:id/change-password (Président/DIRECTEUR)
+export async function changeParentPassword(id, mot_de_passe) {
+  const { data } = await client.patch(`/parents/${id}/change-password`, {
+    mot_de_passe,
+  });
+  return data;
+}
+
+// GET /parents/:id/enfants (Président/DIRECTEUR)
+export async function listParentChildren(id, { page = 1, limit = 50 } = {}) {
+  const { data } = await client.get(`/parents/${id}/enfants`, {
+    params: { page, limit },
+  });
+  const payload = data?.rows ?? data?.data ?? data ?? {};
+  const rows = payload.rows ?? payload;
+  const count = Number(payload.count ?? rows.length ?? 0);
+  return { rows, count };
+}
+
 export default listParents;
