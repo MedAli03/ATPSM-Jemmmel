@@ -30,6 +30,7 @@ export default function AllParents() {
   const [editId, setEditId] = useState(null);
   const [passwordId, setPasswordId] = useState(null);
   const [childrenCounts, setChildrenCounts] = useState({});
+  const [hoveredId, setHoveredId] = useState(null);
 
   const params = useMemo(
     () => ({ page, pageSize, q, is_active: isActive }),
@@ -104,6 +105,14 @@ export default function AllParents() {
           <p className="text-sm text-gray-500">
             إدارة حسابات الأولياء مع إمكانية البحث والتصفية حسب الحالة.
           </p>
+          <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-500">
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">
+              إجمالي: {count}
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-1 text-sky-700">
+              حجم الصفحة الحالي: {pageSizeResolved}
+            </span>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -161,13 +170,13 @@ export default function AllParents() {
       </header>
 
       <section className="bg-white border rounded-2xl shadow-sm">
-          <div className="grid grid-cols-12 gap-2 px-4 py-3 border-b text-sm text-gray-500">
+          <div className="grid grid-cols-12 gap-2 px-4 py-3 border-b text-xs uppercase tracking-wide text-gray-500">
             <div className="col-span-1">#</div>
             <div className="col-span-3">الاسم الكامل</div>
-            <div className="col-span-3">البريد الإلكتروني</div>
+            <div className="col-span-2">البريد الإلكتروني</div>
             <div className="col-span-2">الهاتف</div>
-            <div className="col-span-1">الأطفال</div>
-            <div className="col-span-2">خيارات</div>
+            <div className="col-span-2">الأطفال</div>
+            <div className="col-span-2 text-left">خيارات</div>
           </div>
 
         {query.isLoading ? (
@@ -195,42 +204,50 @@ export default function AllParents() {
             {rows.map((parent) => (
               <li
                 key={parent.id}
-                className="grid grid-cols-12 gap-2 px-4 py-3 text-sm text-gray-700"
+                className={`grid grid-cols-12 gap-2 px-4 py-3 text-sm transition-colors duration-150 ${
+                  hoveredId === parent.id ? "bg-slate-50" : "bg-white"
+                }`}
+                onMouseEnter={() => setHoveredId(parent.id)}
+                onMouseLeave={() => setHoveredId(null)}
               >
-                <div className="col-span-1 font-medium text-gray-900">{parent.id}</div>
+                <div className="col-span-1 font-semibold text-gray-900 flex items-center gap-1">
+                  <span className="text-xs text-gray-400">ID</span>
+                  {parent.id}
+                </div>
                 <div className="col-span-3 min-w-0">
-                  <div className="font-medium text-gray-900 truncate">
+                  <div className="font-semibold text-gray-900 truncate">
                     {formatFullName(parent)}
                   </div>
+                  <div className="text-xs text-gray-500 truncate">{parent.adresse || "—"}</div>
                 </div>
-                <div className="col-span-3 truncate text-gray-700">
-                  {parent.email || "—"}
+                <div className="col-span-2 truncate text-gray-700 flex items-center gap-2">
+                  <span className="inline-flex items-center rounded-full bg-sky-50 px-2 py-1 text-[11px] text-sky-700">
+                    بريد
+                  </span>
+                  <span className="truncate">{parent.email || "—"}</span>
                 </div>
-                <div className="col-span-2 text-gray-700">
-                  {parent.telephone || "—"}
+                <div className="col-span-2 text-gray-700 flex items-center gap-2">
+                  <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-1 text-[11px] text-amber-700">
+                    هاتف
+                  </span>
+                  <span>{parent.telephone || "—"}</span>
                 </div>
-                <div className="col-span-1">
+                <div className="col-span-2">
                   <ChildrenCountBadge count={childrenCounts[parent.id]} />
+                  {parentChildren.isFetching && detailsId === parent.id ? (
+                    <p className="text-[11px] text-gray-400 mt-1">تحديث...</p>
+                  ) : null}
                 </div>
-                <div className="col-span-2 flex flex-wrap items-center gap-2 text-xs">
-                  <button
-                    className="px-3 py-1.5 rounded-lg border hover:bg-gray-50"
-                    onClick={() => setDetailsId(parent.id)}
-                  >
+                <div className="col-span-2 flex flex-wrap items-center gap-2 justify-end text-xs">
+                  <ActionButton onClick={() => setDetailsId(parent.id)}>
                     عرض التفاصيل
-                  </button>
-                  <button
-                    className="px-3 py-1.5 rounded-lg border hover:bg-gray-50"
-                    onClick={() => setEditId(parent.id)}
-                  >
+                  </ActionButton>
+                  <ActionButton onClick={() => setEditId(parent.id)} color="slate">
                     تعديل البيانات
-                  </button>
-                  <button
-                    className="px-3 py-1.5 rounded-lg border hover:bg-gray-50"
-                    onClick={() => setPasswordId(parent.id)}
-                  >
+                  </ActionButton>
+                  <ActionButton onClick={() => setPasswordId(parent.id)} color="rose">
                     تغيير كلمة السر
-                  </button>
+                  </ActionButton>
                 </div>
               </li>
             ))}
@@ -321,6 +338,23 @@ function ChildrenCountBadge({ count }) {
   );
 }
 
+function ActionButton({ children, onClick, color = "blue" }) {
+  const palette = {
+    blue: "border-blue-100 text-blue-700 hover:bg-blue-50",
+    slate: "border-slate-200 text-slate-700 hover:bg-slate-50",
+    rose: "border-rose-100 text-rose-700 hover:bg-rose-50",
+  };
+
+  return (
+    <button
+      className={`px-3 py-1.5 rounded-lg border transition ${palette[color]}`}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
+
 function ParentDetailsDialog({
   open,
   onClose,
@@ -334,7 +368,7 @@ function ParentDetailsDialog({
     if (isLoading) {
       return (
         <div className="space-y-3">
-          {[...Array(4)].map((_, i) => (
+          {[...Array(5)].map((_, i) => (
             <div key={i} className="h-4 bg-gray-100 rounded" />
           ))}
         </div>
@@ -345,15 +379,34 @@ function ParentDetailsDialog({
     }
     return (
       <div className="space-y-4 text-sm text-gray-800">
-        <div className="grid grid-cols-2 gap-4">
-          <DetailField label="الاسم الكامل" value={formatFullName(parent)} />
-          <DetailField label="البريد الإلكتروني" value={parent.email || "—"} />
-          <DetailField label="الهاتف" value={parent.telephone || "—"} />
-          <DetailField label="العنوان" value={parent.adresse || "—"} />
+        <div className="flex flex-col gap-3 rounded-xl border bg-slate-50 px-4 py-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 grid place-items-center font-bold">
+              {parent.prenom?.[0] || parent.nom?.[0] || "و"}
+            </div>
+            <div>
+              <p className="text-base font-semibold text-gray-900">{formatFullName(parent)}</p>
+              <p className="text-xs text-gray-500">معرّف: {parent.id}</p>
+            </div>
+            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[11px] text-emerald-700">
+              حساب ولي
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <DetailField label="البريد الإلكتروني" value={parent.email || "—"} />
+            <DetailField label="الهاتف" value={parent.telephone || "—"} />
+            <DetailField label="العنوان" value={parent.adresse || "—"} />
+            <DetailField label="تاريخ الإنشاء" value={parent.createdAt?.split("T")[0] || "—"} />
+          </div>
         </div>
 
-        <div>
-          <h4 className="text-sm font-semibold text-gray-900 mb-2">الأطفال المرتبطون</h4>
+        <div className="rounded-xl border px-4 py-3">
+          <div className="flex items-center gap-2 mb-2">
+            <h4 className="text-sm font-semibold text-gray-900">الأطفال المرتبطون</h4>
+            <span className="text-[11px] text-gray-500">
+              GET /parents/:id/enfants
+            </span>
+          </div>
           {childrenQuery?.isLoading ? (
             <div className="space-y-2">
               {[...Array(3)].map((_, i) => (
@@ -361,13 +414,21 @@ function ParentDetailsDialog({
               ))}
             </div>
           ) : children.length === 0 ? (
-            <p className="text-gray-500">لا يوجد أطفال مرتبطون.</p>
+            <div className="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-amber-700">
+              لا يوجد أطفال مرتبطون.
+            </div>
           ) : (
             <ul className="space-y-2">
               {children.map((c) => (
-                <li key={c.id} className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2">
-                  <span className="font-medium text-gray-900">{formatChildName(c)}</span>
-                  <span className="text-xs text-gray-500">{c.date_naissance}</span>
+                <li
+                  key={c.id}
+                  className="flex items-center justify-between rounded-xl border px-3 py-2 bg-white"
+                >
+                  <div>
+                    <p className="font-medium text-gray-900">{formatChildName(c)}</p>
+                    <p className="text-[11px] text-gray-500">معرّف الطفل: {c.id}</p>
+                  </div>
+                  <span className="text-xs text-gray-500">{c.date_naissance || "—"}</span>
                 </li>
               ))}
             </ul>

@@ -89,6 +89,14 @@ export default function ParentAccountCreator() {
           <p className="text-sm text-gray-600">
             إنشاء حساب ولي انطلاقًا من ملف الطفل (parents_fiche) بإدخال كلمة مرور فقط.
           </p>
+          <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-500">
+            <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-1 text-blue-700">
+              الأطفال بدون حساب ولي فقط
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">
+              POST /enfants/:id/create-parent-account
+            </span>
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center bg-gray-100 rounded-xl px-3 py-2 border">
@@ -135,10 +143,10 @@ export default function ParentAccountCreator() {
       </header>
 
       <section className="bg-white border rounded-2xl shadow-sm">
-        <div className="grid grid-cols-12 gap-2 px-4 py-3 border-b text-sm text-gray-500">
+        <div className="grid grid-cols-12 gap-2 px-4 py-3 border-b text-xs uppercase tracking-wide text-gray-500">
           <div className="col-span-1">#</div>
           <div className="col-span-4">الطفل</div>
-          <div className="col-span-3">معلومة عن الأولياء</div>
+          <div className="col-span-3">الأولياء</div>
           <div className="col-span-2">الحساب</div>
           <div className="col-span-2 text-left">إجراء</div>
         </div>
@@ -170,13 +178,14 @@ export default function ParentAccountCreator() {
             {rows.map((child) => (
               <li
                 key={child.id}
-                className="grid grid-cols-12 gap-2 px-4 py-3 text-sm text-gray-700 items-center"
+                className="grid grid-cols-12 gap-2 px-4 py-3 text-sm text-gray-700 items-center hover:bg-slate-50 transition-colors"
               >
-                <div className="col-span-1 font-medium text-gray-900">{child.id}</div>
+                <div className="col-span-1 font-semibold text-gray-900 flex items-center gap-1">
+                  <span className="text-xs text-gray-400">ID</span>
+                  {child.id}
+                </div>
                 <div className="col-span-4">
-                  <div className="font-semibold text-gray-900">
-                    {formatChildName(child)}
-                  </div>
+                  <div className="font-semibold text-gray-900">{formatChildName(child)}</div>
                   <div className="text-xs text-gray-500">
                     {child.date_naissance
                       ? new Date(child.date_naissance).toLocaleDateString("ar-TN", {
@@ -186,12 +195,15 @@ export default function ParentAccountCreator() {
                   </div>
                 </div>
                 <div className="col-span-3 text-gray-700">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-xs">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
                     parents_fiche
-                  </span>
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  </div>
                 </div>
                 <div className="col-span-2 text-gray-700">
-                  {child.parent ? "مرتبط" : "غير مرتبط"}
+                  <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-1 text-[11px] text-amber-700">
+                    غير مرتبط
+                  </span>
                 </div>
                 <div className="col-span-2 text-left">
                   <button
@@ -256,7 +268,13 @@ export default function ParentAccountCreator() {
               </p>
             ) : (
               <div className="space-y-3">
-                <InfoRow label="الأولياء" value={parentNames || "—"} />
+                <div className="rounded-lg border bg-slate-50 px-3 py-2 flex items-center justify-between text-sm">
+                  <div>
+                    <p className="text-gray-900 font-semibold">الأولياء</p>
+                    <p className="text-xs text-gray-500">{parentNames || "—"}</p>
+                  </div>
+                  <div className="text-[11px] text-gray-500">parents_fiche</div>
+                </div>
                 <label className="flex flex-col gap-1">
                   <span className="text-sm text-gray-700">البريد الإلكتروني</span>
                   <input
@@ -295,6 +313,9 @@ export default function ParentAccountCreator() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="أدخل كلمة مرور لا تقل عن 8 أحرف"
                 />
+                <span className="text-[11px] text-gray-500">
+                  يجب أن تكون كلمة المرور 8 أحرف على الأقل.
+                </span>
               </label>
               <label className="flex flex-col gap-1">
                 <span className="text-sm text-gray-700">تأكيد كلمة المرور</span>
@@ -312,8 +333,9 @@ export default function ParentAccountCreator() {
             )}
 
             <div className="flex items-center justify-between gap-3">
-              <div className="text-xs text-gray-500">
-                يتم إنشاء الحساب عبر المنفذ الخلفي POST /enfants/:id/create-parent-account.
+              <div className="text-xs text-gray-500 space-y-1">
+                <p>يتم إنشاء الحساب عبر POST /enfants/:id/create-parent-account.</p>
+                <p>يتم ربط الحساب بالطفل مباشرة بعد نجاح الإنشاء.</p>
               </div>
               <div className="flex items-center gap-2">
                 <button
