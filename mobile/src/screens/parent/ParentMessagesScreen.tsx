@@ -1,3 +1,4 @@
+// src/screens/parent/ParentMessagesScreen.tsx
 import React from "react";
 import {
   View,
@@ -18,44 +19,86 @@ export const ParentMessagesScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const { threads, isLoading, isError, error, refetch } = useParentThreads();
 
+  const renderThread = ({ item }: any) => {
+    const otherParticipants =
+      item.participants
+        ?.filter((p: any) => !p.isCurrentUser)
+        ?.map((p: any) => p.name)
+        ?.join(" · ") || "بدون مربي";
+
+    const lastMessage = item.lastMessage?.text ?? "لا توجد رسائل بعد";
+    const lastDate = item.updatedAt ?? "";
+
+    const childName =
+      item.child?.prenom ||
+      item.child?.nom ||
+      item.title ||
+      "محادثة غير مسمّاة";
+
+    return (
+      <TouchableOpacity
+        style={styles.threadCard}
+        activeOpacity={0.9}
+        onPress={() =>
+          navigation.navigate("ChatThread", {
+            childId: item.child?.id ?? 0,
+            threadId: item.id,
+          })
+        }
+      >
+        {/* Avatar + names */}
+        <View style={styles.rowHeader}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{childName[0]}</Text>
+          </View>
+
+          <View style={styles.threadInfo}>
+            <Text style={styles.childName} numberOfLines={1}>
+              {childName}
+            </Text>
+            <Text style={styles.educator} numberOfLines={1}>
+              {otherParticipants}
+            </Text>
+          </View>
+        </View>
+
+        {/* Last message */}
+        <Text style={styles.lastMessage} numberOfLines={1}>
+          {lastMessage}
+        </Text>
+
+        {/* Date & unread badge */}
+        <View style={styles.bottomRow}>
+          <Text style={styles.lastDate}>{lastDate}</Text>
+
+          {item.unreadCount > 0 && (
+            <View style={styles.unreadBadge}>
+              <Text style={styles.unreadText}>{item.unreadCount}</Text>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   return (
-    <View style={styles.container}>
+    <View style={styles.root}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>الرسائل</Text>
+        <Text style={styles.headerSubtitle}>
+          تواصل مباشر مع المربي(ة) المسؤول(ة) عن طفلك
+        </Text>
+      </View>
+
       <FlatList
         data={threads}
         keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={{ padding: 16 }}
+        renderItem={renderThread}
         refreshing={isLoading && threads.length > 0}
         onRefresh={refetch}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.threadCard}
-            onPress={() =>
-              navigation.navigate("ChatThread", {
-                childId: item.child?.id ?? 0,
-                threadId: item.id,
-              })
-            }
-          >
-            <Text style={styles.childName}>
-              {item.child?.prenom || item.child?.nom || item.title || "محادثة"}
-            </Text>
-            <Text style={styles.educator} numberOfLines={1}>
-              {item.participants
-                .filter((p) => !p.isCurrentUser)
-                .map((p) => p.name)
-                .join(" · ") || "-"}
-            </Text>
-            <Text style={styles.lastMessage} numberOfLines={1}>
-              {item.lastMessage?.text ?? "لا توجد رسائل بعد"}
-            </Text>
-            <Text style={styles.lastDate}>{item.updatedAt ?? ""}</Text>
-            {item.unreadCount > 0 && (
-              <View style={styles.unreadBadge}>
-                <Text style={styles.unreadText}>{item.unreadCount}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        )}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 20 }}
         ListEmptyComponent={
           isLoading ? (
             <View style={styles.loadingBox}>
@@ -68,7 +111,7 @@ export const ParentMessagesScreen: React.FC = () => {
               <Text style={styles.emptyText}>
                 يمكنك بدء محادثة من خلال لوحة متابعة الطفل أو من إدارة الجمعية.
               </Text>
-              {isError && <Text style={styles.errorText}>{error}</Text>}
+              {isError && <Text style={styles.errorText}>{String(error)}</Text>}
             </View>
           )
         }
@@ -78,43 +121,147 @@ export const ParentMessagesScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F3F4F6" },
-  threadCard: {
-    backgroundColor: "#FFFFFF",
-    padding: 14,
-    borderRadius: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
+  root: {
+    flex: 1,
+    backgroundColor: "#F2F5FA",
+    writingDirection: "rtl",
   },
-  childName: { fontSize: 16, fontWeight: "600", color: "#111827" },
-  educator: { fontSize: 13, color: "#6B7280", marginTop: 2 },
-  lastMessage: { fontSize: 13, color: "#374151", marginTop: 6 },
-  lastDate: {
-    fontSize: 11,
-    color: "#9CA3AF",
+
+  /* HEADER */
+  header: {
+    padding: 20,
+    backgroundColor: "#2563EB",
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    marginBottom: 16,
+  },
+  headerTitle: {
+    color: "#FFFFFF",
+    fontSize: 22,
+    fontWeight: "800",
+    textAlign: "right",
+  },
+  headerSubtitle: {
+    color: "#DBEAFE",
+    fontSize: 13,
     marginTop: 4,
     textAlign: "right",
   },
+
+  /* THREAD CARD */
+  threadCard: {
+    backgroundColor: "#FFFFFF",
+    padding: 14,
+    borderRadius: 18,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+
+  rowHeader: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+
+  avatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "#2563EB33",
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 12,
+  },
+  avatarText: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#1D4ED8",
+  },
+
+  threadInfo: {
+    flex: 1,
+    alignItems: "flex-end",
+  },
+
+  childName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#0F172A",
+  },
+  educator: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginTop: 2,
+  },
+
+  lastMessage: {
+    fontSize: 13,
+    color: "#374151",
+    marginTop: 6,
+    textAlign: "right",
+  },
+
+  bottomRow: {
+    marginTop: 8,
+    flexDirection: "row-reverse",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  lastDate: {
+    fontSize: 11,
+    color: "#9CA3AF",
+  },
+
   unreadBadge: {
-    position: "absolute",
-    top: 12,
-    left: 12,
     backgroundColor: "#DC2626",
     borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 2,
   },
-  unreadText: { color: "#FFF", fontSize: 11, fontWeight: "700" },
-  loadingBox: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 24, gap: 8 },
-  loadingText: { color: "#4B5563" },
-  emptyBox: {
-    padding: 16,
-    margin: 16,
-    borderRadius: 14,
-    backgroundColor: "#FFF",
+  unreadText: {
+    color: "#FFF",
+    fontSize: 11,
+    fontWeight: "700",
   },
-  emptyTitle: { fontSize: 15, fontWeight: "600", marginBottom: 4 },
-  emptyText: { fontSize: 13, color: "#6B7280" },
-  errorText: { marginTop: 8, color: "#B91C1C", textAlign: "center" },
+
+  /* STATES */
+  loadingBox: {
+    paddingVertical: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
+  loadingText: {
+    color: "#4B5563",
+  },
+
+  emptyBox: {
+    padding: 20,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    margin: 20,
+    alignItems: "center",
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 4,
+    color: "#111827",
+  },
+  emptyText: {
+    fontSize: 13,
+    color: "#6B7280",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  errorText: {
+    marginTop: 8,
+    color: "#B91C1C",
+    fontSize: 12,
+  },
 });

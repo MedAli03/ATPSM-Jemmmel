@@ -39,6 +39,9 @@ export interface Child {
   last_note_date?: string | null;
   last_note_preview?: string | null;
   thread_id?: number | null;
+  has_unread_note?: boolean;
+  has_unread_daily_note?: boolean;
+  unread_messages_count?: number;
 }
 
 export interface TimelineItem {

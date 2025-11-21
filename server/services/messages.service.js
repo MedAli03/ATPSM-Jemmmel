@@ -11,8 +11,10 @@ const {
   Attachment,
   MessageAttachment,
   Utilisateur,
+  Enfant,
 } = require("../models");
 const ApiError = require("../utils/api-error");
+const parentChildReadStateService = require("./parent_child_read_state.service");
 
 const MAX_TEXT_LENGTH = 2000;
 const DEFAULT_PAGE_SIZE = 20;
@@ -500,6 +502,14 @@ async function markRead({ userId, threadId, upToMessageId = null }) {
   await MessageReadReceipt.bulkCreate(rows, {
     updateOnDuplicate: ["read_at", "updated_at"],
   });
+
+  const child = await Enfant.findOne({
+    where: { thread_id: threadId, parent_user_id: userId },
+    attributes: ["id"],
+  });
+  if (child) {
+    await parentChildReadStateService.markMessagesSeen(userId, child.id, new Date());
+  }
 
   return { updated: rows.length };
 }
