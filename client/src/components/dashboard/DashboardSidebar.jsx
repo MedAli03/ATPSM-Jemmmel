@@ -70,6 +70,22 @@ function Icon({ name, className = "w-5 h-5" }) {
           />
         </svg>
       );
+    case "calendar":
+      return (
+        <svg
+          className={className}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={stroke}
+            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+          />
+        </svg>
+      );
     case "pei":
       return (
         <svg
@@ -381,6 +397,11 @@ const NAV_CONFIG = {
           { to: "/dashboard/president/users", label: "كلّ المستخدمين", icon: "users" },
           { to: "/dashboard/president/educators", label: "المربّون", icon: "users" },
           { to: "/dashboard/president/parents", label: "الأولياء", icon: "users" },
+          {
+            to: "/dashboard/president/parent-accounts",
+            label: "إنشاء حساب ولي",
+            icon: "users",
+          },
         ],
       },
       {
@@ -390,6 +411,27 @@ const NAV_CONFIG = {
         items: [
           { to: "/dashboard/president/children", label: "الأطفال", icon: "child" },
           { to: "/dashboard/president/groups", label: "المجموعات", icon: "groups" },
+        ],
+      },
+      {
+        title: "الإعداد الأكاديمي",
+        icon: "calendar",
+        defaultOpen: true,
+        items: [
+          { to: "/dashboard/president/years", label: "السنوات الدراسية", icon: "calendar" },
+        ],
+      },
+      {
+        title: "مشاريع PEI",
+        icon: "pei",
+        defaultOpen: true,
+        items: [
+          { to: "/dashboard/president/peis", label: "قائمة PEI", icon: "pei" },
+          {
+            to: "/dashboard/president/pei-history",
+            label: "تاريخ PEI",
+            icon: "eval",
+          },
         ],
       },
       {

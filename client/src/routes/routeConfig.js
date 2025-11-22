@@ -8,7 +8,12 @@ import AllGroups from "../pages/dashboard/groups/AllGroups";
 import AllNews from "../pages/dashboard/news/AllNews";
 import AllEducators from "../pages/dashboard/educators/AllEducators";
 import AllParents from "../pages/dashboard/parents/AllParents";
+import ParentAccountCreator from "../pages/dashboard/parents/ParentAccountCreator";
 import AllEvents from "../pages/dashboard/events/AllEvents";
+import PresidentPeiList from "../pages/dashboard/pei/PresidentPeiList";
+import PresidentPeiHistory from "../pages/dashboard/pei/PresidentPeiHistory";
+import YearsManagement from "../pages/dashboard/years/YearsManagement";
+import PresidentMessagesPage from "../pages/messages/PresidentMessagesPage";
 
 // Lazy pages
 const HomePage = lazy(() => import("../pages/HomePage"));
@@ -39,10 +44,6 @@ const NotificationsPage = lazy(() =>
 const AddChildWizard = lazy(() =>
   import("../pages/dashboard/children/AddChildWizard")
 );
-const MessagesLayout = lazy(() => import("../pages/messages/MessagesLayout"));
-const ThreadsPage = lazy(() => import("../pages/messages/ThreadsPage"));
-const ThreadView = lazy(() => import("../pages/messages/ThreadView"));
-const NoThreadSelected = lazy(() => import("../pages/messages/NoThreadSelected"));
 // const DashboardHome = lazy(() => import("../pages/dashboard/DashboardHome"));
 // const DashboardUsers = lazy(() => import("../pages/dashboard/DashboardUsers"));
 // const DashboardReports = lazy(() => import("../pages/dashboard/DashboardReports"));
@@ -97,24 +98,26 @@ const protectedRoutes = [
       { path: "children/new", element: AddChildWizard, title: "إضافة طفل" },
       { path: "children/:id", element: ChildDetails, title: "تفاصيل الطفل" },
       { path: "parents", element: AllParents, title: "الأولياء" },
+      {
+        path: "parent-accounts",
+        element: ParentAccountCreator,
+        title: "إنشاء حساب ولي",
+      },
+      { path: "peis", element: PresidentPeiList, title: "مشاريع PEI" },
+      {
+        path: "pei-history",
+        element: PresidentPeiHistory,
+        title: "تاريخ PEI",
+      },
+      { path: "years", element: YearsManagement, title: "السنوات الدراسية" },
       { path: "groups", element: AllGroups, title: "المجموعات" },
       { path: "educators", element: AllEducators, title: "المربّون" },
       { path: "news", element: AllNews, title: "الأخبار" },
       { path: "events", element: AllEvents, title: "الفعاليات" },
       {
         path: "messages",
-        element: MessagesLayout,
-        children: [
-          {
-            path: "",
-            element: ThreadsPage,
-            title: "الرسائل",
-            children: [
-              { index: true, element: NoThreadSelected, title: "قائمة الرسائل" },
-              { path: ":threadId", element: ThreadView, title: "عرض المحادثة" },
-            ],
-          },
-        ],
+        element: PresidentMessagesPage,
+        title: "الرسائل",
       },
     ],
   },
@@ -140,18 +143,8 @@ const protectedRoutes = [
       { path: "events", element: AllEvents, title: "الفعاليات" },
       {
         path: "messages",
-        element: MessagesLayout,
-        children: [
-          {
-            path: "",
-            element: ThreadsPage,
-            title: "الرسائل",
-            children: [
-              { index: true, element: NoThreadSelected, title: "قائمة الرسائل" },
-              { path: ":threadId", element: ThreadView, title: "عرض المحادثة" },
-            ],
-          },
-        ],
+        element: PresidentMessagesPage,
+        title: "الرسائل",
       },
     ],
   },
@@ -162,18 +155,8 @@ const protectedRoutes = [
     children: [
       {
         path: "",
-        element: MessagesLayout,
-        children: [
-          {
-            path: "",
-            element: ThreadsPage,
-            title: "قائمة الرسائل",
-            children: [
-              { index: true, element: NoThreadSelected, title: "قائمة الرسائل" },
-              { path: ":threadId", element: ThreadView, title: "عرض المحادثة" },
-            ],
-          },
-        ],
+        element: PresidentMessagesPage,
+        title: "قائمة الرسائل",
       },
     ],
   },

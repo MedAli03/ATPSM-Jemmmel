@@ -47,10 +47,8 @@ export function useChildrenPage(params = {}) {
       page,
       pageSize,
       q: qDebounced || undefined, // avoid sending empty strings
-      parent_user_id:
-        parent_user_id === "" || parent_user_id === null
-          ? undefined
-          : parent_user_id,
+      // Allow null to explicitly request children without a linked parent
+      parent_user_id: parent_user_id === "" ? undefined : parent_user_id,
     }),
     [page, pageSize, qDebounced, parent_user_id]
   );

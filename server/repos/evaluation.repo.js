@@ -32,6 +32,22 @@ exports.findById = (id) =>
     ],
   });
 
+exports.listAllByPei = (pei_id) =>
+  EvaluationProjet.findAll({
+    where: { projet_id: pei_id },
+    include: [
+      {
+        model: Utilisateur,
+        as: "educateur",
+        attributes: ["id", "nom", "prenom", "email"],
+      },
+    ],
+    order: [
+      ["date_evaluation", "DESC"],
+      ["id", "DESC"],
+    ],
+  });
+
 exports.create = (payload, t) =>
   EvaluationProjet.create(payload, { transaction: t });
 

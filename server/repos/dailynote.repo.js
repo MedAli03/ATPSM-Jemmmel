@@ -34,6 +34,23 @@ exports.findById = (id) =>
     ],
   });
 
+exports.listAllByPei = (pei_id) =>
+  DailyNote.findAll({
+    where: { projet_id: pei_id },
+    include: [
+      {
+        model: Utilisateur,
+        as: "educateur",
+        attributes: ["id", "nom", "prenom", "email"],
+      },
+      { model: Enfant, as: "enfant", attributes: ["id", "nom", "prenom"] },
+    ],
+    order: [
+      ["date_note", "DESC"],
+      ["id", "DESC"],
+    ],
+  });
+
 exports.create = (payload, t) => DailyNote.create(payload, { transaction: t });
 
 exports.updateById = async (id, data, t) => {

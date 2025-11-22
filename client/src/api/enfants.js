@@ -34,15 +34,23 @@ function normalizeListResponse(d, { page, limit }) {
  */
 /**
  * List enfants — matches Joi schema:
- * GET /enfants?q&page&limit
+ * GET /enfants?q&page&limit&parent_user_id
  */
-export async function listEnfants({ page = 1, pageSize = 10, q } = {}) {
+export async function listEnfants({
+  page = 1,
+  pageSize = 10,
+  q,
+  parent_user_id,
+} = {}) {
   const limit = Number(pageSize) || 10;
   const { data } = await client.get("/enfants", {
     params: {
       page,
       limit,
       ...(q ? { q } : {}),
+      ...(parent_user_id !== undefined
+        ? { parent_user_id: parent_user_id === null ? "null" : parent_user_id }
+        : {}),
     },
   });
   return normalizeListResponse(data, { page, limit });
@@ -140,6 +148,18 @@ export async function upsertParentsFiche(enfantId, payload) {
     payload
   );
   return data?.data;
+}
+
+/**
+ * Create a parent account from the existing parents_fiche for an enfant.
+ * Backend: POST /enfants/:enfantId/create-parent-account with { email, mot_de_passe }
+ */
+export async function createParentAccount(enfantId, payload) {
+  const { data } = await client.post(
+    `/enfants/${enfantId}/create-parent-account`,
+    payload
+  );
+  return data?.data ?? data;
 }
 
 export async function listNonInscrits({ annee_id, limit = 8, search } = {}) {

@@ -213,11 +213,23 @@ async function listThreads(userId, params = {}) {
     .filter(Boolean);
 
   let filtered = payload;
+  if (q) {
+    const term = String(q).toLowerCase();
+    filtered = filtered.filter((thread) => {
+      const titleMatch = (thread.title || "").toLowerCase().includes(term);
+      const participantMatch = (thread.participants || []).some((participant) =>
+        (participant.name || "").toLowerCase().includes(term)
+      );
+      const lastMessageMatch = (thread.lastMessage?.text || "").toLowerCase().includes(term);
+      return titleMatch || participantMatch || lastMessageMatch;
+    });
+  }
   if (status === "unread") {
-    filtered = payload.filter((thread) => (thread.unreadCount || 0) > 0);
+    filtered = filtered.filter((thread) => (thread.unreadCount || 0) > 0);
   }
 
-  const totalCount = status === "unread" || status === "read" ? filtered.length : count;
+  const totalCount =
+    status === "unread" || status === "read" || q ? filtered.length : count;
   return {
     data: filtered,
     page: safePage,

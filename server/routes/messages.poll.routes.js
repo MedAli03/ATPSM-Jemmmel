@@ -2,8 +2,13 @@
 
 const router = require("express").Router();
 const auth = require("../middlewares/auth");
-const ApiError = require("../utils/api-error");
 const messagesService = require("../services/messages.service");
+const validate = require("../middlewares/validate");
+const {
+  createThreadSchema,
+  sendMessageSchema,
+  threadIdParamSchema,
+} = require("../validations/messages.schema");
 
 function asyncHandler(handler) {
   return (req, res, next) => {
@@ -39,13 +44,41 @@ router.get(
   })
 );
 
+// إنشاء محادثة جديدة مع رسالة افتتاحية (يدمج الرئيس كمشارك تلقائي)
+router.post(
+  "/threads",
+  validate(createThreadSchema),
+  asyncHandler(async (req, res) => {
+    const { participantIds, title, text, isGroup } = req.body || {};
+
+    const normalizedIsGroup = typeof isGroup === "boolean" ? isGroup : participantIds.length > 1;
+
+    const thread = await messagesService.createThread({
+      actorId: req.user.id,
+      participantIds,
+      title: title || null,
+      isGroup: normalizedIsGroup,
+    });
+
+    // إرسال أول رسالة في الخيط الجديد
+    const message = await messagesService.sendMessage({
+      userId: req.user.id,
+      threadId: thread.id,
+      text: text.trim(),
+      attachments: [],
+    });
+
+    const fullThread = await messagesService.getThread(req.user.id, thread.id, req.user.role);
+
+    res.status(201).json({ data: { thread: fullThread, message }, meta: null });
+  })
+);
+
 router.get(
   "/threads/:threadId",
+  validate(threadIdParamSchema, "params"),
   asyncHandler(async (req, res) => {
     const threadId = Number(req.params.threadId);
-    if (!Number.isInteger(threadId)) {
-      throw new ApiError({ status: 400, code: "THREAD_ID_INVALID", message: "معرف المحادثة غير صالح" });
-    }
     const thread = await messagesService.getThread(req.user.id, threadId, req.user.role);
     res.json({ data: thread, meta: null });
   })
@@ -53,11 +86,9 @@ router.get(
 
 router.get(
   "/threads/:threadId/messages",
+  validate(threadIdParamSchema, "params"),
   asyncHandler(async (req, res) => {
     const threadId = Number(req.params.threadId);
-    if (!Number.isInteger(threadId)) {
-      throw new ApiError({ status: 400, code: "THREAD_ID_INVALID", message: "معرف المحادثة غير صالح" });
-    }
     const cursor = parseCursor(req.query.cursor);
     const limit = req.query.limit;
     const result = await messagesService.listMessages(req.user.id, threadId, {
@@ -70,11 +101,10 @@ router.get(
 
 router.post(
   "/threads/:threadId/messages",
+  validate(threadIdParamSchema, "params"),
+  validate(sendMessageSchema),
   asyncHandler(async (req, res) => {
     const threadId = Number(req.params.threadId);
-    if (!Number.isInteger(threadId)) {
-      throw new ApiError({ status: 400, code: "THREAD_ID_INVALID", message: "معرف المحادثة غير صالح" });
-    }
     const { text, attachments } = req.body || {};
     const message = await messagesService.sendMessage({
       userId: req.user.id,
@@ -114,11 +144,9 @@ router.post(
 
 router.post(
   "/threads/:threadId/read",
+  validate(threadIdParamSchema, "params"),
   asyncHandler(async (req, res) => {
     const threadId = Number(req.params.threadId);
-    if (!Number.isInteger(threadId)) {
-      throw new ApiError({ status: 400, code: "THREAD_ID_INVALID", message: "معرف المحادثة غير صالح" });
-    }
     const rawUpTo = req.body?.upToMessageId;
     const numericUpTo = rawUpTo !== undefined ? Number(rawUpTo) : null;
     const upToMessageId = Number.isFinite(numericUpTo) ? numericUpTo : null;

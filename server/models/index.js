@@ -193,10 +193,12 @@ Utilisateur.hasMany(ObservationInitiale, {
 // PEI
 PEI.belongsTo(Enfant, { as: "enfant", foreignKey: "enfant_id" });
 PEI.belongsTo(Utilisateur, { as: "educateur", foreignKey: "educateur_id" });
+PEI.belongsTo(Utilisateur, { as: "validateur", foreignKey: "valide_par_id" });
 PEI.belongsTo(AnneeScolaire, { as: "annee", foreignKey: "annee_id" });
 PEI.belongsTo(PEI, { as: "precedent", foreignKey: "precedent_projet_id" });
 Enfant.hasMany(PEI, { as: "peis", foreignKey: "enfant_id" });
 Utilisateur.hasMany(PEI, { as: "peis", foreignKey: "educateur_id" });
+Utilisateur.hasMany(PEI, { as: "peis_valides", foreignKey: "valide_par_id" });
 AnneeScolaire.hasMany(PEI, { as: "peis", foreignKey: "annee_id" });
 
 // Activités & Notes

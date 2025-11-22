@@ -1,9 +1,9 @@
 // src/api/annees.js
 import client from "./client";
 
-export async function listAnnees() {
-  const { data } = await client.get("/annees");
-  return data; // { ok, data: [{id, libelle, est_active}, ...] }
+export async function listAnnees(params = {}) {
+  const { data } = await client.get("/annees", { params });
+  return data; // { ok, data: [{id, libelle, est_active, statut}, ...] }
 }
 
 export async function getActiveAnnee() {
@@ -29,5 +29,26 @@ export async function fetchActiveSchoolYear() {
   const data = unwrap(res);
   if (!data) return null;
   if (Array.isArray(data)) return data[0] ?? null;
+  return data;
+}
+
+// Mutations (Président)
+export async function createAnnee(payload) {
+  const { data } = await client.post("/annees", payload);
+  return data;
+}
+
+export async function updateAnnee(id, payload) {
+  const { data } = await client.put(`/annees/${id}`, payload);
+  return data;
+}
+
+export async function activateAnnee(id) {
+  const { data } = await client.post(`/annees/${id}/activate`);
+  return data;
+}
+
+export async function archiveAnnee(id) {
+  const { data } = await client.post(`/annees/${id}/archive`);
   return data;
 }
