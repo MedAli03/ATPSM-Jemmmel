@@ -67,6 +67,13 @@ exports.query = async (req, res, next) => {
  *     security:
  *       - bearerAuth: []
  *     summary: Derniers messages du chatbot pour l'utilisateur connecté
+ *     parameters:
+ *       - in: query
+ *         name: childId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Identifiant de l'enfant associé à la conversation
  *     responses:
  *       200:
  *         description: Historique des échanges
@@ -79,9 +86,13 @@ exports.query = async (req, res, next) => {
  *                 properties:
  *                   id:
  *                     type: integer
- *                   message:
+ *                   childId:
+ *                     type: integer
+ *                   educatorId:
+ *                     type: integer
+ *                   question:
  *                     type: string
- *                   reply:
+ *                   answer:
  *                     type: string
  *                   model:
  *                     type: string
@@ -90,7 +101,11 @@ exports.query = async (req, res, next) => {
  */
 exports.history = async (req, res, next) => {
   try {
-    const rows = await service.getHistoryForUser(req.user);
+    const { childId } = req.query;
+    const rows = await service.getHistoryForChild({
+      user: req.user,
+      childId,
+    });
     res.json(rows || []);
   } catch (e) {
     next(e);

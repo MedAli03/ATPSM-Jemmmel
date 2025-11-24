@@ -1,4 +1,5 @@
 const { ChatbotMessage } = require("../models");
+const educatorAccess = require("./educateur_access.service");
 
 const DEFAULT_BASE_URL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
 const DEFAULT_MODEL = process.env.OLLAMA_MODEL || "llama2";
@@ -32,14 +33,14 @@ const buildMetadata = (user) => ({
   role: user?.role,
 });
 
-const persistHistory = async ({ userId, role, message, reply, model }) => {
-  if (!ChatbotMessage || !userId) return null;
+const persistHistory = async ({ educatorId, childId = null, question, answer, model }) => {
+  if (!ChatbotMessage || !educatorId) return null;
   try {
     const row = await ChatbotMessage.create({
-      utilisateur_id: userId,
-      role: role || null,
-      message,
-      reply,
+      educator_id: educatorId,
+      child_id: childId ?? null,
+      question,
+      answer,
       model,
     });
     return row;
@@ -118,25 +119,29 @@ exports.query = async (message, user = {}) => {
   const sanitizedReply = reply.trim();
 
   persistHistory({
-    userId: metadata.userId,
-    role: metadata.role,
-    message: safeMessage,
-    reply: sanitizedReply,
+    educatorId: metadata.userId,
+    question: safeMessage,
+    answer: sanitizedReply,
     model,
   });
 
   return { reply: sanitizedReply, model, metadata };
 };
 
-exports.getHistoryForUser = async (user) => {
+exports.getHistoryForChild = async ({ user, childId }) => {
   if (!user?.id) {
     const e = new Error("Utilisateur requis pour l'historique");
     e.status = 401;
     throw e;
   }
 
+  const normalizedRole = String(user.role || "").toUpperCase();
+  if (normalizedRole === "EDUCATEUR") {
+    await educatorAccess.assertCanAccessChild(user.id, childId);
+  }
+
   const rows = await ChatbotMessage.findAll({
-    where: { utilisateur_id: user.id },
+    where: { educator_id: user.id, child_id: Number(childId) },
     order: [["created_at", "ASC"]],
     limit: 50,
   });
@@ -145,8 +150,10 @@ exports.getHistoryForUser = async (user) => {
 
   return rows.map((row) => ({
     id: row.id,
-    message: row.message,
-    reply: row.reply,
+    childId: row.child_id,
+    educatorId: row.educator_id,
+    question: row.question,
+    answer: row.answer,
     model: row.model,
     createdAt: row.created_at,
   }));
