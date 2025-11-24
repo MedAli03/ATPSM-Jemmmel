@@ -1,6 +1,6 @@
 "use strict";
 
-const { sequelize } = require("../models");
+const { sequelize, AffectationEducateur } = require("../models");
 const repo = require("../repos/groupe.repo");
 const notifier = require("./notifier.service"); // already in your project
 const educatorAccess = require("./educateur_access.service");
@@ -11,8 +11,25 @@ exports.create = async (payload) => {
   return repo.create(payload);
 };
 
-exports.list = async (filters = {}) => {
-  const rows = await repo.list(filters);
+exports.list = async (filters = {}, currentUser = null) => {
+  let scopedFilters = { ...filters };
+
+  if (currentUser?.role === "EDUCATEUR") {
+    const activeYear = await educatorAccess.requireActiveSchoolYear();
+    const assignments = await AffectationEducateur.findAll({
+      attributes: ["groupe_id"],
+      where: {
+        educateur_id: Number(currentUser.id),
+        annee_id: activeYear.id,
+        est_active: true,
+      },
+      raw: true,
+    });
+    scopedFilters.allowedGroupIds = assignments.map((a) => a.groupe_id);
+    scopedFilters.anneeId = activeYear.id;
+  }
+
+  const rows = await repo.list(scopedFilters);
   const plain = rows.map((g) => g.get({ plain: true }));
 
   if (!plain.length) return [];

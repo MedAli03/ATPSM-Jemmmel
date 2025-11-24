@@ -14,11 +14,20 @@ exports.create = (payload, t = null) => Groupe.create(payload, { transaction: t 
 
 exports.findById = (id, t = null) => Groupe.findByPk(id, { transaction: t });
 
-exports.list = async ({ anneeId, search, statut, page = 1, limit = 10 }, t = null) => {
+exports.list = async (
+  { anneeId, search, statut, page = 1, limit = 10, allowedGroupIds = null },
+  t = null
+) => {
   const where = {};
   if (anneeId) where.annee_id = anneeId;
   if (statut) where.statut = statut;
   if (search) where.nom = { [Op.like]: `%${search}%` };
+  if (Array.isArray(allowedGroupIds) && allowedGroupIds.length > 0) {
+    where.id = { [Op.in]: allowedGroupIds };
+  }
+  if (Array.isArray(allowedGroupIds) && allowedGroupIds.length === 0) {
+    return [];
+  }
 
   const rows = await Groupe.findAll({
     where,
