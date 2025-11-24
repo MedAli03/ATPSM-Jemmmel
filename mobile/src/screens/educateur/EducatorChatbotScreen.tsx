@@ -11,7 +11,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { RouteProp, useRoute } from "@react-navigation/native";
 import { chatbotQuery, getChatbotHistory } from "../../services/chatbot";
+import { EducatorStackParamList } from "../../navigation/EducatorNavigator";
 
 type ChatEntry = {
   id: string | number;
@@ -25,10 +27,12 @@ export const EducatorChatbotScreen: React.FC = () => {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState<"ACCESS_FORBIDDEN" | "LOAD_FAILED" | null>(
-    null
-  );
+  const [error, setError] = useState<
+    "ACCESS_FORBIDDEN" | "LOAD_FAILED" | "MISSING_CHILD" | null
+  >(null);
   const listRef = useRef<FlatList<ChatEntry>>(null);
+  const route = useRoute<RouteProp<EducatorStackParamList, "EducatorChatbot">>();
+  const childId = route.params?.childId;
 
   const scrollToEnd = useCallback(() => {
     requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
@@ -38,11 +42,16 @@ export const EducatorChatbotScreen: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getChatbotHistory();
+      if (!childId) {
+        setError("MISSING_CHILD");
+        return;
+      }
+
+      const data = await getChatbotHistory(childId);
       const mapped: ChatEntry[] = (data || []).map((row: any) => ({
         id: row.id,
-        question: row.message,
-        answer: row.reply,
+        question: row.question,
+        answer: row.answer,
         createdAt: row.createdAt,
       }));
       setMessages(mapped);
@@ -58,7 +67,7 @@ export const EducatorChatbotScreen: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [scrollToEnd]);
+  }, [childId, scrollToEnd]);
 
   useEffect(() => {
     loadHistory();
@@ -67,6 +76,10 @@ export const EducatorChatbotScreen: React.FC = () => {
   const handleSend = useCallback(async () => {
     const trimmed = input.trim();
     if (!trimmed || sending) return;
+    if (!childId) {
+      setError("MISSING_CHILD");
+      return;
+    }
 
     const tempId = `temp-${Date.now()}`;
     const optimistic: ChatEntry = {
@@ -83,12 +96,12 @@ export const EducatorChatbotScreen: React.FC = () => {
     setError(null);
 
     try {
-      const res = await chatbotQuery(trimmed);
+      const res = await chatbotQuery(childId, trimmed);
       const next: ChatEntry = {
-        id: res?.metadata?.timestamp || tempId,
-        question: trimmed,
-        answer: res?.reply || "",
-        createdAt: res?.metadata?.timestamp || optimistic.createdAt,
+        id: res?.id || res?.createdAt || tempId,
+        question: res?.question || trimmed,
+        answer: res?.answer || "",
+        createdAt: res?.createdAt || optimistic.createdAt,
       };
       setMessages((prev) => prev.map((m) => (m.id === tempId ? next : m)));
       scrollToEnd();
@@ -100,7 +113,7 @@ export const EducatorChatbotScreen: React.FC = () => {
     } finally {
       setSending(false);
     }
-  }, [input, scrollToEnd, sending]);
+  }, [childId, input, scrollToEnd, sending]);
 
   const renderItem = ({ item }: { item: ChatEntry }) => (
     <View style={styles.messageBlock}>
@@ -147,6 +160,8 @@ export const EducatorChatbotScreen: React.FC = () => {
             <Text style={styles.errorText}>
               {error === "ACCESS_FORBIDDEN"
                 ? "ليس لديك صلاحية لاستخدام هذا المساعد."
+                : error === "MISSING_CHILD"
+                ? "يرجى اختيار طفل لبدء المحادثة."
                 : "فشل تحميل المحادثة. حاول مجددًا."}
             </Text>
             <TouchableOpacity style={styles.retryButton} onPress={loadHistory}>
@@ -180,13 +195,19 @@ export const EducatorChatbotScreen: React.FC = () => {
             placeholderTextColor="#9CA3AF"
             value={input}
             onChangeText={setInput}
-            editable={!sending}
+            editable={!sending && !!childId && error !== "ACCESS_FORBIDDEN"}
             multiline
           />
           <TouchableOpacity
-            style={[styles.sendButton, (!input.trim() || sending) && styles.sendDisabled]}
+            style={[
+              styles.sendButton,
+              (!input.trim() || sending || !childId || error === "ACCESS_FORBIDDEN") &&
+                styles.sendDisabled,
+            ]}
             onPress={handleSend}
-            disabled={!input.trim() || sending}
+            disabled={
+              !input.trim() || sending || !childId || error === "ACCESS_FORBIDDEN"
+            }
           >
             {sending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.sendText}>إرسال</Text>}
           </TouchableOpacity>

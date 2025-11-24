@@ -15,9 +15,15 @@ const service = require("../services/chatbot.service");
  *           schema:
  *             type: object
  *             properties:
+ *               childId:
+ *                 type: integer
+ *                 example: 12
  *               message:
  *                 type: string
  *                 example: "Comment encourager la communication chez un enfant autiste?"
+ *               preferredLanguage:
+ *                 type: string
+ *                 example: "ar-fr-mix"
  *     responses:
  *       200:
  *         description: Réponse générée
@@ -26,35 +32,31 @@ const service = require("../services/chatbot.service");
  *             schema:
  *               type: object
  *               properties:
- *                 reply:
+ *                 id:
+ *                   type: integer
+ *                 childId:
+ *                   type: integer
+ *                 educatorId:
+ *                   type: integer
+ *                 question:
  *                   type: string
- *                 model:
+ *                 answer:
  *                   type: string
- *                   example: "llama2"
- *                 metadata:
- *                   type: object
- *                   properties:
- *                     timestamp:
- *                       type: string
- *                     role:
- *                       type: string
+ *                 createdAt:
+ *                   type: string
  */
 exports.query = async (req, res, next) => {
   try {
-    const { message } = req.body;
-    const result = await service.query(message, req.user || {});
-
-    res.json({
-      reply: result.reply,
-      model: result.model,
-      metadata: result.metadata,
+    const { childId, message, preferredLanguage } = req.body;
+    const result = await service.submitMessage({
+      user: req.user || {},
+      childId,
+      message,
+      preferredLanguage,
     });
+
+    res.json(result);
   } catch (e) {
-    if (e.status === 503) {
-      return res
-        .status(503)
-        .json({ error: e.message || "Chatbot service temporarily unavailable." });
-    }
     next(e);
   }
 };
@@ -93,8 +95,6 @@ exports.query = async (req, res, next) => {
  *                   question:
  *                     type: string
  *                   answer:
- *                     type: string
- *                   model:
  *                     type: string
  *                   createdAt:
  *                     type: string
