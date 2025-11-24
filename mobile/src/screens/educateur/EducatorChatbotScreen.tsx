@@ -25,7 +25,9 @@ export const EducatorChatbotScreen: React.FC = () => {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<"ACCESS_FORBIDDEN" | "LOAD_FAILED" | null>(
+    null
+  );
   const listRef = useRef<FlatList<ChatEntry>>(null);
 
   const scrollToEnd = useCallback(() => {
@@ -49,9 +51,9 @@ export const EducatorChatbotScreen: React.FC = () => {
       console.warn("Failed to load chatbot history", err);
       const status = err?.response?.status;
       if (status === 401 || status === 403) {
-        setError("ليس لديك صلاحية لاستخدام المساعد.");
+        setError("ACCESS_FORBIDDEN");
       } else {
-        setError("فشل تحميل المحادثة. حاول مجددًا.");
+        setError("LOAD_FAILED");
       }
     } finally {
       setLoading(false);
@@ -94,7 +96,7 @@ export const EducatorChatbotScreen: React.FC = () => {
       console.error("Failed to send chatbot question", err);
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
       setInput(trimmed);
-      setError("تعذّر إرسال سؤالك. حاول مرة أخرى.");
+      setError("LOAD_FAILED");
     } finally {
       setSending(false);
     }
@@ -142,10 +144,23 @@ export const EducatorChatbotScreen: React.FC = () => {
 
         {error && (
           <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={styles.errorText}>
+              {error === "ACCESS_FORBIDDEN"
+                ? "ليس لديك صلاحية لاستخدام هذا المساعد."
+                : "فشل تحميل المحادثة. حاول مجددًا."}
+            </Text>
             <TouchableOpacity style={styles.retryButton} onPress={loadHistory}>
               <Text style={styles.retryText}>إعادة المحاولة</Text>
             </TouchableOpacity>
+          </View>
+        )}
+
+        {!loading && !error && messages.length === 0 && (
+          <View style={styles.emptyBox}>
+            <Text style={styles.emptyTitle}>لا توجد محادثات سابقة بعد</Text>
+            <Text style={styles.emptySubtitle}>
+              اكتب سؤالك الأول لبدء التحدث مع المساعد.
+            </Text>
           </View>
         )}
 
@@ -257,4 +272,15 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   retryText: { color: "#FFFFFF", fontWeight: "600" },
+  emptyBox: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+  },
+  emptyTitle: { fontSize: 15, fontWeight: "700", color: "#1D4ED8" },
+  emptySubtitle: { fontSize: 13, color: "#1E3A8A", marginTop: 4 },
 });

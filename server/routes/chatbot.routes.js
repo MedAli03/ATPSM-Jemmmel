@@ -5,7 +5,7 @@ const validate = require("../middlewares/validate");
 const ctrl = require("../controllers/chatbot.controller");
 const { chatbotQuerySchema } = require("../validations/chatbot.schema");
 
-const ALLOWED_CHATBOT_ROLES = ["EDUCATEUR", "DIRECTEUR", "PRESIDENT", "EDUCATOR"];
+const ALLOWED_CHATBOT_ROLES = ["EDUCATEUR", "DIRECTEUR", "PRESIDENT"];
 
 router.use(auth);
 

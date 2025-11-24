@@ -141,6 +141,8 @@ exports.getHistoryForUser = async (user) => {
     limit: 50,
   });
 
+  if (!rows || rows.length === 0) return [];
+
   return rows.map((row) => ({
     id: row.id,
     message: row.message,

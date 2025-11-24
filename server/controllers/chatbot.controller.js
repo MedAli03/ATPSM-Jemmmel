@@ -91,7 +91,7 @@ exports.query = async (req, res, next) => {
 exports.history = async (req, res, next) => {
   try {
     const rows = await service.getHistoryForUser(req.user);
-    res.json(rows);
+    res.json(rows || []);
   } catch (e) {
     next(e);
   }
