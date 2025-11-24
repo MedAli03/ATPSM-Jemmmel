@@ -1,6 +1,7 @@
 "use strict";
 
-const { Enfant, DailyNote, EvaluationProjet } = require("../models");
+const { Op } = require("sequelize");
+const { Enfant, DailyNote, EvaluationProjet, PEI, AnneeScolaire } = require("../models");
 const ficheRepo = require("../repos/fiche_enfant.repo");
 const peiRepo = require("../repos/pei.repo");
 const educatorAccess = require("./educateur_access.service");
@@ -67,9 +68,13 @@ const parseObjectives = (raw) => {
   return [];
 };
 
-async function loadRecentNotes(where) {
+async function loadRecentNotes(where, dateRange = null) {
+  const noteWhere = { ...where };
+  if (dateRange?.start && dateRange?.end) {
+    noteWhere.date_note = { [Op.between]: [dateRange.start, dateRange.end] };
+  }
   const notes = await DailyNote.findAll({
-    where,
+    where: noteWhere,
     attributes: ["id", "date_note", "contenu", "type"],
     order: [
       ["date_note", "DESC"],
@@ -85,7 +90,7 @@ async function loadRecentNotes(where) {
   }));
 }
 
-async function loadRecentEvaluations(peiId) {
+async function loadRecentEvaluations(peiId, limit = MAX_EVALUATIONS) {
   const evaluations = await EvaluationProjet.findAll({
     where: { projet_id: peiId },
     attributes: ["id", "date_evaluation", "score", "notes", "grille"],
@@ -93,7 +98,7 @@ async function loadRecentEvaluations(peiId) {
       ["date_evaluation", "DESC"],
       ["id", "DESC"],
     ],
-    limit: MAX_EVALUATIONS,
+    limit,
   });
   return evaluations.map((row) => ({
     id: row.id,
@@ -113,6 +118,10 @@ exports.buildChildContext = async ({ educatorId, role, childId }) => {
   const safeEducatorId = Number(educatorId);
 
   const activeYear = await educatorAccess.requireActiveSchoolYear();
+  const activeYearRange = {
+    start: activeYear.date_debut,
+    end: activeYear.date_fin,
+  };
 
   // Align with PEI/notes/evaluations: all roles except PRESIDENT must be
   // explicitly assigned to the child in the active school year.
@@ -148,11 +157,47 @@ exports.buildChildContext = async ({ educatorId, role, childId }) => {
   }
 
   const recentNotes = await loadRecentNotes(
-    peiContext ? { projet_id: peiContext.id } : { enfant_id: safeChildId }
+    peiContext ? { projet_id: peiContext.id } : { enfant_id: safeChildId },
+    peiContext ? null : activeYearRange
   );
-  const recentEvaluations = peiContext
-    ? await loadRecentEvaluations(peiContext.id)
-    : [];
+
+  let recentEvaluations = [];
+  if (peiContext) {
+    recentEvaluations = await loadRecentEvaluations(peiContext.id);
+  } else {
+    // Try the latest PEI of the active year, otherwise fall back to the most
+    // recent PEI from the previous year only (to avoid leaking older data).
+    let peiForEval = await PEI.findOne({
+      where: { enfant_id: safeChildId, annee_id: activeYear.id },
+      order: [
+        ["date_creation", "DESC"],
+        ["id", "DESC"],
+      ],
+      attributes: ["id", "annee_id"],
+    });
+
+    if (!peiForEval) {
+      const previousYear = await AnneeScolaire.findOne({
+        where: { date_debut: { [Op.lt]: activeYear.date_debut } },
+        order: [["date_debut", "DESC"]],
+        attributes: ["id", "date_debut", "date_fin"],
+      });
+      if (previousYear) {
+        peiForEval = await PEI.findOne({
+          where: { enfant_id: safeChildId, annee_id: previousYear.id },
+          order: [
+            ["date_creation", "DESC"],
+            ["id", "DESC"],
+          ],
+          attributes: ["id", "annee_id"],
+        });
+      }
+    }
+
+    if (peiForEval) {
+      recentEvaluations = await loadRecentEvaluations(peiForEval.id, 1);
+    }
+  }
 
   return {
     child: {
