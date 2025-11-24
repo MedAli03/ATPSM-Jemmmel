@@ -45,9 +45,14 @@ export const EducatorChatbotScreen: React.FC = () => {
       }));
       setMessages(mapped);
       scrollToEnd();
-    } catch (err) {
+    } catch (err: any) {
       console.warn("Failed to load chatbot history", err);
-      setError("فشل تحميل المحادثة. حاول مجددًا.");
+      const status = err?.response?.status;
+      if (status === 401 || status === 403) {
+        setError("ليس لديك صلاحية لاستخدام المساعد.");
+      } else {
+        setError("فشل تحميل المحادثة. حاول مجددًا.");
+      }
     } finally {
       setLoading(false);
     }

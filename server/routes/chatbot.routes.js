@@ -5,9 +5,16 @@ const validate = require("../middlewares/validate");
 const ctrl = require("../controllers/chatbot.controller");
 const { chatbotQuerySchema } = require("../validations/chatbot.schema");
 
-router.use(auth, requireRole("EDUCATEUR", "DIRECTEUR", "PRESIDENT"));
+const ALLOWED_CHATBOT_ROLES = ["EDUCATEUR", "DIRECTEUR", "PRESIDENT", "EDUCATOR"];
 
-router.get("/history", ctrl.history);
-router.post("/query", validate(chatbotQuerySchema), ctrl.query);
+router.use(auth);
+
+router.get("/history", requireRole(...ALLOWED_CHATBOT_ROLES), ctrl.history);
+router.post(
+  "/query",
+  requireRole(...ALLOWED_CHATBOT_ROLES),
+  validate(chatbotQuerySchema),
+  ctrl.query
+);
 
 module.exports = router;
