@@ -376,36 +376,7 @@ async function notifyOnEvaluationAdded(evaluation, t = null) {
 }
 
 // -------------------------------
-// 7) Recommandations IA
-// -------------------------------
-
-async function notifyOnRecommendationsReady({ enfant_id, educateur_id }, t = null) {
-  // Educateur uniquement (règle : jamais parent pour les RAW recommendations)
-  if (!educateur_id) return 0;
-  return toUsers([educateur_id], {
-    type: "recommandation",
-    titre: "Recommandations IA disponibles",
-    corps: `De nouvelles recommandations IA sont prêtes pour l’enfant #${enfant_id}.`,
-    icon: "sparkles",
-    data: { enfant_id, educateur_id },
-  }, t);
-}
-
-async function notifyOnRecommendationsApplied({ enfant_id }, t = null) {
-  // Parent (après arbitrage et application)
-  const parentIds = await parentOfChild(enfant_id, t);
-  if (!parentIds.length) return 0;
-  return toUsers(parentIds, {
-    type: "pei",
-    titre: "Mise à jour du PEI",
-    corps: "Des recommandations validées ont été ajoutées au PEI de votre enfant.",
-    icon: "sparkles",
-    data: { enfant_id },
-  }, t);
-}
-
-// -------------------------------
-// 8) Daily Notes / Activités
+// 7) Daily Notes / Activités
 // -------------------------------
 
 async function notifyOnDailyNoteAdded(note, t = null) {
@@ -494,7 +465,7 @@ module.exports = {
   notifyOnChildAssignedToGroup,
   notifyOnEducatorAssignedToGroup,
 
-// 5. PEI
+  // 5. PEI
   notifyOnPeiAwaitingValidation,
   notifyOnPEICreated,
   notifyOnPEIUpdated,
@@ -503,18 +474,14 @@ module.exports = {
   // 6. évaluations
   notifyOnEvaluationAdded,
 
-  // 7. recommandations IA
-  notifyOnRecommendationsReady,
-  notifyOnRecommendationsApplied,
-
-  // 8. notes / activités
+  // 7. notes / activités
   notifyOnDailyNoteAdded,
   notifyOnActivityAdded,
 
-  // 9. messagerie
+  // 8. messagerie
   notifyOnNewMessage,
 
-  // 10. broadcast explicite
+  // 9. broadcast explicite
   notifyBroadcastToRole,
   notifyBroadcastToAll,
 };

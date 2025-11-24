@@ -31,7 +31,6 @@ const TYPE_BADGES = {
   evaluation: { text: "تقييم", class: "bg-amber-50 text-amber-700" },
   activite: { text: "نشاط", class: "bg-orange-50 text-orange-700" },
   note: { text: "ملاحظة", class: "bg-rose-50 text-rose-700" },
-  recommandation: { text: "ذكاء اصطناعي", class: "bg-cyan-50 text-cyan-700" },
   message: { text: "رسالة", class: "bg-gray-100 text-gray-700" },
   document: { text: "وثيقة", class: "bg-slate-100 text-slate-600" },
   reglement: { text: "نظام", class: "bg-teal-50 text-teal-700" },

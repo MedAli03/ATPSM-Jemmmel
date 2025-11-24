@@ -27,6 +27,10 @@ const PEI_STATUS = {
 // - Validation: VALIDE (PRESIDENT ou DIRECTEUR via /:id/validate)
 // - Clôture/archivage: CLOTURE (EDUCATEUR, DIRECTEUR, PRESIDENT via /:id/close)
 // - REFUSE reste possible pour cohérence historique
+//
+// Workflow PEI (sans recommandations IA) :
+// Observation initiale → Création du PEI → Ajout d’objectifs/activités → Notes quotidiennes →
+// Évaluations périodiques → Historique des versions du PEI.
 
 exports.list = async (q, currentUser) => {
   const page = Math.max(1, Number(q.page || 1));

@@ -8,7 +8,8 @@ const swaggerDefinition = {
   info: {
     title: "ATPSM API",
     version: "1.0.0",
-    description: "API documentation for the autism association platform (auth, enfants, PEI, évaluations, recommandations).",
+    description:
+      "API documentation for the autism association platform (auth, enfants, PEI, évaluations, chatbot).",
   },
   servers: [
     { url: "http://localhost:" + (process.env.PORT || 4000), description: "Local" },
@@ -47,7 +48,7 @@ const swaggerDefinition = {
     { name: "Enfants" },
     { name: "PEI" },
     { name: "Evaluations" },
-    { name: "Recommandations" },
+    { name: "Chatbot" },
   ],
 };
 

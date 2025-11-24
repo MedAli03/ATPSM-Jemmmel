@@ -10,7 +10,7 @@ router.use("/pei", require("./pei.routes"));
 router.use("/", require("./activites.routes"));
 router.use("/", require("./dailynotes.routes"));
 router.use("/", require("./evaluations.routes"));
-router.use("/", require("./reco.routes"));
+router.use("/chatbot", require("./chatbot.routes"));
 
 router.use("/dashboard", require("./dashboard/index"));
 router.use("/annees", require("./annees.routes"));

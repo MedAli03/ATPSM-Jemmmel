@@ -66,15 +66,6 @@ const PEI = require("./projet_educatif_individuel")(sequelize, DataTypes);
 const ActiviteProjet = require("./activite_projet")(sequelize, DataTypes);
 const DailyNote = require("./daily_note")(sequelize, DataTypes);
 const EvaluationProjet = require("./evaluation_projet")(sequelize, DataTypes);
-const RecoAI = require("./recommendation_ai")(sequelize, DataTypes);
-const RecoAIObjectif = require("./recommendation_ai_objectif")(
-  sequelize,
-  DataTypes
-);
-const RecoAIActivite = require("./recommendation_ai_activite")(
-  sequelize,
-  DataTypes
-);
 const HistoriqueProjet = require("./historique_projet")(sequelize, DataTypes);
 const Document = require("./document")(sequelize, DataTypes);
 const Reglement = require("./reglement")(sequelize, DataTypes);
@@ -226,43 +217,6 @@ EvaluationProjet.belongsTo(Utilisateur, {
 });
 PEI.hasMany(EvaluationProjet, { as: "evaluations", foreignKey: "projet_id" });
 
-// Recommandation IA
-RecoAI.belongsTo(Enfant, { as: "enfant", foreignKey: "enfant_id" });
-RecoAI.belongsTo(Utilisateur, { as: "educateur", foreignKey: "educateur_id" });
-RecoAI.belongsTo(EvaluationProjet, {
-  as: "evaluation",
-  foreignKey: "evaluation_id",
-});
-RecoAI.belongsTo(PEI, { as: "source", foreignKey: "projet_source_id" });
-RecoAI.belongsTo(PEI, { as: "cible", foreignKey: "projet_cible_id" });
-Enfant.hasMany(RecoAI, { as: "recommandations", foreignKey: "enfant_id" });
-Utilisateur.hasMany(RecoAI, {
-  as: "recommandations",
-  foreignKey: "educateur_id",
-});
-
-RecoAIObjectif.belongsTo(RecoAI, {
-  as: "reco",
-  foreignKey: "recommendation_id",
-});
-RecoAI.hasMany(RecoAIObjectif, {
-  as: "objectifs",
-  foreignKey: "recommendation_id",
-});
-
-RecoAIActivite.belongsTo(RecoAI, {
-  as: "reco",
-  foreignKey: "recommendation_id",
-});
-RecoAI.hasMany(RecoAIActivite, {
-  as: "activites",
-  foreignKey: "recommendation_id",
-});
-RecoAIActivite.belongsTo(ActiviteProjet, {
-  as: "created_activite",
-  foreignKey: "created_activite_id",
-});
-
 // Historique PEI
 HistoriqueProjet.belongsTo(PEI, { as: "projet", foreignKey: "projet_id" });
 HistoriqueProjet.belongsTo(Utilisateur, {
@@ -375,9 +329,6 @@ const db = {
   ActiviteProjet,
   DailyNote,
   EvaluationProjet,
-  RecoAI,
-  RecoAIObjectif,
-  RecoAIActivite,
   HistoriqueProjet,
   Document,
   Reglement,

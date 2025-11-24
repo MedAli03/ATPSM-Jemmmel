@@ -12,7 +12,7 @@ module.exports = (sequelize) =>
       description: DataTypes.TEXT,
       objectifs: DataTypes.TEXT,
       type: {
-        type: DataTypes.ENUM('atelier','jeu','reco','autre'),
+        type: DataTypes.ENUM('atelier','jeu','autre'),
         allowNull: false,
         defaultValue: 'autre',
       }

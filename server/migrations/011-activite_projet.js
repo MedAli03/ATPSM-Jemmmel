@@ -33,7 +33,7 @@ module.exports = {
       description: { type: Sequelize.TEXT, allowNull: true },
       objectifs: { type: Sequelize.TEXT, allowNull: true },
       type: {
-        type: Sequelize.ENUM("atelier", "jeu", "reco", "autre"),
+        type: Sequelize.ENUM("atelier", "jeu", "autre"),
         allowNull: false,
         defaultValue: "autre",
       },

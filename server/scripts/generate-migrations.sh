@@ -298,7 +298,7 @@ module.exports = {
       titre: { type: Sequelize.STRING(150) },
       description: { type: Sequelize.TEXT },
       objectifs: { type: Sequelize.TEXT },
-      type: { type: Sequelize.ENUM('atelier','jeu','reco','autre'), defaultValue: 'autre' },
+      type: { type: Sequelize.ENUM('atelier','jeu','autre'), defaultValue: 'autre' },
       created_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.NOW },
       updated_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.NOW }
     });
@@ -359,81 +359,7 @@ module.exports = {
 EOF
 )"
 
-# 14) recommendation_ai
-make_migration "create-recommendation-ai" "$(cat <<'EOF'
-'use strict';
-module.exports = {
-  up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('recommendation_ai', {
-      id: { type: Sequelize.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
-      enfant_id: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false, references: { model: 'enfants', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'CASCADE' },
-      educateur_id: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false, references: { model: 'utilisateurs', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'CASCADE' },
-      evaluation_id: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false, references: { model: 'evaluation_projet', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'CASCADE' },
-      projet_source_id: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false, references: { model: 'projet_educatif_individuel', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'CASCADE' },
-      projet_cible_id: { type: Sequelize.INTEGER.UNSIGNED, allowNull: true, references: { model: 'projet_educatif_individuel', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'SET NULL' },
-      statut: { type: Sequelize.ENUM('proposee','validee','modifiee','rejetee'), defaultValue: 'proposee' },
-      model_version: { type: Sequelize.STRING(50) },
-      visible_parent: { type: Sequelize.BOOLEAN, defaultValue: false },
-      date_creation: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.NOW },
-      commentaire: { type: Sequelize.TEXT },
-      created_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.NOW },
-      updated_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.NOW }
-    });
-  },
-  down: async (queryInterface) => {
-    await queryInterface.dropTable('recommendation_ai');
-  }
-};
-EOF
-)"
-
-# 15) recommendation_ai_objectif
-make_migration "create-recommendation-ai-objectif" "$(cat <<'EOF'
-'use strict';
-module.exports = {
-  up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('recommendation_ai_objectif', {
-      id: { type: Sequelize.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
-      recommendation_id: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false, references: { model: 'recommendation_ai', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'CASCADE' },
-      texte: { type: Sequelize.TEXT },
-      accepte: { type: Sequelize.BOOLEAN, defaultValue: false },
-      applique_le: { type: Sequelize.DATE },
-      created_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.NOW },
-      updated_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.NOW }
-    });
-  },
-  down: async (queryInterface) => {
-    await queryInterface.dropTable('recommendation_ai_objectif');
-  }
-};
-EOF
-)"
-
-# 16) recommendation_ai_activite
-make_migration "create-recommendation-ai-activite" "$(cat <<'EOF'
-'use strict';
-module.exports = {
-  up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('recommendation_ai_activite', {
-      id: { type: Sequelize.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
-      recommendation_id: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false, references: { model: 'recommendation_ai', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'CASCADE' },
-      description: { type: Sequelize.TEXT },
-      objectifs: { type: Sequelize.TEXT },
-      accepte: { type: Sequelize.BOOLEAN, defaultValue: false },
-      created_activite_id: { type: Sequelize.INTEGER.UNSIGNED, allowNull: true, references: { model: 'activite_projet', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'SET NULL' },
-      applique_le: { type: Sequelize.DATE },
-      created_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.NOW },
-      updated_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.NOW }
-    });
-  },
-  down: async (queryInterface) => {
-    await queryInterface.dropTable('recommendation_ai_activite');
-  }
-};
-EOF
-)"
-
-# 17) historique_projet
+# 14) historique_projet
 make_migration "create-historique-projet" "$(cat <<'EOF'
 'use strict';
 module.exports = {

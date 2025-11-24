@@ -91,7 +91,7 @@ export interface CreatePeiActivityPayload {
   titre: string;
   description?: string;
   objectifs?: string;
-  type?: "atelier" | "jeu" | "reco" | "autre";
+  type?: "atelier" | "jeu" | "autre";
   date_activite: string;
   enfant_id: number;
 }

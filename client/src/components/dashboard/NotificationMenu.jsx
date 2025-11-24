@@ -86,21 +86,6 @@ const TYPE_STYLES = {
       </svg>
     ),
   },
-  recommandation: {
-    label: "ذكاء اصطناعي",
-    chip: "bg-cyan-100 text-cyan-600",
-    icon: (
-      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
-        <path
-          d="M9 3h6l1 3h3v4l-3 2 3 2v4h-3l-1 3H9l-1-3H5v-4l3-2-3-2V6h3l1-3z"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    ),
-  },
   note: {
     label: "ملاحظة",
     chip: "bg-rose-100 text-rose-600",
