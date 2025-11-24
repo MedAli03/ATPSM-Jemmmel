@@ -26,7 +26,7 @@ export type EducatorStackParamList = {
   ObservationInitiale: { childId: number };
   EducatorPeiDetail: { childId: number; peiId?: number };
   EducatorPeiCreate: { childId: number; anneeId?: number };
-  EducatorChatbot: { childId?: number };
+  EducatorChatbot: { childId: number; childName?: string };
 };
 
 export type EducatorTabParamList = {

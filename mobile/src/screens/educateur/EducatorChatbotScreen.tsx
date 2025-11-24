@@ -36,6 +36,7 @@ export const EducatorChatbotScreen: React.FC = () => {
   const listRef = useRef<FlatList<ChatEntry>>(null);
   const route = useRoute<RouteProp<EducatorStackParamList, "EducatorChatbot">>();
   const childId = route.params?.childId;
+  const childName = route.params?.childName;
 
   const scrollToEnd = useCallback(() => {
     requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
@@ -47,6 +48,7 @@ export const EducatorChatbotScreen: React.FC = () => {
     try {
       if (!childId) {
         setError("MISSING_CHILD");
+        setMessages([]);
         return;
       }
 
@@ -108,11 +110,16 @@ export const EducatorChatbotScreen: React.FC = () => {
       };
       setMessages((prev) => prev.map((m) => (m.id === tempId ? next : m)));
       scrollToEnd();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to send chatbot question", err);
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
       setInput(trimmed);
-      setError("LOAD_FAILED");
+      const status = err?.response?.status;
+      if (status === 401 || status === 403) {
+        setError("ACCESS_FORBIDDEN");
+      } else {
+        setError("LOAD_FAILED");
+      }
     } finally {
       setSending(false);
     }
@@ -154,15 +161,20 @@ export const EducatorChatbotScreen: React.FC = () => {
         keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>محادثة المساعد</Text>
-          <Text style={styles.subtitle}>Chatbot éducatif (llama2)</Text>
+          <Text style={styles.title}>
+            {childName ? `${childName} · محادثة المساعد` : "محادثة المساعد"}
+          </Text>
+          <Text style={styles.subtitle}>
+            Chatbot éducatif (llama2)
+            {childName ? ` – ${childName}` : ""}
+          </Text>
         </View>
 
         {error && (
           <View style={styles.errorBox}>
             <Text style={styles.errorText}>
               {error === "ACCESS_FORBIDDEN"
-                ? "ليس لديك صلاحية لاستخدام هذا المساعد."
+                ? "ليس لديك صلاحية لاستخدام هذا المساعد لهذا الطفل."
                 : error === "MISSING_CHILD"
                 ? "يرجى اختيار طفل لبدء المحادثة."
                 : "فشل تحميل المحادثة. حاول مجددًا."}
@@ -175,9 +187,9 @@ export const EducatorChatbotScreen: React.FC = () => {
 
         {!loading && !error && messages.length === 0 && (
           <View style={styles.emptyBox}>
-            <Text style={styles.emptyTitle}>لا توجد محادثات سابقة بعد</Text>
+            <Text style={styles.emptyTitle}>لا توجد محادثات سابقة لهذا الطفل</Text>
             <Text style={styles.emptySubtitle}>
-              اكتب سؤالك الأول لبدء التحدث مع المساعد.
+              لا توجد محادثات سابقة لهذا الطفل. ابدأ بالسؤال الأول ✨
             </Text>
           </View>
         )}
