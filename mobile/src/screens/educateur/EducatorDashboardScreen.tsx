@@ -467,6 +467,16 @@ export const EducatorDashboardScreen: React.FC = () => {
                 <Text style={styles.quickText}>تواصل مع الأولياء بسهولة</Text>
               </TouchableOpacity>
             </View>
+            <View style={styles.row}>
+              <TouchableOpacity
+                style={styles.quickCard}
+                onPress={() => navigation.navigate("EducatorChatbot")}
+              >
+                <Text style={styles.quickEmoji}>🤖</Text>
+                <Text style={styles.quickTitle}>المساعد الذكي</Text>
+                <Text style={styles.quickText}>Chatbot éducatif للمرشدين</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* FOOTER */}

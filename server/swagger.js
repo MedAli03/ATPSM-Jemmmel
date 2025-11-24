@@ -55,8 +55,8 @@ const swaggerDefinition = {
 const options = {
   swaggerDefinition,
   apis: [
-    path.join(process.cwd(), "src/routes/*.js"),
-    path.join(process.cwd(), "src/controllers/*.js"),
+    path.join(process.cwd(), "server/routes/*.js"),
+    path.join(process.cwd(), "server/controllers/*.js"),
   ],
 };
 

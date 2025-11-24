@@ -1,3 +1,5 @@
+const { ChatbotMessage } = require("../models");
+
 const DEFAULT_BASE_URL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
 const DEFAULT_MODEL = process.env.OLLAMA_MODEL || "llama2";
 const DEFAULT_TEMPERATURE = Number(process.env.CHATBOT_TEMPERATURE ?? 0.7);
@@ -29,6 +31,24 @@ const buildMetadata = (user) => ({
   userId: user?.id,
   role: user?.role,
 });
+
+const persistHistory = async ({ userId, role, message, reply, model }) => {
+  if (!ChatbotMessage || !userId) return null;
+  try {
+    const row = await ChatbotMessage.create({
+      utilisateur_id: userId,
+      role: role || null,
+      message,
+      reply,
+      model,
+    });
+    return row;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("[chatbot] failed to persist history", err.message);
+    return null;
+  }
+};
 
 const toServiceUnavailable = (
   message = "Chatbot service temporarily unavailable."
@@ -95,5 +115,37 @@ exports.query = async (message, user = {}) => {
     messageLength: safeMessage.length,
   });
 
-  return { reply: reply.trim(), model, metadata };
+  const sanitizedReply = reply.trim();
+
+  persistHistory({
+    userId: metadata.userId,
+    role: metadata.role,
+    message: safeMessage,
+    reply: sanitizedReply,
+    model,
+  });
+
+  return { reply: sanitizedReply, model, metadata };
+};
+
+exports.getHistoryForUser = async (user) => {
+  if (!user?.id) {
+    const e = new Error("Utilisateur requis pour l'historique");
+    e.status = 401;
+    throw e;
+  }
+
+  const rows = await ChatbotMessage.findAll({
+    where: { utilisateur_id: user.id },
+    order: [["created_at", "ASC"]],
+    limit: 50,
+  });
+
+  return rows.map((row) => ({
+    id: row.id,
+    message: row.message,
+    reply: row.reply,
+    model: row.model,
+    createdAt: row.created_at,
+  }));
 };
