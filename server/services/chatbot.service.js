@@ -115,20 +115,32 @@ exports.submitMessage = async ({ user, childId, message, preferredLanguage = DEF
 
   const systemPrompt = buildSystemPrompt();
   const userPrompt = [
-    "Résumé du contexte enfant:",
+    "CONTEXTE ENFANT:",
     summarizeContext(context),
-    "Question de l'éducateur:",
+    "QUESTION DE L'ÉDUCATEUR:",
     safeMessage,
     preferredLanguage ? `Langue souhaitée: ${preferredLanguage}` : null,
+    "Donne une réponse pratique, courte et structurée, adaptée à ce contexte.",
   ]
     .filter(Boolean)
     .join("\n\n");
 
-  const { text: answer, model } = await ollamaChat({
-    systemPrompt,
-    userPrompt,
-    model: DEFAULT_MODEL,
-  });
+  let answer;
+  let model;
+  try {
+    const result = await ollamaChat({
+      systemPrompt,
+      userPrompt,
+      model: DEFAULT_MODEL,
+    });
+    answer = result.text;
+    model = result.model;
+  } catch (err) {
+    const error = err || new Error("Erreur du service chatbot");
+    error.status = error.status || 500;
+    error.message = error.message || "Impossible de générer une réponse pour le moment";
+    throw error;
+  }
 
   console.info("[chatbot] requête ollama exécutée", {
     userId: safeUser.id,
@@ -152,8 +164,6 @@ exports.submitMessage = async ({ user, childId, message, preferredLanguage = DEF
     educatorId: row.educator_id,
     question: row.question,
     answer: row.answer,
-    model: model || DEFAULT_MODEL,
-    preferredLanguage,
     createdAt: row.created_at || row.createdAt,
   };
 };
