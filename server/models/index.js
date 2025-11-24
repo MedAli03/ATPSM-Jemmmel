@@ -312,13 +312,15 @@ Utilisateur.hasMany(Notification, {
 
 // Chatbot messages
 ChatbotMessage.belongsTo(Utilisateur, {
-  as: "utilisateur",
-  foreignKey: "utilisateur_id",
+  as: "educateur",
+  foreignKey: "educator_id",
 });
 Utilisateur.hasMany(ChatbotMessage, {
   as: "chatbot_messages",
-  foreignKey: "utilisateur_id",
+  foreignKey: "educator_id",
 });
+
+ChatbotMessage.belongsTo(Enfant, { as: "enfant", foreignKey: "child_id" });
 
 /* -------------------------------------------------------------------------- */
 /*                                   EXPORTS                                   */

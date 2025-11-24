@@ -9,26 +9,21 @@ module.exports = (sequelize, DataTypes) =>
         autoIncrement: true,
         primaryKey: true,
       },
-      utilisateur_id: {
+      educator_id: {
         type: DataTypes.INTEGER.UNSIGNED,
         allowNull: false,
       },
-      role: {
-        type: DataTypes.STRING(50),
+      child_id: {
+        type: DataTypes.INTEGER.UNSIGNED,
         allowNull: true,
       },
-      message: {
+      question: {
         type: DataTypes.TEXT,
         allowNull: false,
       },
-      reply: {
+      answer: {
         type: DataTypes.TEXT("long"),
         allowNull: false,
-      },
-      model: {
-        type: DataTypes.STRING(100),
-        allowNull: false,
-        defaultValue: "llama2",
       },
     },
     {
@@ -37,7 +32,8 @@ module.exports = (sequelize, DataTypes) =>
       timestamps: true,
       freezeTableName: true,
       indexes: [
-        { fields: ["utilisateur_id"] },
+        { fields: ["educator_id"] },
+        { fields: ["child_id"] },
         { fields: ["created_at"] },
       ],
     }

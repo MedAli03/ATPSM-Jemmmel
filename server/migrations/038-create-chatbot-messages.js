@@ -10,29 +10,27 @@ module.exports = {
         autoIncrement: true,
         primaryKey: true,
       },
-      utilisateur_id: {
+      educator_id: {
         type: Sequelize.INTEGER.UNSIGNED,
         allowNull: false,
         references: { model: "utilisateurs", key: "id" },
         onUpdate: "CASCADE",
         onDelete: "CASCADE",
       },
-      role: {
-        type: Sequelize.STRING(50),
+      child_id: {
+        type: Sequelize.INTEGER.UNSIGNED,
         allowNull: true,
+        references: { model: "enfants", key: "id" },
+        onUpdate: "CASCADE",
+        onDelete: "SET NULL",
       },
-      message: {
+      question: {
         type: Sequelize.TEXT,
         allowNull: false,
       },
-      reply: {
+      answer: {
         type: Sequelize.TEXT("long"),
         allowNull: false,
-      },
-      model: {
-        type: Sequelize.STRING(100),
-        allowNull: false,
-        defaultValue: "llama2",
       },
       created_at: {
         type: Sequelize.DATE,
@@ -46,7 +44,8 @@ module.exports = {
       },
     });
 
-    await queryInterface.addIndex(TABLE, { fields: ["utilisateur_id"] });
+    await queryInterface.addIndex(TABLE, { fields: ["educator_id"] });
+    await queryInterface.addIndex(TABLE, { fields: ["child_id"] });
     await queryInterface.addIndex(TABLE, { fields: ["created_at"] });
   },
 
