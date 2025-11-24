@@ -2,6 +2,7 @@ const { ChatbotMessage } = require("../models");
 const educatorAccess = require("./educateur_access.service");
 const { buildChildContext } = require("./chatbot.context");
 const { chat: ollamaChat } = require("../utils/ollamaClient");
+const { buildSystemPrompt, buildUserPrompt } = require("./chatbot.prompts");
 
 const DEFAULT_MODEL = process.env.OLLAMA_MODEL || "llama2";
 const MAX_HISTORY = 50;
@@ -39,69 +40,6 @@ const ensureChildId = (childId) => {
   return numeric;
 };
 
-const buildSystemPrompt = () =>
-  [
-    "Vous êtes un assistant pour les éducateurs accompagnant des enfants autistes dans une association en Tunisie.",
-    "Vous n'êtes pas médecin et ne donnez jamais de conseils médicaux ou de médication.",
-    "Vous proposez uniquement des stratégies éducatives, des idées d'activités et des formulations professionnelles pour les notes ou messages.",
-    "Les parents ne vous parlent pas directement : vous aidez seulement l'éducateur.",
-    "Si la question touche au diagnostic médical ou à un traitement, indiquez qu'un médecin ou un spécialiste doit décider.",
-    "Répondez dans un mélange de français simple et d'arabe (ar-fr-mix), sauf si l'éducateur demande explicitement une autre langue.",
-  ].join(" ");
-
-const summarizeContext = (context) => {
-  if (!context) return "Contexte enfant non disponible.";
-
-  const sections = [];
-  if (context.child) {
-    sections.push(
-      `Enfant: ${context.child.displayName || "(sans nom)"}, âge: ${
-        context.child.age ?? "?"
-      }. Profil: ${context.child.profileSummary || "non spécifié"}.`
-    );
-  }
-
-  if (context.pei) {
-    const objectives = (context.pei.objectives || [])
-      .slice(0, 5)
-      .map((obj) => `- ${obj.label}${obj.progress ? ` (progression: ${obj.progress})` : ""}`)
-      .join("\n");
-    sections.push(
-      [
-        `PEI actif (${context.pei.yearLabel || context.pei.yearId || "année"}) – statut: ${
-          context.pei.status || "?"
-        }`,
-        objectives ? `Objectifs principaux:\n${objectives}` : "",
-      ]
-        .filter(Boolean)
-        .join("\n")
-    );
-  }
-
-  if (context.recentNotes?.length) {
-    const notes = context.recentNotes
-      .slice(0, 5)
-      .map((note) => `- ${note.date}: ${note.summary?.slice(0, 140) || "note"}`)
-      .join("\n");
-    sections.push(`Notes récentes:\n${notes}`);
-  }
-
-  if (context.recentEvaluations?.length) {
-    const evals = context.recentEvaluations
-      .slice(0, 5)
-      .map(
-        (ev) =>
-          `- ${ev.date}: ${ev.objectiveLabel || "objectif"} – score: ${
-            ev.score ?? "?"
-          }${ev.comment ? ` (${ev.comment.slice(0, 80)})` : ""}`
-      )
-      .join("\n");
-    sections.push(`Évaluations récentes:\n${evals}`);
-  }
-
-  return sections.filter(Boolean).join("\n\n") || "Contexte enfant non disponible.";
-};
-
 exports.submitMessage = async ({ user, childId, message, preferredLanguage = DEFAULT_LANGUAGE }) => {
   const safeUser = ensureUser(user);
   const safeChildId = ensureChildId(childId);
@@ -117,17 +55,12 @@ exports.submitMessage = async ({ user, childId, message, preferredLanguage = DEF
     childId: safeChildId,
   });
 
-  const systemPrompt = buildSystemPrompt();
-  const userPrompt = [
-    "CONTEXTE ENFANT:",
-    summarizeContext(context),
-    "QUESTION DE L'ÉDUCATEUR:",
-    safeMessage,
-    preferredLanguage ? `Langue souhaitée: ${preferredLanguage}` : null,
-    "Donne une réponse pratique, courte et structurée, adaptée à ce contexte.",
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+  const systemPrompt = buildSystemPrompt(preferredLanguage);
+  const userPrompt = buildUserPrompt({
+    context,
+    message: safeMessage,
+    preferredLanguage,
+  });
 
   let answer;
   let model;

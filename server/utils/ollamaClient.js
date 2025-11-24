@@ -2,9 +2,15 @@
 
 const DEFAULT_BASE_URL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
 const DEFAULT_MODEL = process.env.OLLAMA_MODEL || "llama2";
-const DEFAULT_TEMPERATURE = Number(process.env.CHATBOT_TEMPERATURE || 0.7);
-const DEFAULT_MAX_TOKENS = Number(process.env.CHATBOT_MAX_TOKENS || 512);
-const REQUEST_TIMEOUT_MS = Number(process.env.OLLAMA_TIMEOUT_MS || 20000);
+const DEFAULT_TEMPERATURE = Number(
+  process.env.OLLAMA_TEMPERATURE || process.env.CHATBOT_TEMPERATURE || 0.7
+);
+const DEFAULT_MAX_TOKENS = Number(
+  process.env.OLLAMA_MAX_TOKENS || process.env.CHATBOT_MAX_TOKENS || 512
+);
+const REQUEST_TIMEOUT_MS = Number(
+  process.env.OLLAMA_TIMEOUT_MS || process.env.CHATBOT_TIMEOUT_MS || 20000
+);
 
 const buildPayload = ({ systemPrompt, userPrompt, model }) => ({
   model: model || DEFAULT_MODEL,
@@ -33,11 +39,12 @@ async function chat({ systemPrompt, userPrompt, model }) {
 
     if (!response.ok) {
       const err = new Error("Chatbot service temporarily unavailable");
-      err.status = 503;
+      err.status = response.status >= 500 ? 503 : response.status || 502;
+      err.details = await safeParseJson(response);
       throw err;
     }
 
-    const data = await response.json();
+    const data = await safeParseJson(response);
     const text = data?.message?.content || data?.response || data?.message;
 
     if (!text) {
@@ -59,6 +66,14 @@ async function chat({ systemPrompt, userPrompt, model }) {
     throw err;
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+async function safeParseJson(response) {
+  try {
+    return await response.json();
+  } catch (err) {
+    return null;
   }
 }
 
