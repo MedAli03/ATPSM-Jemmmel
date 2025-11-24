@@ -8,6 +8,7 @@ const MAX_HISTORY = 50;
 const DEFAULT_LANGUAGE = "ar-fr-mix";
 
 const normalizeRole = (role) => String(role || "").toUpperCase();
+const requiresChildAccessCheck = (role) => normalizeRole(role) !== "PRESIDENT";
 
 const ensureMessage = (message) => {
   const trimmed = typeof message === "string" ? message.trim() : "";
@@ -107,6 +108,9 @@ exports.submitMessage = async ({ user, childId, message, preferredLanguage = DEF
   const safeMessage = ensureMessage(message);
 
   const normalizedRole = normalizeRole(safeUser.role);
+  if (requiresChildAccessCheck(normalizedRole)) {
+    await educatorAccess.assertCanAccessChild(safeUser.id, safeChildId);
+  }
   const context = await buildChildContext({
     educatorId: safeUser.id,
     role: normalizedRole,
@@ -173,7 +177,7 @@ exports.getHistoryForChild = async ({ user, childId }) => {
   const safeChildId = ensureChildId(childId);
 
   const normalizedRole = normalizeRole(safeUser.role);
-  if (normalizedRole === "EDUCATEUR") {
+  if (requiresChildAccessCheck(normalizedRole)) {
     await educatorAccess.assertCanAccessChild(safeUser.id, safeChildId);
   }
 

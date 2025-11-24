@@ -114,7 +114,9 @@ exports.buildChildContext = async ({ educatorId, role, childId }) => {
 
   const activeYear = await educatorAccess.requireActiveSchoolYear();
 
-  if (normalizedRole === "EDUCATEUR") {
+  // Align with PEI/notes/evaluations: all roles except PRESIDENT must be
+  // explicitly assigned to the child in the active school year.
+  if (normalizedRole !== "PRESIDENT") {
     await educatorAccess.assertCanAccessChild(safeEducatorId, safeChildId);
   }
 
