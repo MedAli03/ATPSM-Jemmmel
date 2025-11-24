@@ -1,5 +1,6 @@
 const { ChatbotMessage } = require("../models");
 const educatorAccess = require("./educateur_access.service");
+const { buildChildContext } = require("./chatbot.context");
 
 const PLACEHOLDER_MODEL = process.env.OLLAMA_MODEL || "llama2";
 const MAX_HISTORY = 50;
@@ -41,11 +42,27 @@ exports.submitMessage = async ({ user, childId, message, preferredLanguage = "ar
   const safeMessage = ensureMessage(message);
 
   const normalizedRole = normalizeRole(safeUser.role);
-  if (normalizedRole === "EDUCATEUR") {
-    await educatorAccess.assertCanAccessChild(safeUser.id, safeChildId);
-  }
+  const context = await buildChildContext({
+    educatorId: safeUser.id,
+    role: normalizedRole,
+    childId: safeChildId,
+  });
 
-  const answer = `Réponse de test (placeholder) pour le message: ${safeMessage}.`;
+  const contextLabel = context?.child?.displayName
+    ? ` (contexte: ${context.child.displayName})`
+    : "";
+  const answer = `Réponse de test (placeholder) pour le message: ${safeMessage}.${contextLabel}`;
+
+  if (context) {
+    // Trace minimal metadata without leaking full content
+    console.info("[chatbot] contexte prêt", {
+      userId: safeUser.id,
+      childId: safeChildId,
+      peiId: context.pei?.id || null,
+      notes: context.recentNotes?.length || 0,
+      evaluations: context.recentEvaluations?.length || 0,
+    });
+  }
 
   const row = await ChatbotMessage.create({
     educator_id: safeUser.id,
