@@ -15,7 +15,7 @@ module.exports = (sequelize, DataTypes) =>
       },
       child_id: {
         type: DataTypes.INTEGER.UNSIGNED,
-        allowNull: true,
+        allowNull: false,
       },
       question: {
         type: DataTypes.TEXT,
