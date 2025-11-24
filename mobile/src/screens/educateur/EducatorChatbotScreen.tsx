@@ -23,6 +23,7 @@ type ChatEntry = {
   question: string;
   answer: string;
   createdAt: string;
+  status?: "pending" | "sent" | "failed";
 };
 
 export const EducatorChatbotScreen: React.FC = () => {
@@ -31,7 +32,12 @@ export const EducatorChatbotScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<
-    "ACCESS_FORBIDDEN" | "LOAD_FAILED" | "MISSING_CHILD" | null
+    | "ACCESS_FORBIDDEN"
+    | "UNAUTHORIZED"
+    | "SERVICE_UNAVAILABLE"
+    | "LOAD_FAILED"
+    | "MISSING_CHILD"
+    | null
   >(null);
   const listRef = useRef<FlatList<ChatEntry>>(null);
   const route = useRoute<RouteProp<EducatorStackParamList, "EducatorChatbot">>();
@@ -58,14 +64,19 @@ export const EducatorChatbotScreen: React.FC = () => {
         question: row.question,
         answer: row.answer,
         createdAt: row.createdAt,
+        status: "sent",
       }));
       setMessages(mapped);
       scrollToEnd();
     } catch (err: any) {
       console.warn("Failed to load chatbot history", err);
       const status = err?.response?.status;
-      if (status === 401 || status === 403) {
+      if (status === 401) {
+        setError("UNAUTHORIZED");
+      } else if (status === 403) {
         setError("ACCESS_FORBIDDEN");
+      } else if (status >= 500 || status === undefined) {
+        setError("SERVICE_UNAVAILABLE");
       } else {
         setError("LOAD_FAILED");
       }
@@ -92,6 +103,7 @@ export const EducatorChatbotScreen: React.FC = () => {
       question: trimmed,
       answer: "",
       createdAt: new Date().toISOString(),
+      status: "pending",
     };
 
     setInput("");
@@ -107,40 +119,111 @@ export const EducatorChatbotScreen: React.FC = () => {
         question: res?.question || trimmed,
         answer: res?.answer || "",
         createdAt: res?.createdAt || optimistic.createdAt,
+        status: "sent",
       };
       setMessages((prev) => prev.map((m) => (m.id === tempId ? next : m)));
       scrollToEnd();
     } catch (err: any) {
       console.error("Failed to send chatbot question", err);
-      setMessages((prev) => prev.filter((m) => m.id !== tempId));
-      setInput(trimmed);
       const status = err?.response?.status;
-      if (status === 401 || status === 403) {
+      if (status === 401) {
+        setError("UNAUTHORIZED");
+      } else if (status === 403) {
         setError("ACCESS_FORBIDDEN");
+      } else if (status >= 500 || status === undefined) {
+        setError("SERVICE_UNAVAILABLE");
       } else {
         setError("LOAD_FAILED");
       }
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === tempId ? { ...m, status: "failed", answer: m.answer || "" } : m
+        )
+      );
     } finally {
       setSending(false);
     }
   }, [childId, input, scrollToEnd, sending]);
 
-  const renderItem = ({ item }: { item: ChatEntry }) => (
-    <View style={styles.messageBlock}>
-      <View style={[styles.bubble, styles.userBubble]}>
-        <Text style={styles.bubbleLabel}>أنت</Text>
-        <Text style={styles.bubbleText}>{item.question}</Text>
-      </View>
-      <View style={[styles.bubble, styles.botBubble]}>
-        <Text style={styles.bubbleLabel}>المساعد</Text>
-        {item.answer ? (
-          <Text style={styles.bubbleText}>{item.answer}</Text>
-        ) : (
-          <ActivityIndicator size="small" color="#2563EB" />
-        )}
-      </View>
-    </View>
+  const retryMessage = useCallback(
+    async (entry: ChatEntry) => {
+      if (sending || !childId) return;
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === entry.id ? { ...m, status: "pending", answer: m.answer || "" } : m
+        )
+      );
+      setSending(true);
+      setError(null);
+      try {
+        const res = await sendChatbotMessage(childId, entry.question);
+        const next: ChatEntry = {
+          id: res?.id || entry.id,
+          question: res?.question || entry.question,
+          answer: res?.answer || "",
+          createdAt: res?.createdAt || entry.createdAt,
+          status: "sent",
+        };
+        setMessages((prev) => prev.map((m) => (m.id === entry.id ? next : m)));
+        scrollToEnd();
+      } catch (err: any) {
+        console.error("Failed to resend chatbot question", err);
+        const status = err?.response?.status;
+        if (status === 401) {
+          setError("UNAUTHORIZED");
+        } else if (status === 403) {
+          setError("ACCESS_FORBIDDEN");
+        } else if (status >= 500 || status === undefined) {
+          setError("SERVICE_UNAVAILABLE");
+        } else {
+          setError("LOAD_FAILED");
+        }
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === entry.id ? { ...m, status: "failed", answer: m.answer || "" } : m
+          )
+        );
+      } finally {
+        setSending(false);
+      }
+    },
+    [childId, scrollToEnd, sending]
   );
+
+  const renderItem = ({ item }: { item: ChatEntry }) => {
+    const isFailed = item.status === "failed";
+    const isPending = item.status === "pending";
+
+    return (
+      <View style={styles.messageBlock}>
+        <View style={[styles.bubble, styles.userBubble]}>
+          <Text style={styles.bubbleLabel}>أنت</Text>
+          <Text style={styles.bubbleText}>{item.question}</Text>
+          {isFailed && (
+            <View style={styles.failedRow}>
+              <Text style={styles.failedText}>تعذر إرسال الرسالة</Text>
+              <TouchableOpacity onPress={() => retryMessage(item)} style={styles.retryIcon}>
+                <Text style={styles.retryIconText}>↻</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+        <View style={[styles.bubble, styles.botBubble]}>
+          <Text style={styles.bubbleLabel}>المساعد</Text>
+          {item.answer ? (
+            <Text style={styles.bubbleText}>{item.answer}</Text>
+          ) : isFailed ? (
+            <Text style={styles.failedText}>لم يتم استلام رد. حاول مجددًا.</Text>
+          ) : (
+            <ActivityIndicator size="small" color="#2563EB" />
+          )}
+          {isPending && !item.answer && (
+            <Text style={styles.pendingText}>جارٍ انتظار رد المساعد...</Text>
+          )}
+        </View>
+      </View>
+    );
+  };
 
   if (loading) {
     return (
@@ -175,6 +258,10 @@ export const EducatorChatbotScreen: React.FC = () => {
             <Text style={styles.errorText}>
               {error === "ACCESS_FORBIDDEN"
                 ? "ليس لديك صلاحية لاستخدام هذا المساعد لهذا الطفل."
+                : error === "UNAUTHORIZED"
+                ? "انتهت صلاحية الجلسة، يرجى تسجيل الدخول مجددًا."
+                : error === "SERVICE_UNAVAILABLE"
+                ? "الخدمة غير متاحة حاليًا. حاول لاحقًا."
                 : error === "MISSING_CHILD"
                 ? "يرجى اختيار طفل لبدء المحادثة."
                 : "فشل تحميل المحادثة. حاول مجددًا."}
@@ -210,18 +297,31 @@ export const EducatorChatbotScreen: React.FC = () => {
             placeholderTextColor="#9CA3AF"
             value={input}
             onChangeText={setInput}
-            editable={!sending && !!childId && error !== "ACCESS_FORBIDDEN"}
+            editable={
+              !sending &&
+              !!childId &&
+              error !== "ACCESS_FORBIDDEN" &&
+              error !== "UNAUTHORIZED"
+            }
             multiline
           />
           <TouchableOpacity
             style={[
               styles.sendButton,
-              (!input.trim() || sending || !childId || error === "ACCESS_FORBIDDEN") &&
+              (!input.trim() ||
+                sending ||
+                !childId ||
+                error === "ACCESS_FORBIDDEN" ||
+                error === "UNAUTHORIZED") &&
                 styles.sendDisabled,
             ]}
             onPress={handleSend}
             disabled={
-              !input.trim() || sending || !childId || error === "ACCESS_FORBIDDEN"
+              !input.trim() ||
+              sending ||
+              !childId ||
+              error === "ACCESS_FORBIDDEN" ||
+              error === "UNAUTHORIZED"
             }
           >
             {sending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.sendText}>إرسال</Text>}
@@ -256,6 +356,7 @@ const styles = StyleSheet.create({
   botBubble: { alignSelf: "flex-start", backgroundColor: "#FFFFFF" },
   bubbleLabel: { fontSize: 11, color: "#6B7280", marginBottom: 4 },
   bubbleText: { fontSize: 14, color: "#111827", lineHeight: 20 },
+  pendingText: { fontSize: 12, color: "#2563EB", marginTop: 6 },
   inputBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -319,4 +420,19 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 15, fontWeight: "700", color: "#1D4ED8" },
   emptySubtitle: { fontSize: 13, color: "#1E3A8A", marginTop: 4 },
+  failedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    marginTop: 6,
+    gap: 6,
+  },
+  failedText: { fontSize: 12, color: "#B91C1C" },
+  retryIcon: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: "#FECACA",
+    borderRadius: 999,
+  },
+  retryIconText: { color: "#991B1B", fontWeight: "700" },
 });
