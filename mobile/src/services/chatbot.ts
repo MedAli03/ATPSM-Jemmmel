@@ -1,19 +1,25 @@
-import { api } from "./api";
+import { apiClient } from "../lib/apiClient";
 
-export async function chatbotQuery(
-  childId: number,
-  message: string,
-  preferredLanguage = "ar-fr-mix"
-) {
-  const { data } = await api.post("/chatbot/query", {
-    childId,
-    message,
-    preferredLanguage,
-  });
-  return data;
+export type ChatbotMessage = {
+  id: number;
+  childId: number;
+  educatorId: number;
+  question: string;
+  answer: string;
+  createdAt: string;
+};
+
+export async function getChatbotHistory(
+  childId: number
+): Promise<ChatbotMessage[]> {
+  const res = await apiClient.get("/chatbot/history", { params: { childId } });
+  return res.data;
 }
 
-export async function getChatbotHistory(childId: number) {
-  const { data } = await api.get("/chatbot/history", { params: { childId } });
-  return data;
+export async function sendChatbotMessage(
+  childId: number,
+  message: string
+): Promise<ChatbotMessage> {
+  const res = await apiClient.post("/chatbot/query", { childId, message });
+  return res.data;
 }

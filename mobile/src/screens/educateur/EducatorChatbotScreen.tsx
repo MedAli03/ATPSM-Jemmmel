@@ -12,7 +12,10 @@ import {
   View,
 } from "react-native";
 import { RouteProp, useRoute } from "@react-navigation/native";
-import { chatbotQuery, getChatbotHistory } from "../../services/chatbot";
+import {
+  getChatbotHistory,
+  sendChatbotMessage,
+} from "../../services/chatbot";
 import { EducatorStackParamList } from "../../navigation/EducatorNavigator";
 
 type ChatEntry = {
@@ -96,7 +99,7 @@ export const EducatorChatbotScreen: React.FC = () => {
     setError(null);
 
     try {
-      const res = await chatbotQuery(childId, trimmed);
+      const res = await sendChatbotMessage(childId, trimmed);
       const next: ChatEntry = {
         id: res?.id || res?.createdAt || tempId,
         question: res?.question || trimmed,
