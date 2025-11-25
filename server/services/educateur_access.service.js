@@ -35,7 +35,7 @@ function buildChildSearchFilter(search) {
 
 async function listChildrenForEducateurCurrentYear(
   educateurId,
-  { search = null, page = 1, limit = 20 } = {},
+  { search = null, page = 1, limit = 20, groupeId = null } = {},
   transaction = null
 ) {
   const activeYear = await requireActiveSchoolYear(transaction);
@@ -58,7 +58,11 @@ async function listChildrenForEducateurCurrentYear(
         as: "inscriptions",
         attributes: ["id", "groupe_id", "annee_id"],
         required: true,
-        where: { est_active: true, annee_id: activeYear.id },
+        where: {
+          est_active: true,
+          annee_id: activeYear.id,
+          ...(groupeId ? { groupe_id: Number(groupeId) } : {}),
+        },
         include: [
           {
             model: Groupe,

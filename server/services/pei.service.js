@@ -106,7 +106,14 @@ async function verifyEducateurEnfantSameGroupe(
 }
 
 // Règle: 1 seul PEI actif par (enfant, année), + cohérence éducateur/groupe
-exports.create = async (dto) => {
+exports.create = async (dto, currentUser) => {
+  if (currentUser?.role === "EDUCATEUR") {
+    if (Number(dto.educateur_id) !== Number(currentUser.id)) {
+      const e = new Error("educateur_id ne correspond pas à l'utilisateur connecté");
+      e.status = 403;
+      throw e;
+    }
+  }
   const enfant = await Enfant.findByPk(dto.enfant_id);
   if (!enfant) {
     const e = new Error("enfant_id invalide");
@@ -168,13 +175,17 @@ exports.create = async (dto) => {
   });
 };
 
-exports.update = async (id, dto, userId) => {
+exports.update = async (id, dto, currentUser) => {
+  const userId = currentUser?.id;
   return sequelize.transaction(async (t) => {
     const current = await PEI.findByPk(id, { transaction: t });
     if (!current) {
       const e = new Error("PEI introuvable");
       e.status = 404;
       throw e;
+    }
+    if (currentUser?.role === "EDUCATEUR") {
+      await educatorAccess.assertCanAccessPei(currentUser.id, id);
     }
 
     if (dto.statut === PEI_STATUS.VALID && current.statut !== PEI_STATUS.VALID) {

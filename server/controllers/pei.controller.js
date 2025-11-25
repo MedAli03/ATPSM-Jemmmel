@@ -32,7 +32,7 @@ exports.listPending = async (req, res, next) => {
 
 exports.create = async (req, res, next) => {
   try {
-    res.status(201).json(await service.create(req.body));
+    res.status(201).json(await service.create(req.body, req.user));
   } catch (e) {
     next(e);
   }
@@ -40,7 +40,7 @@ exports.create = async (req, res, next) => {
 
 exports.update = async (req, res, next) => {
   try {
-    res.json(await service.update(req.params.id, req.body, req.user.id));
+    res.json(await service.update(req.params.id, req.body, req.user));
   } catch (e) {
     next(e);
   }

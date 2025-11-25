@@ -1,23 +1,37 @@
 const { sequelize } = require("../models");
 const repo = require("../repos/activite.repo");
 
-exports.listByPei = async (pei_id, q) => {
+const educatorAccess = require("./educateur_access.service");
+
+async function assertEducateurPeiAccess(pei_id, currentUser) {
+  if (currentUser?.role === "EDUCATEUR") {
+    await educatorAccess.assertCanAccessPei(currentUser.id, pei_id);
+  }
+}
+
+exports.listByPei = async (pei_id, q, currentUser) => {
+  await assertEducateurPeiAccess(pei_id, currentUser);
   const page = Math.max(1, Number(q.page || 1));
   const pageSize = Math.min(100, Math.max(1, Number(q.pageSize || 20)));
   return repo.listByPei({ pei_id, page, pageSize });
 };
 
-exports.get = async (id) => {
+exports.get = async (id, currentUser) => {
   const a = await repo.findById(id);
   if (!a) {
     const e = new Error("Activité introuvable");
     e.status = 404;
     throw e;
   }
+  if (currentUser?.role === "EDUCATEUR") {
+    await assertEducateurPeiAccess(a.projet_id, currentUser);
+  }
   return a;
 };
 
-exports.create = async (pei_id, dto, userId) => {
+exports.create = async (pei_id, dto, currentUser) => {
+  await assertEducateurPeiAccess(pei_id, currentUser);
+  const userId = currentUser?.id;
   return sequelize.transaction(async (t) => {
     const pei = await repo.getPei(pei_id, t);
     if (!pei) {
@@ -60,7 +74,8 @@ exports.create = async (pei_id, dto, userId) => {
   });
 };
 
-exports.update = async (id, dto, userId) => {
+exports.update = async (id, dto, currentUser) => {
+  const userId = currentUser?.id;
   return sequelize.transaction(async (t) => {
     const current = await repo.findById(id);
     if (!current) {
@@ -68,6 +83,7 @@ exports.update = async (id, dto, userId) => {
       e.status = 404;
       throw e;
     }
+    await assertEducateurPeiAccess(current.projet_id, currentUser);
 
     if (dto.enfant_id && Number(dto.enfant_id) !== Number(current.enfant_id)) {
       const e = new Error("Impossible de changer enfant_id");
@@ -93,7 +109,8 @@ exports.update = async (id, dto, userId) => {
   });
 };
 
-exports.remove = async (id, userId) => {
+exports.remove = async (id, currentUser) => {
+  const userId = currentUser?.id;
   return sequelize.transaction(async (t) => {
     const current = await repo.findById(id);
     if (!current) {
@@ -101,6 +118,7 @@ exports.remove = async (id, userId) => {
       e.status = 404;
       throw e;
     }
+    await assertEducateurPeiAccess(current.projet_id, currentUser);
     await repo.deleteById(id, t);
 
     const { HistoriqueProjet } = require("../models");

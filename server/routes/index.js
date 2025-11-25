@@ -37,5 +37,7 @@ router.use(require("./president_dashboard.routes"));
 router.use(require("./directeur_dashboard.routes"));
 router.use("/stats", require("./stats.routes"));
 
+router.use("/educateurs", require("./educateurs.routes"));
+
 router.use("/me", require("./me.routes"));
 module.exports = router;
