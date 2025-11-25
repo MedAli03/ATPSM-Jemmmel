@@ -14,6 +14,7 @@ import { ActivityFormScreen } from "../screens/educateur/ActivityFormScreen";
 import { ObservationInitialeScreen } from "../screens/educateur/ObservationInitialeScreen";
 import { EducatorPeiDetailScreen } from "../screens/educateur/EducatorPeiDetailScreen";
 import { EducatorPeiCreateScreen } from "../screens/educateur/EducatorPeiCreateScreen";
+import { EducatorChatbotScreen } from "../screens/educateur/EducatorChatbotScreen";
 
 export type EducatorStackParamList = {
   EducatorTabs: undefined;
@@ -25,6 +26,7 @@ export type EducatorStackParamList = {
   ObservationInitiale: { childId: number };
   EducatorPeiDetail: { childId: number; peiId?: number };
   EducatorPeiCreate: { childId: number; anneeId?: number };
+  EducatorChatbot: { childId: number; childName?: string };
 };
 
 export type EducatorTabParamList = {
@@ -129,6 +131,11 @@ export const EducatorNavigator = () => {
         name="EducatorPeiCreate"
         component={EducatorPeiCreateScreen}
         options={{ title: "إنشاء PEI" }}
+      />
+      <Stack.Screen
+        name="EducatorChatbot"
+        component={EducatorChatbotScreen}
+        options={{ title: "المساعد التربوي" }}
       />
     </Stack.Navigator>
   );

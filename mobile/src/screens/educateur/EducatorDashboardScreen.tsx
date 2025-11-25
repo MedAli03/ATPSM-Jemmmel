@@ -64,6 +64,29 @@ export const EducatorDashboardScreen: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const handleOpenChatbot = useCallback(
+    (targetChildId?: number, targetChildName?: string) => {
+      if (targetChildId) {
+        navigation.navigate("EducatorChatbot", {
+          childId: targetChildId,
+          childName: targetChildName,
+        });
+        return;
+      }
+
+      const fallback = todayChildren[0];
+      if (fallback) {
+        navigation.navigate("EducatorChatbot", {
+          childId: fallback.id,
+          childName: fallback.name,
+        });
+      } else {
+        navigation.navigate("EducatorGroups");
+      }
+    },
+    [navigation, todayChildren]
+  );
+
   const buildChildName = useCallback((prenom?: string | null, nom?: string | null) => {
     const value = [prenom, nom].filter(Boolean).join(" ");
     return value.trim() || "طفل";
@@ -438,6 +461,13 @@ export const EducatorDashboardScreen: React.FC = () => {
                       <Text style={styles.actionEmoji}>💬</Text>
                       <Text style={styles.actionText}>رسالة</Text>
                     </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={() => handleOpenChatbot(c.id, c.name)}
+                    >
+                      <Text style={styles.actionEmoji}>🤖</Text>
+                      <Text style={styles.actionText}>المساعد</Text>
+                    </TouchableOpacity>
                   </View>
                 </TouchableOpacity>
               ))
@@ -465,6 +495,16 @@ export const EducatorDashboardScreen: React.FC = () => {
                 <Text style={styles.quickEmoji}>💬</Text>
                 <Text style={styles.quickTitle}>رسائل الأولياء</Text>
                 <Text style={styles.quickText}>تواصل مع الأولياء بسهولة</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.row}>
+              <TouchableOpacity
+                style={styles.quickCard}
+                onPress={() => handleOpenChatbot()}
+              >
+                <Text style={styles.quickEmoji}>🤖</Text>
+                <Text style={styles.quickTitle}>المساعد الذكي</Text>
+                <Text style={styles.quickText}>Chatbot éducatif للمرشدين</Text>
               </TouchableOpacity>
             </View>
           </View>

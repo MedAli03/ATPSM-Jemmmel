@@ -13,7 +13,7 @@ exports.create = async (req, res, next) => {
 exports.list = async (req, res, next) => {
   try {
     const { anneeId, search, statut, page = 1, limit = 10 } = req.query;
-    const data = await service.list({ anneeId, search, statut, page, limit });
+    const data = await service.list({ anneeId, search, statut, page, limit }, req.user);
     res.json({ ok: true, data });
   } catch (e) { next(e); }
 };
