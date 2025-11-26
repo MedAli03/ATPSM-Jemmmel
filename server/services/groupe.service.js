@@ -88,25 +88,40 @@ exports.listInscriptions = async (
   { groupe_id, annee_id, page, limit },
   currentUser
 ) => {
+  const role = String(currentUser?.role || "").toUpperCase();
+  const userId = currentUser?.id || null;
+  const group = await repo.findById(groupe_id);
+  if (!group) {
+    const err = new Error("Groupe introuvable");
+    err.status = 404;
+    throw err;
+  }
+
+  const pageNumber = Math.max(1, Number(page) || 1);
+  const pageSize = Math.min(100, Math.max(1, Number(limit) || 50));
   let targetYear = Number(annee_id) || null;
 
-  if (currentUser?.role === "EDUCATEUR") {
+  if (role === "EDUCATEUR") {
     const { anneeId } = await assertAssignmentForYear(
-      currentUser.id,
+      userId,
       groupe_id,
       targetYear
     );
     targetYear = anneeId;
-  } else {
+  } else if (role === "PRESIDENT" || role === "DIRECTEUR") {
     const year = await resolveSchoolYear(targetYear);
     targetYear = year.id;
+  } else {
+    const err = new Error("Accès refusé");
+    err.status = 403;
+    throw err;
   }
 
   const { rows, count } = await repo.listInscriptions({
     groupe_id,
     annee_id: targetYear,
-    page,
-    limit,
+    page: pageNumber,
+    limit: pageSize,
   });
 
   const items = rows.map((row) => {
@@ -130,10 +145,10 @@ exports.listInscriptions = async (
   return {
     items,
     meta: {
-      page,
-      limit,
+      page: pageNumber,
+      limit: pageSize,
       total: count,
-      hasMore: page * limit < count,
+      hasMore: pageNumber * pageSize < count,
     },
   };
 };
