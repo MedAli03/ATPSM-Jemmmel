@@ -3,7 +3,6 @@
 const svc = require("../services/enfant.service");
 const statsSvc = require("../services/stats.service");
 const {
-  listEnfantsQuerySchema,
   createEnfantSchema,
   updateEnfantSchema,
   idParamSchema,
@@ -24,14 +23,7 @@ exports.listNonInscrits = async (req, res, next) => {
 // List
 exports.list = async (req, res, next) => {
   try {
-    const { error, value } = listEnfantsQuerySchema.validate(req.query, {
-      abortEarly: false,
-    });
-    if (error) {
-      error.status = 422;
-      return next(error);
-    }
-    const data = await svc.list(value, req.user);
+    const data = await svc.list(req.query, req.user);
     res.json({ ok: true, ...data });
   } catch (e) {
     next(e);
@@ -175,14 +167,7 @@ exports.createParentAccount = async (req, res, next) => {
 // Parent self-view
 exports.listMine = async (req, res, next) => {
   try {
-    const { error, value } = listEnfantsQuerySchema.validate(req.query, {
-      abortEarly: false,
-    });
-    if (error) {
-      error.status = 422;
-      return next(error);
-    }
-    const data = await svc.listForParent(req.user.id, value);
+    const data = await svc.listForParent(req.user.id, req.query);
     res.json({ ok: true, ...data });
   } catch (e) {
     next(e);

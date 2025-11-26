@@ -65,10 +65,11 @@ export function useChildrenPage(params = {}) {
   const data = query.data ?? {};
   const rows = data.rows ?? [];
   const count = data.count ?? 0;
-  const totalPages = Math.max(1, Math.ceil(count / (pageSize || 10)));
+  const effectivePageSize = data.pageSize ?? pageSize ?? 10;
+  const totalPages = Math.max(1, Math.ceil(count / effectivePageSize));
   const pageMeta = {
     page: data.page ?? page,
-    pageSize: data.pageSize ?? pageSize,
+    pageSize: effectivePageSize,
   };
 
   /**

@@ -31,12 +31,7 @@ router.get(
 router.get(
   "/",
   requireRole("PRESIDENT", "DIRECTEUR", "EDUCATEUR"),
-  (req, _res, next) => {
-    const { error, value } = listEnfantsQuerySchema.validate(req.query, { abortEarly: false });
-    if (error) { error.status = 422; return next(error); }
-    req.query = value;
-    next();
-  },
+  validate(listEnfantsQuerySchema, "query"),
   ctrl.list
 );
 
@@ -103,12 +98,7 @@ router.post(
 router.get(
   "/me/enfants",
   requireRole("PARENT"),
-  (req, _res, next) => {
-    const { error, value } = listEnfantsQuerySchema.validate(req.query, { abortEarly: false });
-    if (error) { error.status = 422; return next(error); }
-    req.query = value;
-    next();
-  },
+  validate(listEnfantsQuerySchema, "query"),
   ctrl.listMine
 );
 

@@ -7,19 +7,44 @@ const { sequelize, Enfant, Utilisateur, ParentsFiche } = require("../models");
 const repo = require("../repos/enfant.repo");
 const educatorAccess = require("./educateur_access.service");
 
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 100;
+
+function toPositiveInt(value, fallback) {
+  const n = Number(value);
+  if (Number.isInteger(n) && n > 0) return n;
+  return fallback;
+}
+
+function normalizeSearch(term) {
+  if (typeof term !== "string") return null;
+  const trimmed = term.trim();
+  return trimmed.length ? trimmed : null;
+}
+
 exports.list = async (q, currentUser) => {
+  const page = toPositiveInt(q?.page, DEFAULT_PAGE);
+  const limit = Math.min(MAX_LIMIT, toPositiveInt(q?.limit, DEFAULT_LIMIT));
+  const search = normalizeSearch(q?.q ?? q?.search);
+  const hasParentFilter = Object.prototype.hasOwnProperty.call(
+    q ?? {},
+    "parent_user_id"
+  );
+  const parent_user_id = hasParentFilter ? q.parent_user_id : undefined;
+
   if (currentUser?.role === "EDUCATEUR") {
     return educatorAccess.listChildrenForEducateurCurrentYear(currentUser.id, {
-      search: q.q,
-      page: q.page,
-      limit: q.limit,
+      search,
+      page,
+      limit,
     });
   }
   const filters = {};
-  if (q.q) filters.q = q.q;
-  if (q.parent_user_id !== undefined) filters.parent_user_id = q.parent_user_id;
+  if (search) filters.q = search;
+  if (parent_user_id !== undefined) filters.parent_user_id = parent_user_id;
 
-  return repo.findAll(filters, { page: q.page, limit: q.limit });
+  return repo.findAll(filters, { page, limit });
 };
 
 exports.get = async (id, currentUser) => {
@@ -133,7 +158,10 @@ exports.unlinkParent = async (id) => {
 };
 
 exports.listForParent = (parentId, q) =>
-  repo.findByParent(parentId, { page: q.page, limit: q.limit });
+  repo.findByParent(parentId, {
+    page: toPositiveInt(q?.page, DEFAULT_PAGE),
+    limit: Math.min(MAX_LIMIT, toPositiveInt(q?.limit, DEFAULT_LIMIT)),
+  });
 
 /**
  * Helper: create parent account from parents_fiche and link to child.

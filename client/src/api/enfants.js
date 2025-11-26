@@ -1,21 +1,53 @@
 // src/api/enfants.js
 import client from "./client";
 
+const MAX_PAGE_SIZE = 100;
+
+function pickListPayload(payload) {
+  if (!payload) return {};
+  if (Array.isArray(payload)) return { rows: payload, count: payload.length };
+  if (payload.data && !Array.isArray(payload.data)) return payload.data;
+  if (Array.isArray(payload.data)) {
+    return {
+      rows: payload.data,
+      count: payload.total ?? payload?.meta?.total ?? payload.data.length,
+      page: payload.page ?? payload?.meta?.page,
+      limit:
+        payload.limit ?? payload.pageSize ?? payload?.meta?.limit ?? payload?.meta?.pageSize,
+    };
+  }
+  return payload;
+}
+
 /**
  * Normalizes to: { rows, count, page, pageSize }
- * Your backend likely returns { rows, count, page, limit }.
+ * Accepts both legacy ({ rows, count, page, limit }) and meta-wrapped shapes ({ data, meta }).
  */
-function normalizeListResponse(d, { page, limit }) {
-  const rows = d?.rows ?? [];
-  const count = d?.count ?? 0;
-  const serverPage = d?.page ?? page;
-  const serverLimit = d?.limit ?? limit;
+function normalizeListResponse(payload, { page, limit }) {
+  const source = pickListPayload(payload);
+  const rows = source?.rows ?? source?.data ?? [];
+  const count =
+    source?.count ?? source?.total ?? source?.meta?.total ?? source?.meta?.count ?? 0;
+  const rawPage = source?.page ?? source?.meta?.page ?? page;
+  const rawLimit =
+    source?.limit ??
+    source?.pageSize ??
+    source?.meta?.limit ??
+    source?.meta?.pageSize ??
+    limit;
+
+  const safePage = Number.isFinite(Number(rawPage)) && Number(rawPage) > 0
+    ? Number(rawPage)
+    : page;
+  const safeLimit = Number.isFinite(Number(rawLimit)) && Number(rawLimit) > 0
+    ? Number(rawLimit)
+    : limit;
 
   return {
     rows,
     count,
-    page: Number(serverPage),
-    pageSize: Number(serverLimit),
+    page: safePage,
+    pageSize: safeLimit,
   };
 }
 
@@ -42,10 +74,12 @@ export async function listEnfants({
   q,
   parent_user_id,
 } = {}) {
-  const limit = Number(pageSize) || 10;
+  const pageNumber = Number.isFinite(Number(page)) && Number(page) > 0 ? Number(page) : 1;
+  const limitRaw = Number.isFinite(Number(pageSize)) && Number(pageSize) > 0 ? Number(pageSize) : 10;
+  const limit = Math.min(MAX_PAGE_SIZE, limitRaw);
   const { data } = await client.get("/enfants", {
     params: {
-      page,
+      page: pageNumber,
       limit,
       ...(q ? { q } : {}),
       ...(parent_user_id !== undefined
@@ -53,7 +87,7 @@ export async function listEnfants({
         : {}),
     },
   });
-  return normalizeListResponse(data, { page, limit });
+  return normalizeListResponse(data, { page: pageNumber, limit });
 }
 
 

@@ -16,17 +16,18 @@ exports.findById = (id, t = null) =>
 
 exports.findAll = async (filters = {}, pagination = {}, t = null) => {
   const where = {};
-  if (filters.q) {
+  const search = typeof filters.q === "string" ? filters.q.trim() : null;
+  if (search) {
     where[Op.or] = [
-      { nom: { [Op.like]: `%${filters.q}%` } },
-      { prenom: { [Op.like]: `%${filters.q}%` } },
+      { nom: { [Op.like]: `%${search}%` } },
+      { prenom: { [Op.like]: `%${search}%` } },
     ];
   }
   if (filters.parent_user_id !== undefined) {
     where.parent_user_id = filters.parent_user_id;
   }
-  const page = pagination.page || 1;
-  const limit = pagination.limit || 20;
+  const page = Number.isInteger(pagination.page) && pagination.page > 0 ? pagination.page : 1;
+  const limit = Number.isInteger(pagination.limit) && pagination.limit > 0 ? pagination.limit : 20;
   const offset = (page - 1) * limit;
 
   const { rows, count } = await Enfant.findAndCountAll({
@@ -62,8 +63,8 @@ exports.unlinkParent = async (id, t = null) => {
 };
 
 exports.findByParent = (parentId, pagination = {}, t = null) => {
-  const page = pagination.page || 1;
-  const limit = pagination.limit || 20;
+  const page = Number.isInteger(pagination.page) && pagination.page > 0 ? pagination.page : 1;
+  const limit = Number.isInteger(pagination.limit) && pagination.limit > 0 ? pagination.limit : 20;
   const offset = (page - 1) * limit;
 
   return Enfant.findAndCountAll({
@@ -72,5 +73,5 @@ exports.findByParent = (parentId, pagination = {}, t = null) => {
     limit,
     offset,
     transaction: t,
-  });
+  }).then(({ rows, count }) => ({ rows, count, page, limit }));
 };
