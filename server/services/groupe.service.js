@@ -172,6 +172,20 @@ exports.inscrireEnfants = async (groupe_id, annee_id, enfant_ids) => {
     throw e;
   }
 
+  const group = await repo.findById(groupe_id);
+  if (!group) {
+    const e = new Error("Groupe introuvable");
+    e.status = 404;
+    throw e;
+  }
+
+  const targetYear = await resolveSchoolYear(annee_id || group.annee_id);
+  if (group.annee_id && group.annee_id !== targetYear.id) {
+    const e = new Error("Ce groupe n'appartient pas à l'année demandée");
+    e.status = 409;
+    throw e;
+  }
+
   return sequelize.transaction(async (t) => {
     const now = new Date();
     const summary = {
@@ -179,13 +193,14 @@ exports.inscrireEnfants = async (groupe_id, annee_id, enfant_ids) => {
       created_ids: [],
       transferred: [],
       skipped: [],
+      annee_id: targetYear.id,
     };
 
     for (const enfant_id of enfants) {
-      const active = await repo.findActiveInscription(enfant_id, annee_id, t);
+      const active = await repo.findActiveInscription(enfant_id, targetYear.id, t);
 
       if (active && active.groupe_id === groupe_id) {
-        summary.skipped.push(enfant_id);
+        summary.skipped.push({ enfant_id, reason: "already_in_group" });
         continue;
       }
 
@@ -197,8 +212,9 @@ exports.inscrireEnfants = async (groupe_id, annee_id, enfant_ids) => {
         {
           enfant_id,
           groupe_id,
-          annee_id,
+          annee_id: targetYear.id,
           date_inscription: now,
+          est_active: true,
         },
         t
       );
@@ -214,17 +230,9 @@ exports.inscrireEnfants = async (groupe_id, annee_id, enfant_ids) => {
       }
 
       await notifier.notifyOnChildAssignedToGroup(
-        { enfant_id, groupe_id, annee_id },
+        { enfant_id, groupe_id, annee_id: targetYear.id },
         t
       );
-    }
-
-    if (summary.created === 0) {
-      const e = new Error(
-        "Aucun enfant ajouté: déjà membre de ce groupe pour cette année."
-      );
-      e.status = 409;
-      throw e;
     }
 
     return summary;

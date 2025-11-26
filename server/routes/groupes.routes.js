@@ -154,6 +154,17 @@ router.get(
   ctrl.listInscriptions
 );
 
+// Preferred: batch add children to a group for a year using query ?anneeId=
+// POST /groupes/:groupeId/inscriptions  { enfantIds: [ids...] }
+router.post(
+  "/:groupeId/inscriptions",
+  requireRole("DIRECTEUR", "PRESIDENT"),
+  intParam("groupeId"),
+  intQuery("anneeId", true),
+  validate(inscrireEnfantsSchema),
+  ctrl.inscrireEnfants
+);
+
 // Batch add children to a group for a year
 // POST /groupes/annees/:anneeId/:groupeId/inscriptions  { enfants: [ids...] }
 router.post(

@@ -129,10 +129,10 @@ export async function listInscriptions({ groupeId, anneeId, page = 1, limit = 50
 
 // Batch add children to a group for a year
 export async function addInscriptionsBatch({ groupeId, anneeId, enfantIds }) {
-  // backend expects { enfant_ids: [...] }
   const res = await client.post(
-    `/groupes/annees/${anneeId}/${groupeId}/inscriptions`,
-    { enfant_ids: toArray(enfantIds) }
+    `/groupes/${groupeId}/inscriptions`,
+    { enfantIds: toArray(enfantIds) },
+    { params: { anneeId } }
   );
   return unwrap(res);
 }

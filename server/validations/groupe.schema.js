@@ -14,17 +14,25 @@ exports.updateGroupeSchema = Joi.object({
   statut: Joi.string().valid("actif", "archive").optional(),
 }).min(1);
 
+const childIdList = Joi.alternatives().try(
+  Joi.array().items(Joi.number().integer().positive()).min(1),
+  Joi.number().integer().positive()
+);
+
 exports.inscrireEnfantsSchema = Joi.object({
-  // Allow both { enfants: [] } and { enfant_ids: [] } from client
-  enfants: Joi.array().items(Joi.number().integer().positive()).min(1),
-  enfant_ids: Joi.array().items(Joi.number().integer().positive()).min(1),
+  // Accept both camelCase and snake_case from clients
+  enfants: childIdList,
+  enfant_ids: childIdList,
+  enfantIds: childIdList,
 })
   .custom((value, helpers) => {
-    const source = value.enfants ?? value.enfant_ids;
-    if (!source || source.length === 0) {
-      return helpers.error("any.required", { label: "enfants" });
+    const source = value.enfantIds ?? value.enfants ?? value.enfant_ids;
+    const normalized = Array.isArray(source) ? source : source != null ? [source] : [];
+    if (!normalized.length) {
+      return helpers.error("any.required", { label: "enfantIds" });
     }
-    return { enfants: source };
+    // Normalize to a single property consumed by the controller/service
+    return { enfantIds: normalized };
   })
   .messages({
     "any.required": "Veuillez fournir au moins un enfant.",

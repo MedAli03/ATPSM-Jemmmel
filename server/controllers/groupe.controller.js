@@ -74,14 +74,12 @@ exports.listInscriptions = async (req, res, next) => {
 
 exports.inscrireEnfants = async (req, res, next) => {
   try {
-    const { anneeId, groupeId } = req.params;
-    const { enfants } = req.body; // array of ids
-    const out = await service.inscrireEnfants(
-      Number(groupeId),
-      Number(anneeId),
-      enfants
-    );
-    res.status(201).json({ ok: true, data: out });
+    const groupeId = Number(req.params.groupeId);
+    const anneeId = Number(req.query.anneeId ?? req.params.anneeId);
+    const enfantIds = req.body.enfantIds ?? req.body.enfants ?? [];
+
+    const out = await service.inscrireEnfants(groupeId, anneeId, enfantIds);
+    res.status(out.created > 0 ? 201 : 200).json({ ok: true, data: out });
   } catch (e) { next(e); }
 };
 
