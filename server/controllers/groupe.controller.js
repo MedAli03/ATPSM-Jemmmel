@@ -42,9 +42,16 @@ exports.archive = async (req, res, next) => {
 
 exports.remove = async (req, res, next) => {
   try {
-    // pass annee_id if your UI has it in query (?anneeId=)
-    const data = await service.remove(Number(req.params.groupeId), Number(req.query.anneeId));
-    res.json({ ok: true, data });
+    const result = await service.remove(
+      Number(req.params.groupeId),
+      Number(req.query.anneeId)
+    );
+
+    if (result?.status) {
+      return res.status(result.status).json({ ok: result.status < 400, ...result.data });
+    }
+
+    res.json({ ok: true, data: result });
   } catch (e) { next(e); }
 };
 

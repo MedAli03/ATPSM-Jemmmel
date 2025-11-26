@@ -64,38 +64,38 @@ exports.archive = async (id, statut) => {
 };
 
 exports.remove = async (id, annee_id) => {
-  // Optional: require year context for guard (or compute active year)
-  const g = await repo.findById(id);
-  if (!g) {
-    const e = new Error("Groupe introuvable");
-    e.status = 404;
-    throw e;
+  const groupe = await repo.findById(id);
+  if (!groupe) {
+    return { status: 404, data: { message: "Groupe introuvable" } };
   }
 
-  const guard = await repo.hasUsages(id, { annee_id: annee_id ?? g.annee_id });
+  const guard = await repo.hasUsages(id, { annee_id: annee_id ?? groupe.annee_id });
   if ((guard.inscriptions ?? 0) > 0 || (guard.affectations ?? 0) > 0) {
-    const e = new Error(
-      "Suppression impossible: des inscriptions ou affectations sont associées à ce groupe."
-    );
-    e.status = 409;
-    throw e;
+    return {
+      status: 409,
+      data: {
+        message:
+          "Suppression impossible : des inscriptions ou affectations sont associées à ce groupe.",
+        details: guard,
+      },
+    };
   }
 
   try {
     const deleted = await repo.deleteById(id);
     if (!deleted) {
-      const e = new Error("Groupe introuvable");
-      e.status = 404;
-      throw e;
+      return { status: 404, data: { message: "Groupe introuvable" } };
     }
-    return { deleted: true };
+    return { status: 200, data: { deleted: true, message: "Groupe supprimé" } };
   } catch (err) {
     if (err?.name === "SequelizeForeignKeyConstraintError") {
-      const e = new Error(
-        "Suppression impossible: des données liées empêchent la suppression de ce groupe."
-      );
-      e.status = 409;
-      throw e;
+      return {
+        status: 409,
+        data: {
+          message:
+            "Suppression impossible : des données liées empêchent la suppression de ce groupe.",
+        },
+      };
     }
     throw err;
   }
