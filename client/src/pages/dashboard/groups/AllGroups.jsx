@@ -132,11 +132,22 @@ export default function AllGroupes() {
       toast?.("تم حذف المجموعة ✅", "success");
       setConfirmDelete(null);
     },
-    onError: (e) =>
-      toast?.(
-        e?.response?.data?.message || "تعذر الحذف. تأكد من عدم وجود ارتباطات.",
-        "error"
-      ),
+    onError: (e) => {
+      const status = e?.response?.status;
+      let message = e?.response?.data?.message;
+
+      if (status === 409) {
+        message =
+          message ||
+          "Impossible de supprimer ce groupe car des enfants ou des éducateurs y sont encore associés.";
+      } else if (status === 404) {
+        message = message || "Groupe introuvable.";
+      } else {
+        message = message || "Une erreur est survenue lors de la suppression du groupe.";
+      }
+
+      toast?.(message, "error");
+    },
   });
 
   // Normalize data safely (array or empty)

@@ -71,14 +71,34 @@ exports.remove = async (id, annee_id) => {
     e.status = 404;
     throw e;
   }
-  const guard = await repo.hasUsages(id, annee_id ?? g.annee_id);
+
+  const guard = await repo.hasUsages(id, { annee_id: annee_id ?? g.annee_id });
   if ((guard.inscriptions ?? 0) > 0 || (guard.affectations ?? 0) > 0) {
-    const e = new Error("Suppression impossible: des inscriptions/affectations existent.");
+    const e = new Error(
+      "Suppression impossible: des inscriptions ou affectations sont associées à ce groupe."
+    );
     e.status = 409;
     throw e;
   }
-  await repo.deleteById(id);
-  return { deleted: true };
+
+  try {
+    const deleted = await repo.deleteById(id);
+    if (!deleted) {
+      const e = new Error("Groupe introuvable");
+      e.status = 404;
+      throw e;
+    }
+    return { deleted: true };
+  } catch (err) {
+    if (err?.name === "SequelizeForeignKeyConstraintError") {
+      const e = new Error(
+        "Suppression impossible: des données liées empêchent la suppression de ce groupe."
+      );
+      e.status = 409;
+      throw e;
+    }
+    throw err;
+  }
 };
 
 exports.listByYear = (annee_id) => repo.listByYear(annee_id);

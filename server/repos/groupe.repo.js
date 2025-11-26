@@ -313,9 +313,20 @@ exports.removeAffectationById = (groupe_id, affectation_id, t = null) =>
   );
 
 /* ===== Guards for delete ===== */
-exports.hasUsages = async (groupe_id, annee_id, t = null) => {
-  const whereInscriptions = { groupe_id, est_active: true };
-  const whereAffectations = { groupe_id, est_active: true };
+exports.hasUsages = async (groupe_id, options = {}, t = null) => {
+  const opts =
+    typeof options === "number" ? { annee_id: options } : options || {};
+
+  const { annee_id = null, activeOnly = false } = opts;
+
+  const whereInscriptions = { groupe_id };
+  const whereAffectations = { groupe_id };
+
+  if (activeOnly) {
+    whereInscriptions.est_active = true;
+    whereAffectations.est_active = true;
+  }
+
   if (annee_id) {
     whereInscriptions.annee_id = annee_id;
     whereAffectations.annee_id = annee_id;
