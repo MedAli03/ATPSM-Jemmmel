@@ -3,13 +3,15 @@
 module.exports = {
   async up(queryInterface) {
     const now = new Date();
-    const [[admin]] = await queryInterface.sequelize.query(
+    const adminRows = await queryInterface.sequelize.query(
       "SELECT id FROM utilisateurs WHERE email=:email LIMIT 1",
       {
         replacements: { email: "admin@asso.tn" },
         type: queryInterface.sequelize.QueryTypes.SELECT,
       }
     );
+
+    const admin = adminRows?.[0];
 
     if (!admin) return;
 
@@ -34,13 +36,15 @@ module.exports = {
       },
     ]);
 
-    const [[reglementDoc]] = await queryInterface.sequelize.query(
+    const reglementDocRows = await queryInterface.sequelize.query(
       "SELECT id FROM documents WHERE titre=:titre ORDER BY id DESC LIMIT 1",
       {
         replacements: { titre: "Règlement intérieur 2025" },
         type: queryInterface.sequelize.QueryTypes.SELECT,
       }
     );
+
+    const reglementDoc = reglementDocRows?.[0];
 
     if (reglementDoc?.id) {
       await queryInterface.bulkInsert("reglements", [
@@ -92,13 +96,15 @@ module.exports = {
       },
     ]);
 
-    const [[guideDoc]] = await queryInterface.sequelize.query(
+    const guideDocRows = await queryInterface.sequelize.query(
       "SELECT id FROM documents WHERE titre=:titre ORDER BY id DESC LIMIT 1",
       {
         replacements: { titre: "Guide d'accueil des familles" },
         type: queryInterface.sequelize.QueryTypes.SELECT,
       }
     );
+
+    const guideDoc = guideDocRows?.[0];
 
     await queryInterface.bulkInsert("evenements", [
       {
