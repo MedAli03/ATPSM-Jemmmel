@@ -15,10 +15,11 @@ exports.list = async (q, currentUser) => {
       limit: q.limit,
     });
   }
-  return repo.findAll(
-    { q: q.q, parent_user_id: q.parent_user_id },
-    { page: q.page, limit: q.limit }
-  );
+  const filters = {};
+  if (q.q) filters.q = q.q;
+  if (q.parent_user_id !== undefined) filters.parent_user_id = q.parent_user_id;
+
+  return repo.findAll(filters, { page: q.page, limit: q.limit });
 };
 
 exports.get = async (id, currentUser) => {
