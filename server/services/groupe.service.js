@@ -88,7 +88,7 @@ exports.listInscriptions = async (
   { groupe_id, annee_id, page, limit },
   currentUser
 ) => {
-  const role = String(currentUser?.role || "").toUpperCase();
+  const role = String(currentUser?.role || "").trim().toUpperCase();
   const userId = currentUser?.id || null;
   const group = await repo.findById(groupe_id);
   if (!group) {
@@ -97,24 +97,34 @@ exports.listInscriptions = async (
     throw err;
   }
 
+  const isEducateur = role === "EDUCATEUR";
+  const isAdmin = role === "PRESIDENT" || role === "DIRECTEUR";
+
+  if (!isEducateur && !isAdmin) {
+    const err = new Error("Accès refusé");
+    err.status = 403;
+    throw err;
+  }
+
   const pageNumber = Math.max(1, Number(page) || 1);
   const pageSize = Math.min(100, Math.max(1, Number(limit) || 50));
-  let targetYear = Number(annee_id) || null;
+  const requestedYear = Number.isFinite(Number(annee_id)) ? Number(annee_id) : null;
 
-  if (role === "EDUCATEUR") {
+  let targetYear = requestedYear;
+
+  if (isEducateur) {
     const { anneeId } = await assertAssignmentForYear(
       userId,
       groupe_id,
       targetYear
     );
     targetYear = anneeId;
-  } else if (role === "PRESIDENT" || role === "DIRECTEUR") {
+  } else {
+    if (!targetYear && group.annee_id) {
+      targetYear = group.annee_id;
+    }
     const year = await resolveSchoolYear(targetYear);
     targetYear = year.id;
-  } else {
-    const err = new Error("Accès refusé");
-    err.status = 403;
-    throw err;
   }
 
   const { rows, count } = await repo.listInscriptions({
