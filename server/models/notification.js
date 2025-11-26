@@ -17,5 +17,13 @@ module.exports = (sequelize) =>
       payload: DataTypes.JSON,
       lu_le: DataTypes.DATE,
     },
-    { tableName: "notifications", underscored: true, timestamps: true }
+    {
+      tableName: "notifications",
+      underscored: true,
+      timestamps: true,
+      indexes: [
+        { fields: ["utilisateur_id", "type"] },
+        { fields: ["utilisateur_id", "lu_le"] },
+      ],
+    }
   );

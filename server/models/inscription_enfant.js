@@ -22,6 +22,8 @@ module.exports = (sequelize) =>
       indexes: [
         { unique: true, fields: ["enfant_id", "annee_id", "est_active"] },
         { fields: ["annee_id", "est_active"] },
+        { fields: ["groupe_id", "annee_id"] },
+        { fields: ["enfant_id", "annee_id"] },
       ],
     }
   );

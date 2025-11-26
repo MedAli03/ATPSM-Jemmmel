@@ -23,6 +23,8 @@ module.exports = (sequelize) =>
         { unique: true, fields: ["educateur_id", "annee_id", "est_active"] },
         { unique: true, fields: ["groupe_id", "annee_id", "est_active"] },
         { fields: ["annee_id", "est_active"] },
+        { fields: ["educateur_id", "annee_id"] },
+        { fields: ["groupe_id", "annee_id"] },
       ],
     }
   );

@@ -20,4 +20,13 @@ module.exports = (sequelize) => sequelize.define('PEI', {
   date_validation: { type: DataTypes.DATE, allowNull: true },
   precedent_projet_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: true },
   date_derniere_maj: DataTypes.DATE
-}, { tableName: 'projet_educatif_individuel', underscored: true, timestamps: true });
+}, {
+  tableName: 'projet_educatif_individuel',
+  underscored: true,
+  timestamps: true,
+  indexes: [
+    { fields: ['enfant_id', 'annee_id'] },
+    { unique: true, fields: ['enfant_id', 'annee_id', 'est_actif'] },
+    { fields: ['annee_id', 'statut'] },
+  ],
+});

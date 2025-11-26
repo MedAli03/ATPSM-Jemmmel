@@ -12,5 +12,13 @@ module.exports = (sequelize) =>
       type: { type: DataTypes.STRING(50), allowNull: true },
       pieces_jointes: { type: DataTypes.TEXT, allowNull: true }
     },
-    { tableName: 'daily_notes', underscored: true, timestamps: true }
+    {
+      tableName: 'daily_notes',
+      underscored: true,
+      timestamps: true,
+      indexes: [
+        { fields: ['projet_id', 'date_note'] },
+        { fields: ['enfant_id', 'date_note'] },
+      ],
+    }
   );
