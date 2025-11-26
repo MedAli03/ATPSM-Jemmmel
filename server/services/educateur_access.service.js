@@ -21,6 +21,19 @@ async function requireActiveSchoolYear(transaction = null) {
   return active;
 }
 
+async function resolveSchoolYear(requestedAnneeId, transaction = null) {
+  if (requestedAnneeId) {
+    const year = await anneesRepo.findById(Number(requestedAnneeId), transaction);
+    if (!year) {
+      const err = new Error("Année scolaire introuvable");
+      err.status = 404;
+      throw err;
+    }
+    return year;
+  }
+  return requireActiveSchoolYear(transaction);
+}
+
 function buildChildSearchFilter(search) {
   if (!search || typeof search !== "string") return null;
   const term = search.trim();
@@ -166,33 +179,30 @@ async function assertCanAccessChild(educateurId, enfantId, transaction = null) {
   return { anneeId: activeYear.id };
 }
 
-async function assertAssignmentForActiveYear(
+async function assertAssignmentForYear(
   educateurId,
   groupeId,
   requestedAnneeId,
   transaction = null
 ) {
-  const activeYear = await requireActiveSchoolYear(transaction);
-  if (requestedAnneeId && Number(requestedAnneeId) !== Number(activeYear.id)) {
-    const err = new Error("Accès limité à l'année scolaire active");
-    err.status = 403;
-    throw err;
-  }
+  const targetYear = await resolveSchoolYear(requestedAnneeId, transaction);
   const affectation = await AffectationEducateur.findOne({
     where: {
       educateur_id: Number(educateurId),
       groupe_id: Number(groupeId),
-      annee_id: activeYear.id,
+      annee_id: targetYear.id,
       est_active: true,
     },
     transaction,
   });
   if (!affectation) {
-    const err = new Error("Vous n'êtes pas affecté à ce groupe pour l'année en cours");
+    const err = new Error(
+      "Vous n'êtes pas affecté à ce groupe pour l'année demandée"
+    );
     err.status = 403;
     throw err;
   }
-  return { anneeId: activeYear.id };
+  return { anneeId: targetYear.id };
 }
 
 async function assertCanAccessPei(educateurId, peiId, transaction = null) {
@@ -211,9 +221,10 @@ async function assertCanAccessPei(educateurId, peiId, transaction = null) {
 
 module.exports = {
   requireActiveSchoolYear,
+  resolveSchoolYear,
   listChildrenForEducateurCurrentYear,
   listAccessibleChildIds,
   assertCanAccessChild,
-  assertAssignmentForActiveYear,
+  assertAssignmentForYear,
   assertCanAccessPei,
 };

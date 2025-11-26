@@ -149,7 +149,7 @@ router.get(
   "/:groupeId/inscriptions",
   requireRole("DIRECTEUR", "PRESIDENT", "EDUCATEUR"),
   intParam("groupeId"),
-  intQuery("anneeId", false),
+  intQuery("anneeId", true),
   paginationQuery,
   ctrl.listInscriptions
 );

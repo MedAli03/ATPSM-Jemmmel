@@ -3,7 +3,7 @@
 const { sequelize } = require("../models");
 const repo = require("../repos/groupe.repo");
 const notifier = require("./notifier.service"); // already in your project
-const educatorAccess = require("./educateur_access.service");
+const { assertAssignmentForYear, resolveSchoolYear } = require("./educateur_access.service");
 
 /* ===================== CRUD ===================== */
 exports.create = async (payload) => {
@@ -88,14 +88,18 @@ exports.listInscriptions = async (
   { groupe_id, annee_id, page, limit },
   currentUser
 ) => {
-  let targetYear = annee_id;
+  let targetYear = Number(annee_id) || null;
+
   if (currentUser?.role === "EDUCATEUR") {
-    const { anneeId } = await educatorAccess.assertAssignmentForActiveYear(
+    const { anneeId } = await assertAssignmentForYear(
       currentUser.id,
       groupe_id,
-      annee_id
+      targetYear
     );
     targetYear = anneeId;
+  } else {
+    const year = await resolveSchoolYear(targetYear);
+    targetYear = year.id;
   }
 
   const { rows, count } = await repo.listInscriptions({
