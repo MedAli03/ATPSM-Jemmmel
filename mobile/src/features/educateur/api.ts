@@ -238,6 +238,19 @@ const ensureActiveYearId = async (anneeId?: number): Promise<number> => {
   return year.id;
 };
 
+export const getAccessibleChildIds = async (): Promise<{
+  enfantIds: number[];
+  anneeId: number;
+}> => {
+  const response = await api.get<{ enfantIds?: number[]; anneeId: number }>(
+    "/educateurs/me/enfants/ids"
+  );
+  return {
+    enfantIds: response.data?.enfantIds ?? [],
+    anneeId: response.data?.anneeId ?? (await getActiveSchoolYear()).id,
+  };
+};
+
 const truncate = (value?: string | null, max = 120) => {
   if (!value) return undefined;
   if (value.length <= max) return value;
@@ -423,6 +436,9 @@ export const getActivePeiForChild = async (
     if (!pei) return null;
     return normalizePeiSummary(pei);
   } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      return null;
+    }
     throwIfForbidden(error, "لا يمكنك الوصول إلى هذا الـ PEI.");
     throw error;
   }
@@ -451,16 +467,18 @@ export const listEducatorPeiSummaries = async (
   options?: { anneeId?: number; limit?: number }
 ): Promise<ProjetEducatifIndividuelSummary[]> => {
   try {
-    const response = await api.get<PeiListResponse>("/pei", {
-      params: {
-        educateur_id: educatorId,
-        annee_id: options?.anneeId,
-        page: 1,
-        pageSize: options?.limit ?? 20,
-      },
-    });
-    const rows = response.data?.data ?? [];
-    return rows.map((row) => normalizePeiSummary(row));
+    const { enfantIds, anneeId } = await getAccessibleChildIds();
+    const targetIds = enfantIds.slice(0, options?.limit ?? 20);
+    const summaries = await Promise.all(
+      targetIds.map((childId) => getActivePeiForChild(childId))
+    );
+    return summaries
+      .filter((pei): pei is ProjetEducatifIndividuelSummary => Boolean(pei))
+      .map((pei) => ({
+        ...pei,
+        date_fin_prevue: pei.date_fin_prevue ?? undefined,
+        annee_id: options?.anneeId ?? anneeId,
+      }));
   } catch (error) {
     throwIfForbidden(error, "لا يمكنك عرض PEI لمربّين آخرين.");
     throw error;
@@ -611,17 +629,41 @@ export const listRecentObservations = async (filters: {
   enfantId?: number;
   limit?: number;
 }): Promise<ObservationInitialeDto[]> => {
-  if (!filters.enfantId) return [];
-  const response = await api.get<ObservationListResponse>(
-    `/educateurs/enfants/${filters.enfantId}/observations-initiales`,
-    {
-      params: {
-        limit: filters.limit ?? 5,
-        page: 1,
-      },
-    }
+  const targetChildIds = filters.enfantId
+    ? [filters.enfantId]
+    : (await getAccessibleChildIds()).enfantIds;
+  if (!targetChildIds.length) return [];
+
+  const perChildLimit = 1;
+  const results = await Promise.all(
+    targetChildIds.map((childId) =>
+      api
+        .get<ObservationListResponse>(
+          `/educateurs/enfants/${childId}/observations-initiales`,
+          {
+            params: {
+              limit: perChildLimit,
+              page: 1,
+            },
+          }
+        )
+        .then((response) => response.data?.rows ?? response.data?.data ?? [])
+        .catch((error) => {
+          throwIfForbidden(error);
+          return [];
+        })
+    )
   );
-  return response.data?.rows ?? (response.data?.data as ObservationInitialeDto[]) ?? [];
+
+  return results
+    .flat()
+    .filter(Boolean)
+    .sort((a, b) => {
+      const aDate = Date.parse(a.date_observation ?? "");
+      const bDate = Date.parse(b.date_observation ?? "");
+      return (isNaN(bDate) ? 0 : bDate) - (isNaN(aDate) ? 0 : aDate);
+    })
+    .slice(0, filters.limit ?? 5) as ObservationInitialeDto[];
 };
 
 export const createObservationInitiale = async (
