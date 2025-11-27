@@ -22,8 +22,16 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: false,
       },
-      created_at: { type: DataTypes.DATE, allowNull: true },
-      updated_at: { type: DataTypes.DATE, allowNull: true },
+      created_at: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW,
+      },
+      updated_at: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW,
+      },
     },
     {
       tableName: "annees_scolaires",
@@ -34,6 +42,7 @@ module.exports = (sequelize, DataTypes) => {
         { fields: ["date_debut"] },
         { fields: ["date_fin"] },
         { fields: ["est_active"] },
+        { fields: ["statut"] },
       ],
       defaultScope: { order: [["date_debut", "DESC"]] },
       scopes: {

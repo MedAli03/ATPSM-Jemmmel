@@ -10,7 +10,17 @@ module.exports = (sequelize) =>
       date_note: { type: DataTypes.DATEONLY, allowNull: false },
       contenu: { type: DataTypes.TEXT, allowNull: true },
       type: { type: DataTypes.STRING(50), allowNull: true },
-      pieces_jointes: { type: DataTypes.TEXT, allowNull: true }
+      pieces_jointes: { type: DataTypes.TEXT, allowNull: true },
+      created_at: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW,
+      },
+      updated_at: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW,
+      },
     },
     {
       tableName: 'daily_notes',

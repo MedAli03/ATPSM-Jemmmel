@@ -10,16 +10,24 @@ module.exports = (sequelize) =>
       nom: { type: DataTypes.STRING(120), allowNull: false },
       description: { type: DataTypes.TEXT, allowNull: true },
       statut: { type: DataTypes.ENUM("actif", "archive"), allowNull: false, defaultValue: "actif" },
-      created_at: { type: DataTypes.DATE, allowNull: true },
-      updated_at: { type: DataTypes.DATE, allowNull: true },
+      created_at: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW,
+      },
+      updated_at: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW,
+      },
     },
     {
       tableName: "groupes",
       underscored: true,
       timestamps: true,
       indexes: [
-        // Optional: avoid duplicate names within a year (if you want it)
-        // { unique: true, fields: ["annee_id", "nom"] },
+        { fields: ["annee_id"] },
+        { fields: ["statut"] },
       ],
     }
   );

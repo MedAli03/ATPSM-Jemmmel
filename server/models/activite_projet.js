@@ -15,7 +15,25 @@ module.exports = (sequelize) =>
         type: DataTypes.ENUM('atelier','jeu','autre'),
         allowNull: false,
         defaultValue: 'autre',
-      }
+      },
+      created_at: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW,
+      },
+      updated_at: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW,
+      },
     },
-    { tableName: 'activite_projet', underscored: true, timestamps: true }
+    {
+      tableName: 'activite_projet',
+      underscored: true,
+      timestamps: true,
+      indexes: [
+        { fields: ['projet_id'] },
+        { fields: ['enfant_id'] },
+      ],
+    }
   );
