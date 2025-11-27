@@ -43,6 +43,14 @@ router.get(
   ctrl.get
 );
 
+// Timeline for a child (parents can see their own child)
+router.get(
+  "/:id/timeline",
+  requireRole("PRESIDENT", "DIRECTEUR", "EDUCATEUR", "PARENT"),
+  validate(idParamSchema, "params"),
+  ctrl.timeline
+);
+
 // CREATE (President/Directeur)
 router.post(
   "/",

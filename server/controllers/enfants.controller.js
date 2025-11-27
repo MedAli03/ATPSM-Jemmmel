@@ -45,6 +45,27 @@ exports.get = async (req, res, next) => {
   }
 };
 
+// Timeline
+exports.timeline = async (req, res, next) => {
+  try {
+    const { error } = idParamSchema.validate(req.params);
+    if (error) {
+      error.status = 422;
+      return next(error);
+    }
+
+    const { anneeId, limit } = req.query;
+    const data = await svc.timeline(
+      Number(req.params.id),
+      { anneeId: Number(anneeId), limit: Number(limit) },
+      req.user
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    next(e);
+  }
+};
+
 // Create
 exports.create = async (req, res, next) => {
   try {

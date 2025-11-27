@@ -3,7 +3,16 @@
 const bcrypt = require("bcrypt");
 const SALT_ROUNDS = 10;
 
-const { sequelize, Enfant, Utilisateur, ParentsFiche } = require("../models");
+const {
+  sequelize,
+  Enfant,
+  Utilisateur,
+  ParentsFiche,
+  PEI,
+  DailyNote,
+  ActiviteProjet,
+  EvaluationProjet,
+} = require("../models");
 const repo = require("../repos/enfant.repo");
 const educatorAccess = require("./educateur_access.service");
 
@@ -67,6 +76,162 @@ exports.get = async (id, currentUser) => {
     await educatorAccess.assertCanAccessChild(currentUser.id, id);
   }
   return enfant;
+};
+
+exports.timeline = async (enfantId, options = {}, currentUser) => {
+  const enfant = await repo.findById(enfantId);
+  if (!enfant) {
+    const e = new Error("Enfant introuvable");
+    e.status = 404;
+    throw e;
+  }
+
+  const role = currentUser?.role;
+  if (role === "PARENT") {
+    if (enfant.parent_user_id !== currentUser.id) {
+      const e = new Error("Accès refusé");
+      e.status = 403;
+      throw e;
+    }
+  } else if (role === "EDUCATEUR") {
+    await educatorAccess.assertCanAccessChild(currentUser.id, enfantId);
+  } else if (role !== "PRESIDENT" && role !== "DIRECTEUR") {
+    const e = new Error("Accès refusé");
+    e.status = 403;
+    throw e;
+  }
+
+  const normalizedLimit = Math.max(1, Math.min(toPositiveInt(options?.limit, 100), 200));
+  const parsedYear = Number(options?.anneeId);
+  const targetYear = Number.isInteger(parsedYear) && parsedYear > 0 ? parsedYear : null;
+
+  const peiWhere = { enfant_id: enfantId };
+  if (targetYear) {
+    peiWhere.annee_id = targetYear;
+  }
+
+  const peis = await PEI.findAll({
+    where: peiWhere,
+    attributes: [
+      "id",
+      "annee_id",
+      "statut",
+      "date_creation",
+      "date_validation",
+      "objectifs",
+      "est_actif",
+      "created_at",
+    ],
+    order: [["date_creation", "DESC"]],
+  });
+
+  const peiIds = peis.map((p) => p.id);
+
+  const [notes, activities, evaluations] = await Promise.all([
+    peiIds.length
+      ? DailyNote.findAll({
+          where: { enfant_id: enfantId, projet_id: peiIds },
+          attributes: ["id", "date_note", "contenu", "type", "projet_id", "created_at"],
+          order: [
+            ["date_note", "DESC"],
+            ["id", "DESC"],
+          ],
+        })
+      : [],
+    peiIds.length
+      ? ActiviteProjet.findAll({
+          where: { enfant_id: enfantId, projet_id: peiIds },
+          attributes: [
+            "id",
+            "titre",
+            "description",
+            "date_activite",
+            "type",
+            "projet_id",
+            "created_at",
+          ],
+          order: [
+            ["date_activite", "DESC"],
+            ["id", "DESC"],
+          ],
+        })
+      : [],
+    peiIds.length
+      ? EvaluationProjet.findAll({
+          where: { projet_id: peiIds },
+          attributes: [
+            "id",
+            "score",
+            "notes",
+            "date_evaluation",
+            "projet_id",
+            "created_at",
+          ],
+          order: [
+            ["date_evaluation", "DESC"],
+            ["id", "DESC"],
+          ],
+        })
+      : [],
+  ]);
+
+  const normalizeDate = (value) => {
+    const d = value ? new Date(value) : null;
+    return d && !Number.isNaN(d.getTime()) ? d.toISOString() : new Date(0).toISOString();
+  };
+
+  const items = [];
+
+  for (const pei of peis) {
+    items.push({
+      id: `pei-${pei.id}`,
+      type: "pei",
+      date: normalizeDate(pei.date_validation || pei.date_creation || pei.created_at),
+      title: `PEI ${pei.statut}`,
+      description: pei.objectifs || undefined,
+      meta: { anneeId: pei.annee_id, est_actif: pei.est_actif },
+    });
+  }
+
+  for (const note of notes) {
+    items.push({
+      id: `daily_note-${note.id}`,
+      type: "daily_note",
+      date: normalizeDate(note.date_note || note.created_at),
+      title: note.type ? `Note ${note.type}` : "Note quotidienne",
+      description: note.contenu || undefined,
+      meta: { peiId: note.projet_id },
+    });
+  }
+
+  for (const activity of activities) {
+    items.push({
+      id: `activity-${activity.id}`,
+      type: "activity",
+      date: normalizeDate(activity.date_activite || activity.created_at),
+      title: activity.titre,
+      description: activity.description || undefined,
+      meta: { peiId: activity.projet_id, type: activity.type },
+    });
+  }
+
+  for (const evaluation of evaluations) {
+    items.push({
+      id: `evaluation-${evaluation.id}`,
+      type: "evaluation",
+      date: normalizeDate(evaluation.date_evaluation || evaluation.created_at),
+      title:
+        evaluation.score != null
+          ? `Évaluation (${evaluation.score})`
+          : "Évaluation",
+      description: evaluation.notes || undefined,
+      meta: { peiId: evaluation.projet_id, score: evaluation.score },
+    });
+  }
+
+  items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  return items.slice(0, normalizedLimit);
 };
 
 exports.create = async (payload) => {

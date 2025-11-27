@@ -31,9 +31,17 @@ export const getChildById = async (childId: number): Promise<Child> => {
   return response.data as unknown as Child;
 };
 
-export const getChildTimeline = async (childId: number): Promise<TimelineItem[]> => {
+export const getChildTimeline = async (
+  childId: number,
+  options?: { anneeId?: number; limit?: number },
+): Promise<TimelineItem[]> => {
+  const params = {
+    ...(options?.anneeId ? { anneeId: options.anneeId } : {}),
+    ...(options?.limit ? { limit: options.limit } : {}),
+  };
   const response = await api.get<{ ok?: boolean; data?: TimelineItem[] }>(
     `/enfants/${childId}/timeline`,
+    { params: Object.keys(params).length ? params : undefined },
   );
   if (Array.isArray(response.data?.data)) {
     return response.data.data;
