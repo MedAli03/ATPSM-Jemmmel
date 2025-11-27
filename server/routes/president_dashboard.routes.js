@@ -14,6 +14,7 @@ router.use(auth);
 /**
  * READ-ONLY KPIs & lists
  */
+router.get("/dashboard/overview", allowPresidentAndDirector, ctrl.overview);
 router.get("/dashboard/president/overview", allowPresidentAndDirector, ctrl.overview);
 router.get("/dashboard/president/counters", allowPresidentAndDirector, ctrl.counters);
 router.get(

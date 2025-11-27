@@ -2,9 +2,8 @@
 import http from "./http";
 
 /**
- * Backend: implement one of these routes (choose the name you prefer)
- *  - GET /api/dashboard/overview
- *  - or role-based like /api/admin/overview | /api/directeur/overview
+ * Backend exposes a shared overview endpoint for president/director:
+ *  - GET /dashboard/overview (baseURL already includes /api)
  *
  * Example response we’ll consume:
  * {
@@ -15,6 +14,6 @@ import http from "./http";
  * }
  */
 export async function getDashboardOverview() {
-  const { data } = await http.get("/api/dashboard/overview");
+  const { data } = await http.get("/dashboard/overview");
   return data;
 }
