@@ -1,0 +1,14 @@
+# Database Guarantees and Open Points
+
+## Enforced guarantees
+- **School years are indexable by status and dates** thanks to indexes on `date_debut`, `date_fin`, `est_active`, and `statut`, supporting fast lookups for active/archived ranges.【F:server/migrations/039-add-annees-scolaires-indexes.js†L3-L26】
+- **Children have searchable name fields** via dedicated indexes on `nom` and `prenom` alongside the existing parent link index, keeping the model and schema aligned.【F:server/models/enfant.js†L24-L35】【F:server/migrations/040-add-enfants-name-indexes.js†L3-L15】
+- **Group enrollments enforce single membership per year and per group** with unique constraints on `(groupe_id, enfant_id, annee_id)` plus historical uniqueness on `(enfant_id, annee_id, est_active)` and supporting year/group indexes to speed queries.【F:server/models/inscription_enfant.js†L8-L36】【F:server/migrations/041-add-inscriptions-groupe-enfant-annee-unique.js†L3-L17】【F:server/migrations/038-strengthen-integrity-indexes.js†L3-L15】
+- **Educator assignments are unique per educator/year and per group/year while tracking activity state**, with historical uniqueness including `est_active` and indexes for educator/year and group/year filters.【F:server/models/affectation_educateur.js†L8-L36】【F:server/migrations/026-affectations-educateurs-history.js†L5-L36】【F:server/migrations/038-strengthen-integrity-indexes.js†L16-L22】
+- **Daily notes and notifications have indexes matching typical filters** (`projet_id`/`enfant_id` with `date_note`, and `utilisateur_id` with `lu_le`) to keep listings efficient.【F:server/migrations/038-strengthen-integrity-indexes.js†L24-L33】
+- **Core foreign keys remain in place** for groups, enrollments, and assignments: groups link to school years with restricted deletes, and inscriptions/affectations reference groups, years, children, and users to preserve referential integrity.【F:server/migrations/006-groupes.js†L7-L27】【F:server/migrations/007-inscriptions_enfants.js†L9-L35】【F:server/migrations/008-affectations_educateurs.js†L10-L30】
+
+## Remaining gaps / cautions
+- **Parent accounts are not enforced**: `parents_fiche` still only references `enfant_id` and does not carry FK columns to `utilisateurs`, so parent contact rows are not tied to authenticated parent users at the DB level.【F:server/migrations/005-parents_fiche.js†L5-L40】
+- **Year consistency between groups and inscriptions is not enforced by the DB** (group `annee_id` and inscription `annee_id` are independent), so application logic must continue to guard against cross-year mismatches.【F:server/migrations/006-groupes.js†L7-L27】【F:server/migrations/007-inscriptions_enfants.js†L9-L35】
+- **Legacy AI/recommendation tables are absent**, but any future unused structures should still be dropped explicitly via migrations after confirmation; no additional dead tables were detected in this audit.
