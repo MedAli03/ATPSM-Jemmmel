@@ -37,11 +37,23 @@ exports.list = async (q, currentUser) => {
   const page = toPositiveInt(q?.page, DEFAULT_PAGE);
   const limit = Math.min(MAX_LIMIT, toPositiveInt(q?.limit, DEFAULT_LIMIT));
   const search = normalizeSearch(q?.q ?? q?.search);
-  const hasParentFilter = Object.prototype.hasOwnProperty.call(
-    q ?? {},
-    "parent_user_id"
-  );
-  const parent_user_id = hasParentFilter ? q.parent_user_id : undefined;
+  const hasParentFilter = Object.prototype.hasOwnProperty.call(q ?? {}, "parent_user_id");
+  let parent_user_id = undefined;
+
+  if (hasParentFilter) {
+    const rawParent = q?.parent_user_id;
+    const sentinelValues = [undefined, null, "", "null"];
+
+    if (!sentinelValues.includes(rawParent)) {
+      const parsed = Number(rawParent);
+      if (!Number.isInteger(parsed) || parsed <= 0) {
+        const e = new Error("Paramètre parent_user_id invalide");
+        e.status = 400;
+        throw e;
+      }
+      parent_user_id = parsed;
+    }
+  }
 
   if (currentUser?.role === "EDUCATEUR") {
     return educatorAccess.listChildrenForEducateurCurrentYear(currentUser.id, {

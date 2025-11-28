@@ -77,14 +77,21 @@ export async function listEnfants({
   const pageNumber = Number.isFinite(Number(page)) && Number(page) > 0 ? Number(page) : 1;
   const limitRaw = Number.isFinite(Number(pageSize)) && Number(pageSize) > 0 ? Number(pageSize) : 10;
   const limit = Math.min(MAX_PAGE_SIZE, limitRaw);
+
+  let parentFilter;
+  if (parent_user_id !== undefined && parent_user_id !== null && parent_user_id !== "") {
+    const parsedParent = Number(parent_user_id);
+    if (Number.isFinite(parsedParent) && parsedParent > 0) {
+      parentFilter = parsedParent;
+    }
+  }
+
   const { data } = await client.get("/enfants", {
     params: {
       page: pageNumber,
       limit,
       ...(q ? { q } : {}),
-      ...(parent_user_id !== undefined
-        ? { parent_user_id: parent_user_id === null ? "null" : parent_user_id }
-        : {}),
+      ...(parentFilter !== undefined ? { parent_user_id: parentFilter } : {}),
     },
   });
   return normalizeListResponse(data, { page: pageNumber, limit });
