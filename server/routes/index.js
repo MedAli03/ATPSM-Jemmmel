@@ -15,6 +15,7 @@ router.use("/chatbot", require("./chatbot.routes"));
 router.use("/dashboard", require("./dashboard/index"));
 router.use("/annees", require("./annees.routes"));
 router.use("/annees-scolaires", require("./annees-scolaires.routes"));
+router.use("/educateurs", require("./educateurs.routes"));
 
 router.use("/observation", require("./observation_initiale.routes"));
 router.use("/documents", require("./documents.routes"));

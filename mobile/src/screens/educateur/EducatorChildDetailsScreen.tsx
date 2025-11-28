@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -18,6 +19,7 @@ import {
   getChildDetails,
   getLatestPeiForChild,
   getLatestObservationInitiale,
+  ensureParentThreadForChild,
   getPEI,
   getPeiActivities,
   getPeiEvaluations,
@@ -114,6 +116,31 @@ export const EducatorChildDetailsScreen: React.FC = () => {
   }, [childId]);
 
   const fullName = `${child?.prenom ?? ""} ${child?.nom ?? ""}`.trim() || "ملف طفل";
+
+  const openParentChat = async () => {
+    try {
+      const thread = await ensureParentThreadForChild(childId);
+      const parentFullName = [thread.parent?.prenom, thread.parent?.nom]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+      const childFullName = fullName || undefined;
+
+      navigation.navigate("EducatorChatThread", {
+        threadId: thread.threadId,
+        childId,
+        childName: childFullName,
+        parentName: parentFullName || undefined,
+      });
+    } catch (err) {
+      console.error("Failed to open parent chat", err);
+      const fallback =
+        err instanceof ForbiddenError
+          ? err.message
+          : "تعذّر فتح المحادثة مع وليّ الأمر.";
+      Alert.alert("تنبيه", fallback);
+    }
+  };
 
   const renderPeiStatusLabel = () => {
     if (!peiDetails) return "لا يوجد";
@@ -509,11 +536,7 @@ export const EducatorChildDetailsScreen: React.FC = () => {
 
           <TouchableOpacity
             style={styles.quickBtn}
-            onPress={() =>
-              navigation.navigate("EducatorChatThread", {
-                childId,
-              })
-            }
+            onPress={openParentChat}
           >
             <Text style={styles.quickEmoji}>💬</Text>
             <Text style={styles.quickLabel}>رسالة مع الوليّ</Text>

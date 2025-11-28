@@ -27,7 +27,7 @@ type Route = RouteProp<EducatorStackParamList, "EducatorChatThread">;
 
 export const EducatorChatThreadScreen: React.FC = () => {
   const { params } = useRoute<Route>();
-  const { childId, threadId } = params;
+  const { childId, threadId, childName, parentName } = params;
   const [thread, setThread] = useState<MessageThreadSummary | null>(null);
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
   const [input, setInput] = useState("");
@@ -169,10 +169,11 @@ export const EducatorChatThreadScreen: React.FC = () => {
   );
 
   const threadTitle = useMemo(() => {
+    if (childName) return childName;
     if (thread?.title) return thread.title;
     const parent = thread?.participants.find((p) => p.role === "PARENT");
-    return parent?.name ?? "محادثة";
-  }, [thread]);
+    return parent?.name ?? parentName ?? "محادثة";
+  }, [childName, parentName, thread]);
 
   if (!threadId) {
     return (

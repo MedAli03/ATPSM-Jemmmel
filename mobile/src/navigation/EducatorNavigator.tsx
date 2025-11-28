@@ -21,7 +21,12 @@ export type EducatorStackParamList = {
   EducatorChildTimeline: { childId: number; peiId?: number };
   DailyNoteForm: { childId: number; peiId?: number };
   ActivityForm: { childId: number; peiId?: number };
-  EducatorChatThread: { threadId?: number; childId?: number };
+  EducatorChatThread: {
+    threadId: number;
+    childId?: number;
+    childName?: string;
+    parentName?: string;
+  };
   ObservationInitiale: { childId: number };
   EducatorPeiDetail: { childId: number; peiId?: number };
   EducatorPeiCreate: { childId: number; anneeId?: number };

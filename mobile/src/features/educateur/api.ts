@@ -188,6 +188,16 @@ interface SendMessageResponse {
   data?: RawThreadMessage;
 }
 
+interface ParentThreadResponse {
+  ok?: boolean;
+  data?: {
+    threadId?: number;
+    created?: boolean;
+    enfant?: { id: number; prenom?: string | null; nom?: string | null };
+    parent?: { id: number; prenom?: string | null; nom?: string | null };
+  };
+}
+
 export class ForbiddenError extends Error {
   constructor(message?: string) {
     super(
@@ -827,4 +837,33 @@ export const markThreadAsRead = async (
   await api.post(`/messages/threads/${threadId}/read`, {
     upToMessageId: upToMessageId ?? undefined,
   });
+};
+
+export const ensureParentThreadForChild = async (
+  childId: number
+): Promise<{
+  threadId: number;
+  enfant?: { id: number; prenom?: string | null; nom?: string | null };
+  parent?: { id: number; prenom?: string | null; nom?: string | null };
+  created: boolean;
+}> => {
+  try {
+    const response = await api.post<ParentThreadResponse>(
+      `/educateurs/enfants/${childId}/messages/thread`
+    );
+    const payload = response.data?.data ?? (response.data as any);
+    const threadId = payload?.threadId ?? payload?.id;
+    if (!threadId) {
+      throw new Error("لم يتم العثور على محادثة صالحة");
+    }
+    return {
+      threadId: Number(threadId),
+      enfant: payload?.enfant,
+      parent: payload?.parent,
+      created: Boolean(payload?.created),
+    };
+  } catch (error) {
+    throwIfForbidden(error, "لا يمكنك مراسلة وليّ هذا الطفل.");
+    throw error;
+  }
 };

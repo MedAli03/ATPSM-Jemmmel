@@ -9,11 +9,13 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../../features/auth/AuthContext";
 import {
   ForbiddenError,
+  ensureParentThreadForChild,
   getChildrenByGroup,
   getMyGroups,
   listEducatorPeiSummaries,
@@ -179,6 +181,36 @@ export const EducatorDashboardScreen: React.FC = () => {
   const onRefresh = useCallback(() => {
     loadDashboard(true);
   }, [loadDashboard]);
+
+  const openParentChat = useCallback(
+    async (childId: number, childDisplayName?: string) => {
+      try {
+        const thread = await ensureParentThreadForChild(childId);
+        const parentFullName = [thread.parent?.prenom, thread.parent?.nom]
+          .filter(Boolean)
+          .join(" ")
+          .trim();
+        const childFullName =
+          childDisplayName ||
+          buildChildName(thread.enfant?.prenom, thread.enfant?.nom);
+
+        navigation.navigate("EducatorChatThread", {
+          threadId: thread.threadId,
+          childId,
+          childName: childFullName || undefined,
+          parentName: parentFullName || undefined,
+        });
+      } catch (err) {
+        console.error("Failed to open parent chat", err);
+        const fallbackMessage =
+          err instanceof ForbiddenError
+            ? err.message
+            : "تعذّر فتح المحادثة مع وليّ الأمر.";
+        Alert.alert("تنبيه", fallbackMessage);
+      }
+    },
+    [buildChildName, navigation]
+  );
 
   const educatorName =
     (user as any)?.fullName ||
@@ -429,11 +461,7 @@ export const EducatorDashboardScreen: React.FC = () => {
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.actionButton}
-                      onPress={() =>
-                        navigation.navigate("EducatorChatThread", {
-                          childId: c.id,
-                        })
-                      }
+                      onPress={() => openParentChat(c.id, c.name)}
                     >
                       <Text style={styles.actionEmoji}>💬</Text>
                       <Text style={styles.actionText}>رسالة</Text>

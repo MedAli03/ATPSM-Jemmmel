@@ -11,8 +11,10 @@ const {
   Attachment,
   MessageAttachment,
   Utilisateur,
+  Enfant,
 } = require("../models");
 const ApiError = require("../utils/api-error");
+const educatorAccess = require("./educateur_access.service");
 
 const MAX_TEXT_LENGTH = 2000;
 const DEFAULT_PAGE_SIZE = 20;
@@ -560,6 +562,108 @@ function getTyping(threadId) {
   return Array.from(threadTyping.keys()).map((id) => Number(id));
 }
 
+function buildFullName(user) {
+  return [user?.prenom, user?.nom].filter(Boolean).join(" ").trim();
+}
+
+async function findThreadForParticipants(userIds = []) {
+  if (!userIds.length) return null;
+  const rows = await ThreadParticipant.findAll({
+    where: {
+      user_id: { [Op.in]: userIds },
+      [Op.or]: [{ left_at: null }, { left_at: { [Op.gt]: new Date() } }],
+    },
+    attributes: ["thread_id", "user_id"],
+  });
+
+  const presence = new Map();
+  for (const row of rows) {
+    const id = Number(row.thread_id);
+    if (!presence.has(id)) presence.set(id, new Set());
+    presence.get(id).add(Number(row.user_id));
+  }
+
+  const candidates = Array.from(presence.entries())
+    .filter(([, participants]) => userIds.every((id) => participants.has(Number(id))))
+    .map(([threadId]) => threadId);
+
+  if (!candidates.length) return null;
+
+  return Thread.findOne({
+    where: { id: candidates, archived: false },
+    order: [["updated_at", "DESC"]],
+  });
+}
+
+async function ensureEducateurParentThread({ educateurId, enfantId, anneeId = null }) {
+  if (!Number.isInteger(Number(enfantId)) || Number(enfantId) <= 0) {
+    throw new ApiError({ status: 422, message: "Identifiant enfant invalide" });
+  }
+
+  const { anneeId: activeYearId } = await educatorAccess.assertCanAccessChild(
+    educateurId,
+    enfantId
+  );
+
+  if (anneeId && Number(anneeId) !== Number(activeYearId)) {
+    throw new ApiError({
+      status: 403,
+      message: "Année scolaire non autorisée pour cet éducateur",
+    });
+  }
+
+  const enfant = await Enfant.findByPk(enfantId, {
+    attributes: ["id", "prenom", "nom", "parent_user_id"],
+  });
+  if (!enfant) {
+    throw new ApiError({ status: 404, message: "Enfant introuvable" });
+  }
+  if (!enfant.parent_user_id) {
+    throw new ApiError({ status: 404, message: "Aucun parent lié à cet enfant" });
+  }
+
+  const parent = await Utilisateur.findByPk(enfant.parent_user_id, {
+    attributes: ["id", "prenom", "nom", "email", "role"],
+  });
+  if (!parent) {
+    throw new ApiError({ status: 404, message: "Parent introuvable" });
+  }
+
+  const existingThread = await findThreadForParticipants([
+    Number(educateurId),
+    Number(parent.id),
+  ]);
+
+  const payload = {
+    threadId: existingThread ? Number(existingThread.id) : null,
+    enfant: {
+      id: enfant.id,
+      prenom: enfant.prenom,
+      nom: enfant.nom,
+    },
+    parent: {
+      id: Number(parent.id),
+      prenom: parent.prenom,
+      nom: parent.nom,
+    },
+    created: false,
+  };
+
+  if (existingThread) {
+    return payload;
+  }
+
+  const title = buildFullName(enfant) || `Enfant ${enfant.id}`;
+  const thread = await createThread({
+    actorId: educateurId,
+    participantIds: [parent.id],
+    title,
+    isGroup: false,
+  });
+
+  return { ...payload, threadId: Number(thread.id), created: true };
+}
+
 module.exports = {
   createThread,
   listThreads,
@@ -570,4 +674,5 @@ module.exports = {
   unreadCount,
   setTyping,
   getTyping,
+  ensureEducateurParentThread,
 };
