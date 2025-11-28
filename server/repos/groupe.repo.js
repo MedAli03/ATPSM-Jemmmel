@@ -94,6 +94,18 @@ exports.closeInscriptionById = (id, closedAt, t = null) =>
     { where: { id }, transaction: t }
   );
 
+exports.deleteInscriptionById = (groupe_id, inscription_id, t = null) =>
+  InscriptionEnfant.destroy({
+    where: { id: inscription_id, groupe_id },
+    transaction: t,
+  });
+
+exports.deleteInscriptionsByGroup = (groupe_id, annee_id = null, t = null) => {
+  const where = { groupe_id };
+  if (annee_id) where.annee_id = annee_id;
+  return InscriptionEnfant.destroy({ where, transaction: t });
+};
+
 const buildNameSearchFilters = (search, alias = "Enfant") => {
   if (!search || typeof search !== "string") return null;
   const term = `%${search.trim()}%`;
@@ -271,6 +283,18 @@ exports.closeAffectationById = (id, closedAt, t = null) =>
     { est_active: false, date_fin_affectation: closedAt },
     { where: { id }, transaction: t }
   );
+
+exports.deleteAffectationById = (groupe_id, affectation_id, t = null) =>
+  AffectationEducateur.destroy({
+    where: { id: affectation_id, groupe_id },
+    transaction: t,
+  });
+
+exports.deleteAffectationsByGroup = (groupe_id, annee_id = null, t = null) => {
+  const where = { groupe_id };
+  if (annee_id) where.annee_id = annee_id;
+  return AffectationEducateur.destroy({ where, transaction: t });
+};
 
 exports.listEducateurCandidates = async (
   { annee_id, search, page = 1, limit = 10 },

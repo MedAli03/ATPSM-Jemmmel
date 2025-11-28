@@ -92,7 +92,10 @@ exports.inscrireEnfants = async (req, res, next) => {
 
 exports.removeInscription = async (req, res, next) => {
   try {
-    const data = await service.removeInscription(Number(req.params.inscriptionId));
+    const data = await service.removeInscription(
+      Number(req.params.groupeId),
+      Number(req.params.inscriptionId)
+    );
     res.json({ ok: true, data });
   } catch (e) { next(e); }
 };

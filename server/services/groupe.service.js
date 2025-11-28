@@ -63,43 +63,25 @@ exports.archive = async (id, statut) => {
   return repo.findById(id);
 };
 
-exports.remove = async (id, annee_id) => {
-  const groupe = await repo.findById(id);
-  if (!groupe) {
-    return { status: 404, data: { message: "Groupe introuvable" } };
-  }
+exports.remove = async (id, annee_id) =>
+  sequelize.transaction(async (t) => {
+    const groupe = await repo.findById(id, t);
+    if (!groupe) {
+      return { status: 404, data: { message: "Groupe introuvable" } };
+    }
 
-  const guard = await repo.hasUsages(id, { annee_id: annee_id ?? groupe.annee_id });
-  if ((guard.inscriptions ?? 0) > 0 || (guard.affectations ?? 0) > 0) {
-    return {
-      status: 409,
-      data: {
-        message:
-          "Suppression impossible : des inscriptions ou affectations sont associées à ce groupe.",
-        details: guard,
-      },
-    };
-  }
+    const year = annee_id ?? groupe.annee_id ?? null;
 
-  try {
-    const deleted = await repo.deleteById(id);
+    await repo.deleteInscriptionsByGroup(id, year, t);
+    await repo.deleteAffectationsByGroup(id, year, t);
+
+    const deleted = await repo.deleteById(id, t);
     if (!deleted) {
       return { status: 404, data: { message: "Groupe introuvable" } };
     }
+
     return { status: 200, data: { deleted: true, message: "Groupe supprimé" } };
-  } catch (err) {
-    if (err?.name === "SequelizeForeignKeyConstraintError") {
-      return {
-        status: 409,
-        data: {
-          message:
-            "Suppression impossible : des données liées empêchent la suppression de ce groupe.",
-        },
-      };
-    }
-    throw err;
-  }
-};
+  });
 
 exports.listByYear = (annee_id) => repo.listByYear(annee_id);
 
@@ -259,19 +241,17 @@ exports.inscrireEnfants = async (groupe_id, annee_id, enfant_ids) => {
   });
 };
 
-exports.removeInscription = async (inscription_id) => {
-  const [nb] = await repo.closeInscriptionById(
-    inscription_id,
-    new Date()
-  );
+exports.removeInscription = async (groupe_id, inscription_id) =>
+  sequelize.transaction(async (t) => {
+    const nb = await repo.deleteInscriptionById(groupe_id, inscription_id, t);
 
-  if (!nb) {
-    const e = new Error("Inscription introuvable");
-    e.status = 404;
-    throw e;
-  }
-  return { deleted: true };
-};
+    if (!nb) {
+      const e = new Error("Inscription introuvable");
+      e.status = 404;
+      throw e;
+    }
+    return { deleted: true };
+  });
 
 /* ===================== Affectation ===================== */
 exports.getAffectation = async (groupe_id, annee_id) => {
@@ -324,17 +304,18 @@ exports.affecterEducateur = async (groupe_id, annee_id, educateur_id) =>
     return fresh ? fresh.get({ plain: true }) : row.get({ plain: true });
   });
 
-exports.removeAffectation = async (groupe_id, affectation_id) => {
-  const [nb] = await repo.removeAffectationById(groupe_id, affectation_id);
+exports.removeAffectation = async (groupe_id, affectation_id) =>
+  sequelize.transaction(async (t) => {
+    const nb = await repo.deleteAffectationById(groupe_id, affectation_id, t);
 
-  if (!nb) {
-    const e = new Error("Affectation introuvable");
-    e.status = 404;
-    throw e;
-  }
+    if (!nb) {
+      const e = new Error("Affectation introuvable");
+      e.status = 404;
+      throw e;
+    }
 
-  return { deleted: true };
-};
+    return { deleted: true };
+  });
 
 /* ===================== Candidates ===================== */
 exports.searchEnfantsCandidats = async (params) => {
