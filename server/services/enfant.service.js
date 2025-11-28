@@ -42,7 +42,7 @@ exports.list = async (q, currentUser) => {
 
   if (hasParentFilter) {
     const rawParent = q?.parent_user_id;
-    const sentinelValues = [undefined, null, "", "null"];
+    const sentinelValues = [undefined, null, "", "null", "undefined"];
 
     if (!sentinelValues.includes(rawParent)) {
       const parsed = Number(rawParent);

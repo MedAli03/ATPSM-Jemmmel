@@ -31,7 +31,10 @@ const listEnfantsQuerySchema = Joi.object({
   q: searchField,
   search: searchField,
   parent_user_id: Joi.alternatives()
-    .try(Joi.number().integer().positive(), Joi.valid(null, "null"))
+    .try(
+      Joi.number().integer().positive(),
+      Joi.valid(null, "null", "undefined", "")
+    )
     .optional(),
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(20),
@@ -47,9 +50,12 @@ const listEnfantsQuerySchema = Joi.object({
 
     delete normalized.search;
 
-    // Normalize parent_user_id: accept "null" or null as a sentinel for
-    // "children without parent accounts".
-    if (normalized.parent_user_id === "null") {
+    // Normalize parent_user_id: accept "null"/"undefined"/empty as sentinels.
+    if (
+      normalized.parent_user_id === "null" ||
+      normalized.parent_user_id === "undefined" ||
+      normalized.parent_user_id === ""
+    ) {
       normalized.parent_user_id = null;
     }
 

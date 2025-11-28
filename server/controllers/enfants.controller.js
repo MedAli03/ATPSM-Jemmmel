@@ -23,7 +23,21 @@ exports.listNonInscrits = async (req, res, next) => {
 // List
 exports.list = async (req, res, next) => {
   try {
-    const data = await svc.list(req.query, req.user);
+    const rawParent = req.query?.parent_user_id;
+    const sentinel = [undefined, null, "", "null", "undefined"];
+    const sanitizedQuery = { ...req.query };
+
+    if (sentinel.includes(rawParent)) {
+      delete sanitizedQuery.parent_user_id;
+    } else {
+      const parsed = Number(rawParent);
+      if (!Number.isInteger(parsed) || parsed <= 0) {
+        return res.status(400).json({ ok: false, message: "Invalid parent_user_id" });
+      }
+      sanitizedQuery.parent_user_id = parsed;
+    }
+
+    const data = await svc.list(sanitizedQuery, req.user);
     res.json({ ok: true, ...data });
   } catch (e) {
     next(e);
