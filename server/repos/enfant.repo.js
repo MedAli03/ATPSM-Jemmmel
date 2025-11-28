@@ -39,7 +39,17 @@ exports.findAll = async (filters = {}, pagination = {}, t = null) => {
   const { rows, count } = await Enfant.findAndCountAll({
     where,
     include: [
-      { model: Utilisateur, as: "parent", attributes: ["id", "nom", "prenom", "email", "telephone"] },
+      {
+        model: Utilisateur,
+        as: "parent",
+        attributes: ["id", "nom", "prenom", "email", "telephone"],
+      },
+      {
+        model: InscriptionEnfant,
+        as: "inscriptions",
+        required: false,
+        attributes: ["id", "date_inscription"],
+      },
     ],
     order: [
       ["created_at", "DESC"],
@@ -48,6 +58,7 @@ exports.findAll = async (filters = {}, pagination = {}, t = null) => {
     limit,
     offset,
     transaction: t,
+    distinct: true,
   });
 
   return { rows, count, page, limit };
