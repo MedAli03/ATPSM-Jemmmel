@@ -14,11 +14,11 @@ export const getMyChildren = async (): Promise<Child[]> => {
   const response = await api.get<{ rows?: Child[]; data?: Child[] }>(
     "/enfants/me/enfants",
   );
-  if (Array.isArray(response.data?.rows)) {
-    return response.data.rows;
-  }
   if (Array.isArray(response.data?.data)) {
     return response.data.data;
+  }
+  if (Array.isArray(response.data?.rows)) {
+    return response.data.rows;
   }
   return [];
 };

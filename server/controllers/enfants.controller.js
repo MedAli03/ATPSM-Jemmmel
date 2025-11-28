@@ -188,8 +188,8 @@ exports.createParentAccount = async (req, res, next) => {
 // Parent self-view
 exports.listMine = async (req, res, next) => {
   try {
-    const data = await svc.listForParent(req.user.id, req.query);
-    res.json({ ok: true, ...data });
+    const { data, meta } = await svc.listForParent(req.user.id, req.query);
+    res.json({ ok: true, data, meta });
   } catch (e) {
     next(e);
   }

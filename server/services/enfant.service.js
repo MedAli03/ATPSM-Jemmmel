@@ -3,7 +3,7 @@
 const bcrypt = require("bcrypt");
 const SALT_ROUNDS = 10;
 
-const {
+const {  
   sequelize,
   Enfant,
   Utilisateur,
@@ -15,6 +15,7 @@ const {
 } = require("../models");
 const repo = require("../repos/enfant.repo");
 const educatorAccess = require("./educateur_access.service");
+const anneesRepo = require("../repos/annees.repo");
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
@@ -322,11 +323,66 @@ exports.unlinkParent = async (id) => {
   });
 };
 
-exports.listForParent = (parentId, q) =>
-  repo.findByParent(parentId, {
-    page: toPositiveInt(q?.page, DEFAULT_PAGE),
-    limit: Math.min(MAX_LIMIT, toPositiveInt(q?.limit, DEFAULT_LIMIT)),
+exports.listForParent = async (parentId, q) => {
+  const page = toPositiveInt(q?.page, DEFAULT_PAGE);
+  const limit = Math.min(MAX_LIMIT, toPositiveInt(q?.limit, DEFAULT_LIMIT));
+  const activeYear = await anneesRepo.findActive();
+
+  if (!activeYear) {
+    const err = new Error("Aucune année scolaire active");
+    err.status = 409;
+    throw err;
+  }
+
+  const { rows, count } = await repo.findByParent(
+    parentId,
+    { page, limit, annee_id: activeYear.id }
+  );
+
+  const items = rows.map((row) => {
+    const enfant = row.get({ plain: true });
+    const activeInscription = Array.isArray(enfant.inscriptions)
+      ? enfant.inscriptions[0]
+      : null;
+    const groupe = activeInscription?.groupe || null;
+    const affectation = Array.isArray(groupe?.affectations)
+      ? groupe.affectations[0]
+      : null;
+    const educateur = affectation?.educateur || null;
+
+    return {
+      id: enfant.id,
+      prenom: enfant.prenom,
+      nom: enfant.nom,
+      date_naissance: enfant.date_naissance,
+      diagnostic: enfant.diagnostic ?? null,
+      besoins_specifiques: enfant.besoins_specifiques ?? null,
+      allergies: enfant.allergies ?? null,
+      photo_url: enfant.photo_url ?? null,
+      groupe_actuel: groupe
+        ? { id: groupe.id, nom: groupe.nom, annee_id: groupe.annee_id }
+        : null,
+      educateur_referent: educateur
+        ? { id: educateur.id, nom: educateur.nom, prenom: educateur.prenom }
+        : null,
+      active_pei: enfant.active_pei ?? null,
+      parent: enfant.parent ?? null,
+      last_note_date: enfant.last_note_date ?? null,
+      last_note_preview: enfant.last_note_preview ?? null,
+      thread_id: enfant.thread_id ?? null,
+    };
   });
+
+  return {
+    data: items,
+    meta: {
+      page,
+      limit,
+      total: count,
+      hasMore: page * limit < count,
+    },
+  };
+};
 
 /**
  * Helper: create parent account from parents_fiche and link to child.
