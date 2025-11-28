@@ -25,19 +25,25 @@ exports.list = async (req, res, next) => {
   try {
     const rawParent = req.query?.parent_user_id;
     const sentinel = [undefined, null, "", "null", "undefined"];
-    const sanitizedQuery = { ...req.query };
+    let parentUserId = null;
 
-    if (sentinel.includes(rawParent)) {
-      delete sanitizedQuery.parent_user_id;
-    } else {
+    if (!sentinel.includes(rawParent)) {
       const parsed = Number(rawParent);
       if (!Number.isInteger(parsed) || parsed <= 0) {
-        return res.status(400).json({ ok: false, message: "Invalid parent_user_id" });
+        return res
+          .status(400)
+          .json({ ok: false, message: "Invalid parent_user_id" });
       }
-      sanitizedQuery.parent_user_id = parsed;
+      parentUserId = parsed;
     }
 
-    const data = await svc.list(sanitizedQuery, req.user);
+    const data = await svc.list(
+      {
+        ...req.query,
+        ...(parentUserId !== null ? { parent_user_id: parentUserId } : {}),
+      },
+      req.user
+    );
     res.json({ ok: true, ...data });
   } catch (e) {
     next(e);
