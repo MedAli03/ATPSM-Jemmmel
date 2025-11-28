@@ -78,6 +78,7 @@ const MessageAttachment = require("./message_attachment")(sequelize, DataTypes);
 const MessageReadReceipt = require("./message_read_receipt")(sequelize, DataTypes);
 const Attachment = require("./attachment")(sequelize, DataTypes);
 const Notification = require("./notification")(sequelize, DataTypes);
+const ParentChildReadState = require("./parent_child_read_state")(sequelize, DataTypes);
 
 /* -------------------------------------------------------------------------- */
 /*                             ASSOCIATIONS INLINE                            */
@@ -96,6 +97,24 @@ UtilisateurSession.belongsTo(Utilisateur, {
 // Utilisateur (parent) -> enfants
 Utilisateur.hasMany(Enfant, { as: "enfants", foreignKey: "parent_user_id" });
 Enfant.belongsTo(Utilisateur, { as: "parent", foreignKey: "parent_user_id" });
+
+Utilisateur.hasMany(ParentChildReadState, {
+  as: "child_read_states",
+  foreignKey: "parent_id",
+});
+ParentChildReadState.belongsTo(Utilisateur, {
+  as: "parent",
+  foreignKey: "parent_id",
+});
+
+Enfant.hasMany(ParentChildReadState, {
+  as: "parent_read_states",
+  foreignKey: "child_id",
+});
+ParentChildReadState.belongsTo(Enfant, {
+  as: "child",
+  foreignKey: "child_id",
+});
 
 // Enfant -> FicheEnfant (1:1)
 Enfant.hasOne(FicheEnfant, { as: "fiche", foreignKey: "enfant_id" });
@@ -342,6 +361,7 @@ const db = {
   Attachment,
   Notification,
   UtilisateurSession,
+  ParentChildReadState,
 };
 
 // Optional: print loaded models once (helps debug name mismatches)

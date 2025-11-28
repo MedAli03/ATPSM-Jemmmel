@@ -25,6 +25,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER.UNSIGNED,
         allowNull: true, // sera lié plus tard (link/unlink)
       },
+      thread_id: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        allowNull: true,
+      },
       created_at: { type: DataTypes.DATE, allowNull: true },
       updated_at: { type: DataTypes.DATE, allowNull: true },
     },
