@@ -14,6 +14,7 @@ import { ActivityFormScreen } from "../screens/educateur/ActivityFormScreen";
 import { ObservationInitialeScreen } from "../screens/educateur/ObservationInitialeScreen";
 import { EducatorPeiDetailScreen } from "../screens/educateur/EducatorPeiDetailScreen";
 import { EducatorPeiCreateScreen } from "../screens/educateur/EducatorPeiCreateScreen";
+import { EducatorChatbotScreen } from "../screens/educateur/EducatorChatbotScreen";
 
 export type EducatorStackParamList = {
   EducatorTabs: undefined;
@@ -27,6 +28,7 @@ export type EducatorStackParamList = {
     childName?: string;
     parentName?: string;
   };
+  EducatorChatbot: { enfantId: number; anneeId: number; childName?: string };
   ObservationInitiale: { childId: number };
   EducatorPeiDetail: { childId: number; peiId?: number };
   EducatorPeiCreate: { childId: number; anneeId?: number };
@@ -119,6 +121,11 @@ export const EducatorNavigator = () => {
         name="EducatorChatThread"
         component={EducatorChatThreadScreen}
         options={{ title: "محادثة مع الولي" }}
+      />
+      <Stack.Screen
+        name="EducatorChatbot"
+        component={EducatorChatbotScreen}
+        options={{ title: "المساعد البيداغوجي" }}
       />
       <Stack.Screen
         name="ObservationInitiale"

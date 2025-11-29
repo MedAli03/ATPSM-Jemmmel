@@ -15,6 +15,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../../features/auth/AuthContext";
 import {
   ForbiddenError,
+  getActiveSchoolYear,
   ensureParentThreadForChild,
   getChildrenByGroup,
   getMyGroups,
@@ -62,6 +63,7 @@ export const EducatorDashboardScreen: React.FC = () => {
   const [peiItems, setPeiItems] = useState<PeiSummary[]>([]);
   const [observations, setObservations] = useState<ObservationSummary[]>([]);
   const [yearLabel, setYearLabel] = useState<string>("السنة الدراسيّة الجارية");
+  const [activeYearId, setActiveYearId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,6 +83,9 @@ export const EducatorDashboardScreen: React.FC = () => {
       setError(null);
 
       try {
+        const activeYear = await getActiveSchoolYear();
+        setActiveYearId(activeYear.id);
+
         const [groups, peiSummaries, observationRows] = await Promise.all([
           getMyGroups(),
           user?.id ? listEducatorPeiSummaries(user.id, { limit: 20 }) : Promise.resolve([]),
@@ -91,7 +96,9 @@ export const EducatorDashboardScreen: React.FC = () => {
 
         const activeGroups = groups.filter((group) => group.statut !== "archive");
         if (activeGroups.length) {
-          setYearLabel(activeGroups[0].annee_scolaire ?? yearLabel);
+          setYearLabel(activeGroups[0].annee_scolaire ?? activeYear.libelle ?? yearLabel);
+        } else if (activeYear.libelle) {
+          setYearLabel(activeYear.libelle);
         }
 
         const rosters = await Promise.all(
@@ -210,6 +217,24 @@ export const EducatorDashboardScreen: React.FC = () => {
       }
     },
     [buildChildName, navigation]
+  );
+
+  const openChatbot = useCallback(
+    async (childId: number, childDisplayName?: string) => {
+      try {
+        const yearId = activeYearId ?? (await getActiveSchoolYear()).id;
+        setActiveYearId(yearId);
+        navigation.navigate("EducatorChatbot", {
+          enfantId: childId,
+          anneeId: yearId,
+          childName: childDisplayName,
+        });
+      } catch (err) {
+        console.error("Failed to open chatbot", err);
+        Alert.alert("خطأ", "تعذّر فتح المساعد البيداغوجي.");
+      }
+    },
+    [activeYearId, navigation]
   );
 
   const educatorName =
@@ -465,6 +490,13 @@ export const EducatorDashboardScreen: React.FC = () => {
                     >
                       <Text style={styles.actionEmoji}>💬</Text>
                       <Text style={styles.actionText}>رسالة</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={() => openChatbot(c.id, c.name)}
+                    >
+                      <Text style={styles.actionEmoji}>🤖</Text>
+                      <Text style={styles.actionText}>مساعد</Text>
                     </TouchableOpacity>
                   </View>
                 </TouchableOpacity>
