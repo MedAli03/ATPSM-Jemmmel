@@ -1,7 +1,10 @@
 "use strict";
 
 const { ChatbotMessage, sequelize } = require("../models");
-const { buildEducatorChatContext } = require("../services/chatbot_context.service");
+const {
+  buildEducatorChatContext,
+  assertEducatorHasAccessToChild,
+} = require("../services/chatbot_context.service");
 const { askChatbot } = require("../services/llm.service");
 
 const parsePositiveInt = (value) => {
@@ -21,14 +24,18 @@ exports.getChatbotMessages = async (req, res, next) => {
         .json({ message: "Paramètres enfantId ou anneeId invalides" });
     }
 
-    // Validate access; context content is not needed here
-    await buildEducatorChatContext({ enfantId, educateurId, anneeId });
+    // Validate access without loading the full context
+    const { year } = await assertEducatorHasAccessToChild(
+      educateurId,
+      enfantId,
+      anneeId
+    );
 
     const messages = await ChatbotMessage.findAll({
       where: {
         enfant_id: enfantId,
         educateur_id: educateurId,
-        annee_id: anneeId,
+        annee_id: year.id,
       },
       order: [
         ["created_at", "ASC"],
@@ -69,11 +76,13 @@ exports.postChatbotMessage = async (req, res, next) => {
 
   try {
     const result = await sequelize.transaction(async (t) => {
+      const targetAnneeId = context.anneeId || anneeId;
+
       const userMessage = await ChatbotMessage.create(
         {
           enfant_id: enfantId,
           educateur_id: educateurId,
-          annee_id: anneeId,
+          annee_id: targetAnneeId,
           role: "user",
           message,
         },
@@ -92,7 +101,7 @@ exports.postChatbotMessage = async (req, res, next) => {
         {
           enfant_id: enfantId,
           educateur_id: educateurId,
-          annee_id: anneeId,
+          annee_id: targetAnneeId,
           role: "assistant",
           message: assistantText,
         },

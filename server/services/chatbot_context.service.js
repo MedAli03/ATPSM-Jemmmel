@@ -241,8 +241,8 @@ exports.buildEducatorChatContext = async ({ enfantId, educateurId, anneeId }) =>
     notesSummary,
     evaluationsSummary,
     activitiesSummary,
+    anneeId: year.id,
     fullContext: sections.join("\n\n"),
   };
 };
-
-module.exports.assertEducatorHasAccessToChild = assertEducatorHasAccessToChild;
+exports.assertEducatorHasAccessToChild = assertEducatorHasAccessToChild;
