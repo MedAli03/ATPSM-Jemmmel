@@ -49,25 +49,26 @@ async function assertEducatorHasAccessToChild(educateurId, enfantId, anneeId, tr
         model: Groupe,
         as: "groupe",
         required: true,
-        include: [
-          {
-            model: AffectationEducateur,
-            as: "affectations",
-            attributes: ["id"],
-            required: true,
-            where: {
-              educateur_id: Number(educateurId),
-              annee_id: year.id,
-              est_active: true,
-            },
-          },
-        ],
       },
     ],
     transaction,
   });
 
   if (!inscription) {
+    throw buildError("Accès refusé à cet enfant pour cette année", 403);
+  }
+
+  const affectation = await AffectationEducateur.findOne({
+    where: {
+      educateur_id: Number(educateurId),
+      groupe_id: inscription.groupe_id,
+      annee_id: year.id,
+      est_active: true,
+    },
+    transaction,
+  });
+
+  if (!affectation) {
     throw buildError("Accès refusé à cet enfant pour cette année", 403);
   }
 
