@@ -78,6 +78,7 @@ const MessageAttachment = require("./message_attachment")(sequelize, DataTypes);
 const MessageReadReceipt = require("./message_read_receipt")(sequelize, DataTypes);
 const Attachment = require("./attachment")(sequelize, DataTypes);
 const Notification = require("./notification")(sequelize, DataTypes);
+const ChatbotMessage = require("./chatbot_message")(sequelize, DataTypes);
 
 /* -------------------------------------------------------------------------- */
 /*                             ASSOCIATIONS INLINE                            */
@@ -281,6 +282,23 @@ MessageReadReceipt.belongsTo(Utilisateur, {
   foreignKey: "user_id",
 });
 
+// Chatbot messages (educateur ↔ assistant scoped by enfant + année)
+ChatbotMessage.belongsTo(Enfant, { as: "enfant", foreignKey: "enfant_id" });
+ChatbotMessage.belongsTo(Utilisateur, {
+  as: "educateur",
+  foreignKey: "educateur_id",
+});
+ChatbotMessage.belongsTo(AnneeScolaire, { as: "annee", foreignKey: "annee_id" });
+Enfant.hasMany(ChatbotMessage, { as: "chatbotMessages", foreignKey: "enfant_id" });
+Utilisateur.hasMany(ChatbotMessage, {
+  as: "chatbotMessages",
+  foreignKey: "educateur_id",
+});
+AnneeScolaire.hasMany(ChatbotMessage, {
+  as: "chatbotMessages",
+  foreignKey: "annee_id",
+});
+
 Attachment.belongsTo(Utilisateur, {
   as: "uploader",
   foreignKey: "uploader_id",
@@ -341,6 +359,7 @@ const db = {
   MessageReadReceipt,
   Attachment,
   Notification,
+  ChatbotMessage,
   UtilisateurSession,
 };
 
