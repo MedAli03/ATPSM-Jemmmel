@@ -1,7 +1,9 @@
 "use strict";
 
-const DEFAULT_BASE_URL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
-const DEFAULT_MODEL = process.env.OLLAMA_MODEL_NAME || "llama2";
+const DEFAULT_BASE_URL =
+  process.env.OLLAMA_BASE_URL || "http://localhost:11434";
+const DEFAULT_MODEL =
+  process.env.OLLAMA_MODEL_NAME || "deepseek-v3.1:671b-cloud";
 
 const normalizeBaseUrl = (url) => {
   if (typeof url !== "string" || !url.trim()) return "http://localhost:11434";
@@ -57,7 +59,9 @@ exports.generateChatCompletion = async (prompt) => {
   if (!response.ok) {
     const reason = payload?.error || payload?.message || response.statusText;
     throw buildOllamaError(
-      `Ollama request failed (${response.status})${reason ? `: ${reason}` : ""}`,
+      `Ollama request failed (${response.status})${
+        reason ? `: ${reason}` : ""
+      }`,
       response.status || 502
     );
   }
